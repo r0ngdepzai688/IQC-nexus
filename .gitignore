@@ -1,0 +1,27 @@
+# .NET Core
+[Bb]in/
+[Oo]bj/
+[Oo]ut/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Node
+node_modules/
+.next/
+out/
+build/
+dist/
+.env*.local
+
+# SQLite
+*.db
+*.db-shm
+*.db-wal
+localstorage.db
+
+# OS
+.DS_Store
+Thumbs.db

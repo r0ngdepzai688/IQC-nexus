@@ -1,0 +1,6 @@
+{
+  "DatabaseConfig": {
+    "Provider": "SQLite",
+    "ConnectionString": "Data Source=localstorage.db"
+  }
+}
