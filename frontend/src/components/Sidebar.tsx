@@ -103,6 +103,13 @@ export function Sidebar() {
 
         {/* User Area / Logout */}
         <div className="p-3 border-t border-gray-100/80 dark:border-gray-800/80 mt-auto">
+          <div 
+            className={`text-[10px] text-gray-400 dark:text-gray-500 mb-3 text-center transition-opacity duration-300 ${
+              isHovered ? "opacity-100" : "opacity-0 hidden"
+            }`}
+          >
+            © Bản quyền thuộc về hai.duong
+          </div>
           <button 
             className={`flex items-center h-12 px-2.5 w-full text-sm font-medium text-gray-600 dark:text-gray-400 rounded-xl hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors duration-200 group`}
             title={!isHovered ? "Đăng xuất" : undefined}

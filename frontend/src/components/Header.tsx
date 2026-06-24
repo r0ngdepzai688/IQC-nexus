@@ -63,11 +63,11 @@ export function Header() {
 
         <button className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <div className="flex flex-col items-end">
-            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-none">John Doe</span>
+            <span className="text-sm font-semibold text-gray-900 dark:text-gray-100 leading-none">Nguyễn Hải Đường</span>
             <span className="text-[11px] font-medium text-[#1428A0] dark:text-blue-400 mt-1 bg-blue-50 dark:bg-[#1428A0]/20 px-2 py-0.5 rounded-full">Trưởng phòng IQC</span>
           </div>
           <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-[#1428A0] to-blue-400 dark:from-blue-600 dark:to-blue-400 flex items-center justify-center text-white font-bold text-sm shadow-sm ring-2 ring-white dark:ring-[#09090b]">
-            JD
+            NHD
           </div>
         </button>
       </div>
