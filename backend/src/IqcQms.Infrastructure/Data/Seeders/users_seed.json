@@ -1,0 +1,3912 @@
+[
+  {
+    "EmployeeId": "10525728",
+    "Name": "Bùi Thị Thúy",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "thuy.bui@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11556731",
+    "Name": "Lê Thị Huệ",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Senior Professional",
+    "KnoxId": "le.hue@samsung.com",
+    "Position": "Cell Leader",
+    "Scope": "Compliance"
+  },
+  {
+    "EmployeeId": "12532453",
+    "Name": "Lê Văn Huy",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "huy.levan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11546567",
+    "Name": "Mai Thị Oanh",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "mai.oanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16787349",
+    "Name": "Nguyễn Thị Linh",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "linh93.nt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9523412",
+    "Name": "Nguyễn Thị Vân",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "thi.van@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14584360",
+    "Name": "Nhữ Thị Hiến",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "nhu.hien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10577005",
+    "Name": "Phan Đăng Thắng",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "phan.thang@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13533321",
+    "Name": "Phạm Thị Hiền",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "hien.pt1@samsung.com",
+    "Position": "Cell Leader",
+    "Scope": "Workforce"
+  },
+  {
+    "EmployeeId": "15811566",
+    "Name": "Triệu Thị Hương",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "huong.tt14@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18767266",
+    "Name": "Trần Trọng Đạt",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "dat.tt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14580823",
+    "Name": "Đinh Thị Hồng Nhung",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "dinh.hnhung@samsung.com",
+    "Position": "Cell Leader",
+    "Scope": "Workforce"
+  },
+  {
+    "EmployeeId": "10577008",
+    "Name": "Nguyễn Xuân Phương",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Professional",
+    "KnoxId": "xuan.phuong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "8504165",
+    "Name": "Trần Lê Vinh",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Senior Professional",
+    "KnoxId": "tran.vinh@samsung.com",
+    "Position": "Group Leader",
+    "Scope": "IQC G"
+  },
+  {
+    "EmployeeId": "11556795",
+    "Name": "Hoàng Thị Thu",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Senior Professional",
+    "KnoxId": "hoang.thu@samsung.com",
+    "Position": "Cell Leader",
+    "Scope": "Inspections"
+  },
+  {
+    "EmployeeId": "13625294",
+    "Name": "Nguyễn Thị Bích",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "bich.nt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15811840",
+    "Name": "Phạm Kiều Anh",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "anh.pk@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12569581",
+    "Name": "Nguyễn Minh Tuấn",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Senior Professional",
+    "KnoxId": "mtuan.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13668517",
+    "Name": "Ngô Văn Hoan",
+    "Department": "IQC G",
+    "Organization": "IQC G",
+    "CLName": "Associate",
+    "KnoxId": "hoan.nv3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10572713",
+    "Name": "Lương Thị Hồng Mai",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "mai.lth@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10505045",
+    "Name": "Nguyễn Quang Huy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "quang.huy@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12532451",
+    "Name": "Nguyễn Văn Toàn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "vantoan.nv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14554460",
+    "Name": "Ngọ Văn Toàn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "toan.nv4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11533287",
+    "Name": "Phan Thị Huệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hue.pt6@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14542913",
+    "Name": "Phạm Thị Ngọc",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ngoc.pt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759355",
+    "Name": "Trương Thị Dịu",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "diu.tt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12532654",
+    "Name": "Bùi Văn Thuấn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "bui.thuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9504404",
+    "Name": "Hoàng Thị Huệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "h.hue@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13632202",
+    "Name": "Nguyễn Bá Quang",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "quang.nbq@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10545998",
+    "Name": "Nguyễn Hải Đường",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "hai.duong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14824027",
+    "Name": "Nguyễn Hữu Dũng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "dung.huu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10577013",
+    "Name": "Nguyễn Ngọc Toản",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "ngoc.toan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14502889",
+    "Name": "Nguyễn Thị Liên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "lien.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10506816",
+    "Name": "Nguyễn Thị Quỳnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "thi.quynh@samsung.com",
+    "Position": "Part Leader",
+    "Scope": "IQC 1P"
+  },
+  {
+    "EmployeeId": "14501973",
+    "Name": "Nguyễn Văn Đương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "ng_van.duong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14824055",
+    "Name": "Nguyễn Xuân Việt",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "viet.xuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13614734",
+    "Name": "Phạm Viết Toàn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "viet.toan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14502081",
+    "Name": "Phạm Xuân Hải",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "xuanhai.ph@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691217",
+    "Name": "Trần Ngọc Duy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "tr.ngoc.duy@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12532558",
+    "Name": "Trần Văn Lâm",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "tran.lam@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14808647",
+    "Name": "Trịnh Lâm Tới",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Senior Professional",
+    "KnoxId": "lam.toi@samsung.com",
+    "Position": "Cell Leader",
+    "Scope": "New models"
+  },
+  {
+    "EmployeeId": "10521575",
+    "Name": "Trịnh Thị Thanh Tuyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "trinh.tuyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9504551",
+    "Name": "Đặng Thị Ngọc",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "dang.ngoc@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10583640",
+    "Name": "Bùi Thị Liên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "bui.lien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12539885",
+    "Name": "Giáp Thị Nhung",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "giap.nhung@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811692",
+    "Name": "Lê Thị Kim Cúc",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "cuc.ltk@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12569248",
+    "Name": "Lý Thị Phượng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.lt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15826695",
+    "Name": "Nguyễn Thị Hương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huong.nt36@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15821465",
+    "Name": "Nguyễn Thị Minh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "minh.nt8@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17775093",
+    "Name": "Nguyễn Thị Mỹ Duyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "duyen.ntm@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13656147",
+    "Name": "Nguyễn Thị Thảo",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thao.nt19@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15754823",
+    "Name": "Nguyễn Văn Hào",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hao.nv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10588954",
+    "Name": "Vi Thị Doãn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vi.doan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15832333",
+    "Name": "Vy Thị Thiết",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thiet.vt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12592481",
+    "Name": "Vũ Thị An",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "an.vt10@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11565557",
+    "Name": "Đàm Thị Lệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "le.dt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10583652",
+    "Name": "Đường Thu Hằng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hang.dt7@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18752251",
+    "Name": "Đỗ Thị Bích Hạnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "do.hanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9529531",
+    "Name": "Hoàng Thị Hằng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hang.ht5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12598270",
+    "Name": "Lê Thị Anh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "anh.lt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17771520",
+    "Name": "Nguyễn Thị Huyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huyen.nt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18751705",
+    "Name": "Nguyễn Thị Hà",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "n.t.ha1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11516462",
+    "Name": "Nguyễn Đăng Kiên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "dang.kien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12598234",
+    "Name": "Bùi Thị Nụ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nu.bt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14632110",
+    "Name": "Hoàng Thị Tài",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tai.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13572686",
+    "Name": "Lê Thị Ngọc Phương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.ltn@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14565984",
+    "Name": "Lý Thị Nhung",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nhung.lt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11595744",
+    "Name": "Nguyễn Quốc Hạnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "quoc.hanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14542918",
+    "Name": "Nguyễn Thị Huyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huyen.nt20@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11610399",
+    "Name": "Nguyễn Thị Hà",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ha.nt24@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15814714",
+    "Name": "Nguyễn Thị Lan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11618088",
+    "Name": "Nguyễn Thị Phương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.nt9@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14820484",
+    "Name": "Nguyễn Thị Ánh Tuyết",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "anh.tuyet1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12514729",
+    "Name": "Phạm Thị Ngọc Anh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ptn.anh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15769531",
+    "Name": "Trần Công Minh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "minh.tc@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "8504536",
+    "Name": "Trần Đình Thao",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Principal Professional",
+    "KnoxId": "dinh.thao@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14630887",
+    "Name": "Bùi Thị Diện",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "dien.bt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15832293",
+    "Name": "Bùi Thị Thu Hiền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hien.btt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17812042",
+    "Name": "Bùi Thị Trang",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "bui.trang@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10590399",
+    "Name": "Cao Thị Nhung",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "cao.nhung@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15750532",
+    "Name": "Chu Văn Trường",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "chu.truong30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14521735",
+    "Name": "Dương Thị Đường",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "duong.dt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523463",
+    "Name": "Dương Thị Lành",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lanh.pt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15750500",
+    "Name": "Dương Thị Tuyết Nhung",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nhung.dtt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14826615",
+    "Name": "Giáp Tuấn Anh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tuan.anh11@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11516501",
+    "Name": "Hoàng Thị Biên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "bien.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770744",
+    "Name": "Hoàng Thị Sĩ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "si.ht1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13605454",
+    "Name": "Hoàng Thị Thúy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hoang.thuy5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11586707",
+    "Name": "Hoàng Thị Trang",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "trang.ht10@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14580450",
+    "Name": "Hoàng Thị Vui",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hoang.vui@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12641909",
+    "Name": "Hà Thị Dinh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ha.dinh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14631243",
+    "Name": "Hà Thị Tuyết Linh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tuyet.linh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17819025",
+    "Name": "Hứa Thị Sen",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hua.sen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15814721",
+    "Name": "Liễu Thị Thuyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thuyen.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13659156",
+    "Name": "Lâm Thị Chuyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "chuyen.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770326",
+    "Name": "Lê Thị Giang",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "le.giang1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13668502",
+    "Name": "Nguyễn Duy Tuấn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tuan.nd4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15760829",
+    "Name": "Nguyễn Thế Trường",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "the.truong30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770435",
+    "Name": "Nguyễn Thị Duyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thi.duyen1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13610503",
+    "Name": "Nguyễn Thị Hương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huong.nt33@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11627708",
+    "Name": "Nguyễn Thị Hồng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.hong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523693",
+    "Name": "Nguyễn Thị Liệu",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lieu.nt4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13644779",
+    "Name": "Nguyễn Thị Mai",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "mai.nt24@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15792986",
+    "Name": "Nguyễn Thị Ngọc",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ngoc.nt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13616087",
+    "Name": "Nguyễn Thị Phượng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.thi1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14537708",
+    "Name": "Nguyễn Thị Thanh Lan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lan.ntt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12617916",
+    "Name": "Nguyễn Thị Thanh Loan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thanhloan.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13568712",
+    "Name": "Nguyễn Thị Thao",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thao.nt16@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13569368",
+    "Name": "Nguyễn Thị Thành",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nth.thanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17812168",
+    "Name": "Nguyễn Thị Thúy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thi.thuy2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16758984",
+    "Name": "Nguyễn Thị Thơm",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thi.thom1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14509035",
+    "Name": "Nguyễn Thị Đoan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.doan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10576934",
+    "Name": "Nguyễn Trung Đức",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Professional",
+    "KnoxId": "nguyen.duc@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11520400",
+    "Name": "Nguyễn Văn Dũng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vdung.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9534635",
+    "Name": "Nguyễn Văn Hùng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.vhung@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9533429",
+    "Name": "Ngô Thị Tuyến",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tuyen.nt21@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17771372",
+    "Name": "Phùng Thị Hòa",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "phung.hoa30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9513417",
+    "Name": "Phạm Thị Minh Tuệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tue.ptm@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17767217",
+    "Name": "Triệu Thị Chi",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "trieu.chi@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11512620",
+    "Name": "Trần Thị Thủy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.tt11@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12629321",
+    "Name": "Trần Thị Yến",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tran.yen1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14522596",
+    "Name": "Trần Văn Mạnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "manh.tv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17775337",
+    "Name": "Vi Thị Oanh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vi.oanh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759142",
+    "Name": "Vi Thị Quyết",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "quyet.vt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13568506",
+    "Name": "Vi Thị Son",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vi.son@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15814662",
+    "Name": "Vi Thị Vinh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vi.vinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15809760",
+    "Name": "Vũ Thị Hoài",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vu.hoai@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17819344",
+    "Name": "Đỗ Thị Liệu",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "do.lieu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16764133",
+    "Name": "Đỗ Thị Thu",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thu.dt8@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18751757",
+    "Name": "Bế Thị Bình",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "be.binh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15757976",
+    "Name": "Cao Thị Ý Huyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "cao.huyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11536680",
+    "Name": "Lý Thị Vượng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vuong.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12532484",
+    "Name": "Nguyễn Doãn Tân",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "doan.tan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14814760",
+    "Name": "Nguyễn Thị Huyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huyen.nt33@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11620122",
+    "Name": "Nguyễn Thị Hòa",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.thihoa2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15814716",
+    "Name": "Nguyễn Thị Ngọc",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ngoc.nt19@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12589878",
+    "Name": "Nguyễn Thị Phượng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.phuong1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811884",
+    "Name": "Trương Thị Nga",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "truong.nga@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15786707",
+    "Name": "Vũ Thị Bích",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "bich.vt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10552983",
+    "Name": "Hoàng Thị Hương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "huong.ht3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15779269",
+    "Name": "Nguyễn Thị Nga",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nga.nt8@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14808415",
+    "Name": "Nguyễn Thị Oanh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "oanh.nguyenthi1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13649892",
+    "Name": "Nguyễn Thị Phượng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.phuong3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13669043",
+    "Name": "Nguyễn Thị Thơm",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14534444",
+    "Name": "Nguyễn Thị Yên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.yen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16769169",
+    "Name": "Ngân Thị Đức",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ngan.duc@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17773447",
+    "Name": "Ngô Dương Nguyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ngo.nguyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16760910",
+    "Name": "Ngụy Thị Huyền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nguy.huyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11603131",
+    "Name": "Phạm Thị Hạnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "pham.t.hanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12586951",
+    "Name": "Trần Thị Sáng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tran.sang@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11533387",
+    "Name": "Vương Thị Thương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thuong.vt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17751206",
+    "Name": "Bùi Thị Quỳnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "quynh.pt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17776558",
+    "Name": "Chu Thị Yên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "chu.yen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17754819",
+    "Name": "Lê Thị Hậu",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "le.hau@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18752225",
+    "Name": "Nguyễn Thị Hiền",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.hien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15758232",
+    "Name": "Nguyễn Thị Hà",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ha.nt13@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13655512",
+    "Name": "Nguyễn Thị Lan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lan.nt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11565977",
+    "Name": "Nguyễn Thị Nga",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nga.nt14@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9519456",
+    "Name": "Nguyễn Văn Thìn",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "van.thin@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14803885",
+    "Name": "Phạm Thị Thùy",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "pham.thuy@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15808754",
+    "Name": "Vi Thị Kim Tuyến",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tuyen.vtk@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14814761",
+    "Name": "Đoàn Thị Tuyến",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "doan.tuyen1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13596871",
+    "Name": "Đỗ Thị Tính",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "do.tinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11589986",
+    "Name": "Nguyễn Thị Chuyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "chuyen.nt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15755253",
+    "Name": "Trần Thị Vân",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "van.tv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11603195",
+    "Name": "Dương Thị Thu Nga",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "thu.nga2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11518489",
+    "Name": "Hoàng Thị Pói",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hoang.poi@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15769676",
+    "Name": "Lê Thị Hải Yến",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "haiyen.1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15752847",
+    "Name": "Nguyễn Thị Kim Hoa",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hoa.ntk2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14820495",
+    "Name": "Nguyễn Thị Lan",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lan.nt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17823169",
+    "Name": "Nguyễn Thị Quỳnh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ng.quynh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759632",
+    "Name": "Vũ Thị Hiển",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "vu.hien1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17781006",
+    "Name": "Bùi Thị Hệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "he.bt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13552541",
+    "Name": "Lò Thị Quảng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "lo.quang@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13604475",
+    "Name": "Lăng Thị Đại",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "dai.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15832329",
+    "Name": "Lương Thị Huệ",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hue.lt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17777449",
+    "Name": "Nguyễn Thị Hằng",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "hang.nt10@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11618389",
+    "Name": "Triệu Thị Hồng Nhiên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "nhien.tth1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15785518",
+    "Name": "Đinh Thị Thanh",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "dinh.thanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13539139",
+    "Name": "Phạm Thị Hương",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "pham.huong1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759771",
+    "Name": "Trần Thị Li",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "tran.li@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13625948",
+    "Name": "Đinh Thị Uyên",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "uyen.dt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14514112",
+    "Name": "Tạ Thị Hải",
+    "Department": "IQC 1P",
+    "Organization": "IQC 1P",
+    "CLName": "Associate",
+    "KnoxId": "ta.hai1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10566268",
+    "Name": "Hoàng Thị Hậu",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hau.hoang30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13604878",
+    "Name": "Hoàng Thị Phương",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hoang.tphuong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11524732",
+    "Name": "Hoàng Thị Xuân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hoang.txuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15829672",
+    "Name": "Lê Thị Điểm",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "lt.diem3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13596595",
+    "Name": "Mông Thị Chiêm",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "chiem.mt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15762577",
+    "Name": "Nguyễn Thị Hiền",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nguyen.hien9@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10525673",
+    "Name": "Nguyễn Thị Hoài",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "n.thoai1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17779693",
+    "Name": "Nguyễn Thị Hà",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nth.ha2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18771989",
+    "Name": "Nguyễn Thị Nga",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nguyen.tnga@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523752",
+    "Name": "Nguyễn Thị Tú",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nguyen.thitu1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11520565",
+    "Name": "Nguyễn Thị Vân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "van.nt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9513474",
+    "Name": "Nguyễn Văn Ngọc",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "van.ngoc@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523732",
+    "Name": "Ngô Thị Giang",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ngo.giang1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9520838",
+    "Name": "Ngô Thị Hoa",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ngoc.hoa1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17779355",
+    "Name": "Phạm Thị Vân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "pham.van@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15752448",
+    "Name": "Trần Thị Thanh Huyền",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "huyen.ttt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15758078",
+    "Name": "Trịnh Thị Thúy",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.tt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13649777",
+    "Name": "Vũ Thị Trang",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "vu.trang5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13532301",
+    "Name": "Đào Thị Luyến",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "dao.luyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11523096",
+    "Name": "Dương Thị Thơ",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "tho.dt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14831280",
+    "Name": "Trần Thị Huế",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "tran.hue1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14814742",
+    "Name": "Bế Thị Minh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "minh.bt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17812023",
+    "Name": "Hoàng Thị Phượng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.ht3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10590487",
+    "Name": "Hà Thị Hân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "han.ht1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10572689",
+    "Name": "Hà Thị Đào",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ha.dao@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15762518",
+    "Name": "Lê Thị Huyên",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "le.huyen1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16767102",
+    "Name": "Lê Thị Oanh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "le.oanh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12526676",
+    "Name": "Lê Thị Tâm",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "tam.lt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14632060",
+    "Name": "Lại Thị Thanh Nga",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nga.ltt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759563",
+    "Name": "Nguyễn Thị Hiền",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thi.hien2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11571177",
+    "Name": "Nguyễn Thị Sáng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12605823",
+    "Name": "Nguyễn Thị Thu Huyền",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14830554",
+    "Name": "Nguyễn Thị Thúy",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nguyen.thuy2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13660058",
+    "Name": "Nguyễn Trung Kiên",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ng.trungkien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11636930",
+    "Name": "Nguyễn Trọng Sáu",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "trong.sau@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14503097",
+    "Name": "Nguyễn Vân Tuấn",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "nguyenv.tuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13628820",
+    "Name": "Nguyễn Văn Việt",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "vanviet.nv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10577074",
+    "Name": "Ngô Biên Cương",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "bien.cuong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14635287",
+    "Name": "Ngô Thị Vân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "van.nt02@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523780",
+    "Name": "Phạm Thị Hường",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "huong.pt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18751527",
+    "Name": "Phạm Thị Sinh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "sinh.pt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14633509",
+    "Name": "Quách Thùy Trang",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11620200",
+    "Name": "Thân Thị Uyển",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "uyen.tt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759872",
+    "Name": "Trần Thị Thuý",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.tt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12641907",
+    "Name": "Trần Thị Xuân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "xuan.tt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759874",
+    "Name": "Trịnh Thị Len",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "trinh.len@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9513280",
+    "Name": "Trịnh Thị Sen",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "sen.trinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13649474",
+    "Name": "Tạ Thị Nhàn",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nhan.tt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17773444",
+    "Name": "Đoàn Thị Nga",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nga.dt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14533612",
+    "Name": "Đàm Thị Chất",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "chat.dt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14826573",
+    "Name": "Đặng Thị Thanh Hoa",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "dang.thanhhoa@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11577496",
+    "Name": "Đỗ Thị Lụa",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "lua.dt20@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14631180",
+    "Name": "Dương Mỹ Duyên",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "my.duyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10552970",
+    "Name": "Dương Thị Hồng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hong.dt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12606936",
+    "Name": "Hoàng Thị Thảo",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ht.thao12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15812843",
+    "Name": "Nguyễn Thị Giang",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "giang.ngt7@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14813055",
+    "Name": "Nguyễn Thị Hoa",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9524480",
+    "Name": "Nguyễn Thị Hưng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "t.hung.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11622436",
+    "Name": "Nguyễn Thị Loan",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ng.tloan3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13616887",
+    "Name": "Nguyễn Thị Phương",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ng.phuong2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523536",
+    "Name": "Nguyễn Thị Vân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ngt.van1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15762713",
+    "Name": "Nguyễn Văn Phú",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "-@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10505046",
+    "Name": "Nguyễn Văn Trang",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "trang.nv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11577579",
+    "Name": "Ngô Thị Nhinh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ngt.nhinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12609907",
+    "Name": "Nông Thị Tâm",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "n.ttam1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18759703",
+    "Name": "Bùi Văn Tiến",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "tien.bv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17760275",
+    "Name": "Dương Duy Lương",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "luong.dd@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15786403",
+    "Name": "Dương Văn Phúc",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "phuc.dv2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14831826",
+    "Name": "Lò Văn Trọng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "trong.lv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691437",
+    "Name": "Nguyễn Thế Thìn",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "nguyen.thin@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15799132",
+    "Name": "Nguyễn Văn Hòa",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hoa.nv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15754634",
+    "Name": "Nguyễn Văn Nghiên",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nghien.nv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11586380",
+    "Name": "Nguyễn Văn Đông",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "dong.nv@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15750653",
+    "Name": "Nguyễn Đình Chinh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "dinh.trinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14816801",
+    "Name": "Tân Văn Thanh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thanh.tv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17819221",
+    "Name": "Đào Công Nam",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nam.dc2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12584861",
+    "Name": "Chu Đăng Hưng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "dhung.chu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10577068",
+    "Name": "Lê Xuân Trường",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "le.truong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10576976",
+    "Name": "Lại Văn Tú",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "lai.tu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14556347",
+    "Name": "Nguyễn Thị Hảo",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hao.nt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12618860",
+    "Name": "Nguyễn Văn An",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "vanan.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10572557",
+    "Name": "Nguyễn Xuân Thanh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Senior Professional",
+    "KnoxId": "thanh.xuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10576926",
+    "Name": "Nguyễn Đức Tuấn",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Senior Professional",
+    "KnoxId": "ngduc.tuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10516223",
+    "Name": "Ngô Văn Nam",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Professional",
+    "KnoxId": "ngo.nam@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11636688",
+    "Name": "Phan Thanh Ba",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Senior Professional",
+    "KnoxId": "thanh.ba@samsung.com",
+    "Position": "Part Leader",
+    "Scope": "IQC 2P"
+  },
+  {
+    "EmployeeId": "12573958",
+    "Name": "Thân Ngọc Cường",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Senior Professional",
+    "KnoxId": "ngoc.cuong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9524514",
+    "Name": "Trịnh Thị Nhung",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "nhung.tt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14828852",
+    "Name": "Lê Thị Huệ",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hue.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17773462",
+    "Name": "Nguyễn Thị Thu Thuỷ",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.ntt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13649981",
+    "Name": "Nguyễn Thị Xuân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "xuan.nguyen1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13556565",
+    "Name": "Trần Thị Vịnh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "tran.vinh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18754599",
+    "Name": "Lăng Thị Hoàn",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hoan.lang@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9505138",
+    "Name": "Nguyễn Thị Thịnh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thi.thinh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13532195",
+    "Name": "Ngọ Thị An",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ngo.an@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15792801",
+    "Name": "Vương Thị Thu",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "vuong.thu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770141",
+    "Name": "Lê Thị Thu",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "le.thithu1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811261",
+    "Name": "Lò Thị Huân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "huan.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13552470",
+    "Name": "Lý Thị Mùi",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "ly.mui@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16775197",
+    "Name": "Lương Thị Hồng",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hong.lt4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12549019",
+    "Name": "Trịnh Thị Xoan",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "thixoan.t@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15779064",
+    "Name": "Đồng Thị Yến",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "dong.yen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17773436",
+    "Name": "Cầm Thị Thuận",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "cam.thuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17771383",
+    "Name": "Lê Thị Vân",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "van.lt6@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13600137",
+    "Name": "Phùng Thị Duyên",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "duyen.pt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16758934",
+    "Name": "Hứa Thị Tiến",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "hua.ttien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10531283",
+    "Name": "Nguyễn Thị Kim Khánh",
+    "Department": "IQC 2P",
+    "Organization": "IQC 2P",
+    "CLName": "Associate",
+    "KnoxId": "kim.khanh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13615507",
+    "Name": "Nguyễn Phương Lan",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "phuong.lan30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10548815",
+    "Name": "Nguyễn Thị Hoa",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hoa.nt13@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811699",
+    "Name": "Nguyễn Thị Hào",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hao.nt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11565978",
+    "Name": "Nguyễn Thị Ngân",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "ngan.nt20@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9517652",
+    "Name": "Nguyễn Thị Quyến",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thi.quyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16759496",
+    "Name": "Vũ Thị Linh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "linh.vt6@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17818923",
+    "Name": "Hoàng Thị Mây",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "may.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10563955",
+    "Name": "Hoàng Thị Nhượng",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nhuong.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18753835",
+    "Name": "Nguyễn Phương Thảo",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thao.np1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17822086",
+    "Name": "Ngô Tiến Long",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "long.nt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17822732",
+    "Name": "Phan Thị Hoa",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hoa.pt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11610244",
+    "Name": "Trần Thị Châm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "cham.tt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15830148",
+    "Name": "Tống Thị Lý",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "ly.tt10@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811898",
+    "Name": "Biện Thị Thủy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.bt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13614699",
+    "Name": "Dương Văn Trung",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "duong.trung@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10572564",
+    "Name": "Nguyễn Hữu Thông",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "huu.thong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14820488",
+    "Name": "Nguyễn Thị Du",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "du.nt01@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16762639",
+    "Name": "Nguyễn Thị Thanh Nhàn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nhan.ntt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691113",
+    "Name": "Nguyễn Đắc Giang",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dacgiang.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13504704",
+    "Name": "Trần Văn Huy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "vanhuy.tran@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11610087",
+    "Name": "Dương Ngọc Anh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "duong.anh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17819126",
+    "Name": "Hoàng Thị Mai",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "mai.ht1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11520444",
+    "Name": "Hoàng Thị Tâm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "tam.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10582192",
+    "Name": "Khổng Thị Diễn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dien.kt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13552254",
+    "Name": "La Thị Yên",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "yen.lt4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811215",
+    "Name": "Lê Thị Đạo",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dao.lt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11548208",
+    "Name": "Nguyễn Thị Cảnh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "ng.canh1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15811848",
+    "Name": "Nguyễn Thị Hà",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "ha.thi1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11592628",
+    "Name": "Nguyễn Thị Hường",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "huong.nt37@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11523180",
+    "Name": "Nguyễn Thị Khuyên",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "khuyen.nt20@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17820105",
+    "Name": "Nguyễn Thị Thanh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thanh.nt28@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11586620",
+    "Name": "Nguyễn Thị Thủy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.nguyen31@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691160",
+    "Name": "Nguyễn Văn Dân",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dan.nv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13668555",
+    "Name": "Ngô Mạnh Thắng",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "thang.nm@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10594346",
+    "Name": "Ngô Thị Thủy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.ngo30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770406",
+    "Name": "Nông Thanh Tuyền",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "tuyen.nt12@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10568591",
+    "Name": "Nông Thị Thơ",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nong.tho@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15829569",
+    "Name": "Phùn Thị Trang",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "trang.pt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18753661",
+    "Name": "Phùng Thị Lành",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "lanh.pt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17812075",
+    "Name": "Triệu Thị Bướm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "buom.tt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17822958",
+    "Name": "Triệu Thị Huế",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hue.tt4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11546627",
+    "Name": "Trương Thị Hồng Minh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "minh.tth@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17754910",
+    "Name": "Trần Thị Kim Thanh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thanh.ttk@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13672250",
+    "Name": "Đặng Thị Tuyết",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dang.tuyet@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691278",
+    "Name": "Lê Văn Huynh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "levan.huynh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10575314",
+    "Name": "Nguyễn Thị Biên",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "bien.nt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12592998",
+    "Name": "Nguyễn Thị Như",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thi_nhu.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11586388",
+    "Name": "Thân Văn Khắc",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "van.khac@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10523346",
+    "Name": "Đỗ Thị Thúy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thuy.dt16@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12569708",
+    "Name": "Đỗ Xuân Chung",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "chung.xuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11520384",
+    "Name": "Bùi Văn Thiện",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thien.bt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14580219",
+    "Name": "Bế Thị Tuyến",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "tuyen.bt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811240",
+    "Name": "Chu Thị Hiền",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hien.ct@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17763606",
+    "Name": "Hoàng Thị Chùm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "chum.ht@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12610537",
+    "Name": "Hoàng Thị Thư",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thu.ht7@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14533713",
+    "Name": "Khổng Thị Lan",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "lan.kt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18751492",
+    "Name": "Lê Thị Hậu",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hau.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14805287",
+    "Name": "Lê Thị Nhung",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nhung.lt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18761862",
+    "Name": "Lê Thị Ninh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "ninh.le30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17812014",
+    "Name": "Lê Thị Thảo Nguyên",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nguyen.ltt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14826973",
+    "Name": "Lương Thị Thơm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thom.lt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17811213",
+    "Name": "Lữ Thị Đào",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "dao.lt3@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17770691",
+    "Name": "Ma Thị Thương",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thuong.mt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "16758961",
+    "Name": "Nguyễn Thị Chanh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "chanh.nt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12527305",
+    "Name": "Nguyễn Thị Giang",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "giang.nguyen31@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10588834",
+    "Name": "Nguyễn Thị Hưng",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hung.nt6@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13523721",
+    "Name": "Nguyễn Thị Hậu",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hau.nt5@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13589435",
+    "Name": "Nguyễn Thị Nga",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nga.nt9@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15755559",
+    "Name": "Ngô Thị Thanh Bích",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "bich.ntt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "17767099",
+    "Name": "Thân Thị Tâm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "tam.tt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15785549",
+    "Name": "Vi Thị Hoàn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hoan.vt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11516344",
+    "Name": "Vũ Văn Lâm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "lam.vv1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13532228",
+    "Name": "Đồng Thị Chinh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "chinh.dong30@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11548113",
+    "Name": "Đổng Thị Thanh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thanh.dt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13626168",
+    "Name": "Nguyễn Văn Tú",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "van_tu.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "18764038",
+    "Name": "Nguyễn Thị Nga",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "nga.nt16@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12610306",
+    "Name": "Bùi Thị Huyền",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "huyen.bt1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12578026",
+    "Name": "Bùi Thị Văn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "bui.van@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10548876",
+    "Name": "Chu Văn Tư",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "chu.tu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10548898",
+    "Name": "Dương Xuân Văn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "duong.van@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14824007",
+    "Name": "Lê Văn Bắc",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "van.bac@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14503172",
+    "Name": "Lê Văn Thủy",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "levan.thuy@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14502286",
+    "Name": "Nguyễn Ngọc Hùng",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "ng.ngochung@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10552812",
+    "Name": "Nguyễn Thị Cúc",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "cuc.nt2@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9513293",
+    "Name": "Nguyễn Thị Hải",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "haithi.nguyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10529548",
+    "Name": "Nguyễn Thị Thơm",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thom.nguyen@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10547290",
+    "Name": "Nguyễn Thị Xuyên",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "xuyen.thi@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10511215",
+    "Name": "Nguyễn Văn Hải",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hai.ngvh@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9524411",
+    "Name": "Nguyễn Văn Thịnh",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "thinh.van@samsung.com",
+    "Position": "Part Leader",
+    "Scope": "IQC 3P"
+  },
+  {
+    "EmployeeId": "14576798",
+    "Name": "Nguyễn Văn Tuấn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "ng.van.tuan@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13691312",
+    "Name": "Nguyễn Đình Bình",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "binh.nd1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15781893",
+    "Name": "Nguyễn Đức Đô",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "do.nd1@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "11554162",
+    "Name": "Phạm Thị Ân",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "an.pthi@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "21503513",
+    "Name": "Trần Văn Chiến",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Professional",
+    "KnoxId": "chien.tv21@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14503434",
+    "Name": "Trần Đức Hiếu",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Senior Professional",
+    "KnoxId": "tran.duchieu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "15785465",
+    "Name": "Nguyễn Thị Hoàn",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "hoan.nt4@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10583634",
+    "Name": "Trần Thị Thoảng",
+    "Department": "IQC 3P",
+    "Organization": "IQC 3P",
+    "CLName": "Associate",
+    "KnoxId": "thoang.tt@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "12578049",
+    "Name": "Bùi Văn Dương",
+    "Department": "Injection Innovation Support T/F",
+    "Organization": "Injection Innovation Support T/F",
+    "CLName": "Senior Professional",
+    "KnoxId": "bui.duong@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "10545979",
+    "Name": "Dương Thái Hiệu",
+    "Department": "Injection Innovation Support T/F",
+    "Organization": "Injection Innovation Support T/F",
+    "CLName": "Senior Professional",
+    "KnoxId": "thai.hieu@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "14503054",
+    "Name": "Nguyễn Tiến Trung",
+    "Department": "Injection Innovation Support T/F",
+    "Organization": "Injection Innovation Support T/F",
+    "CLName": "Professional",
+    "KnoxId": "trung.tien@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "9514978",
+    "Name": "Nguyễn Đức Nhật",
+    "Department": "Injection Innovation Support T/F",
+    "Organization": "Injection Innovation Support T/F",
+    "CLName": "Professional",
+    "KnoxId": "ng.nhat@samsung.com",
+    "Position": "",
+    "Scope": ""
+  },
+  {
+    "EmployeeId": "13601039",
+    "Name": "Phạm Văn Mạnh",
+    "Department": "Injection Innovation Support T/F",
+    "Organization": "Injection Innovation Support T/F",
+    "CLName": "Senior Professional",
+    "KnoxId": "v.manh.ng@samsung.com",
+    "Position": "",
+    "Scope": ""
+  }
+]

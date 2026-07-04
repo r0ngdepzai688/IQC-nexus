@@ -2,5 +2,11 @@
   "DatabaseConfig": {
     "Provider": "SQLite",
     "ConnectionString": "Data Source=localstorage.db"
+  },
+  "JwtSettings": {
+    "Secret": "A_Very_Long_Super_Secret_Key_For_JWT_Authentication_1234567890",
+    "Issuer": "IqcQms.Api",
+    "Audience": "IqcQms.Frontend",
+    "ExpiryMinutes": 60
   }
 }

@@ -3,6 +3,7 @@ using System;
 using IqcQms.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IqcQms.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701140534_AddChatModule")]
+    partial class AddChatModule
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
@@ -42,31 +45,7 @@ namespace IqcQms.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("AccountStatus")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Avatar")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ClName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("CreatedBy")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("DashboardProfile")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Department")
-                        .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("FullName")
@@ -76,46 +55,12 @@ namespace IqcQms.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("KnoxId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("LastLogin")
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Notes")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Organization")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("Position")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<int?>("RoleId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Scope")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SystemRole")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("UpdatedBy")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("UpdatedDate")
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("Username")
                         .IsRequired()
@@ -419,48 +364,6 @@ namespace IqcQms.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Parts");
-                });
-
-            modelBuilder.Entity("IqcQms.Domain.Entities.System.AuditLog", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("ActionType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AdminId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AdminName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AffectedUserId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("IpAddress")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("NewValue")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("OldValue")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("Timestamp")
-                        .HasColumnType("TEXT");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("AuditLogs");
                 });
 
             modelBuilder.Entity("IqcQms.Domain.Entities.Auth.User", b =>
