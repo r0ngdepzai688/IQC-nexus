@@ -9,10 +9,11 @@ import {
   History,
   Settings2,
   ChevronRight,
+  LucideIcon
 } from "lucide-react";
 
 // Mock sub-menus for demonstration
-const subMenus: Record<string, { name: string; href: string; icon: any }[]> = {
+const subMenus: Record<string, { name: string; href: string; icon: LucideIcon }[]> = {
   "/standards": [
     { name: "Standard Management", href: "/standards", icon: FileText },
     { name: "Dynamic Form Design", href: "/standards/forms", icon: ListPlus },

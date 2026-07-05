@@ -20,8 +20,16 @@
    - Chia tách menu con cho Workforce thành 4 mục: Organization, Training, Certificate, Test (kèm Boilerplate routing).
 6. **New Models NPI (Giao diện):**
    - Thiết kế thành công màn hình `Command Center` chuẩn Enterprise.
-   - Cá nhân hóa câu chào lấy chính xác tên `user.name` của tài khoản đăng nhập.
-   - Cập nhật đúng các dự án chiến lược: Galaxy Z Fold 7, Galaxy S26 Ultra, Galaxy Buds 4 Pro, Galaxy Watch 7.
+7. **Collaboration Hub (Advanced Features):**
+   - Nâng cấp Sidebar Chat Floating với hệ thống Layout 2 Tab (Chats/Contacts).
+   - Tổ chức Contact List: Gom nhóm (Group by Department) với chức năng Thu gọn/Mở rộng tối ưu không gian, hiển thị 20 người đầu tiên mỗi bộ phận.
+   - Quản lý Thread nâng cao (Chat Settings): Bảng Info panel trượt từ phải ra cho phép đổi tên nhóm, xóa thành viên, thêm thành viên, xóa toàn bộ lịch sử trò chuyện, xóa nhóm.
+   - Bổ sung bộ lọc mở rộng: All, Unread, Mentions, Favorite.
+   - Thêm tính năng Emoji Picker bằng animation mượt mà.
+   - Thêm tính năng Tag tên (`@mention`): Hiển thị menu gợi ý thành viên khi gõ `@` theo thời gian thực.
+8. **UI/UX Refinements:**
+   - Sửa lỗi điều hướng menu chính: Ngăn chặn tự động chuyển trang khi click vào menu chính nếu menu đó có danh sách menu phụ.
+   - Tối ưu hóa UI/UX các nút chức năng trong Chat (nút Favorite dạng Star, Xóa Chat nhanh trên danh sách hover).
 
 ## Đang thực hiện / Cần làm tiếp (Next Steps)
 1. **Backend Integration cho New Models:** Bổ sung Entity Framework Models (như `NewModelProject`, `NpiStage`, v.v.) vào `AppDbContext`.

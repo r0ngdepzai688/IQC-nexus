@@ -102,6 +102,47 @@ namespace IqcQms.Api.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Username) || 
+                string.IsNullOrWhiteSpace(request.OldPassword) || 
+                string.IsNullOrWhiteSpace(request.NewPassword))
+            {
+                return BadRequest(new { message = "Thiếu thông tin bắt buộc." });
+            }
+
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
+            if (user == null || !user.IsActive)
+            {
+                return NotFound(new { message = "Không tìm thấy người dùng." });
+            }
+
+            bool isOldPasswordValid = false;
+            try
+            {
+                isOldPasswordValid = BCrypt.Net.BCrypt.Verify(request.OldPassword, user.PasswordHash);
+            }
+            catch
+            {
+                return BadRequest(new { message = "Lỗi xác thực mật khẩu cũ." });
+            }
+
+            if (!isOldPasswordValid)
+            {
+                return BadRequest(new { message = "Mật khẩu cũ không chính xác." });
+            }
+
+            // Hash new password and save
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+            user.UpdatedDate = DateTime.UtcNow;
+            
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            return Ok(new { message = "Đổi mật khẩu thành công." });
+        }
     }
 
     public class LoginRequest
@@ -123,5 +164,12 @@ namespace IqcQms.Api.Controllers
         public string FullName { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public string KnoxId { get; set; } = string.Empty;
+    }
+
+    public class ChangePasswordRequest
+    {
+        public string Username { get; set; } = string.Empty;
+        public string OldPassword { get; set; } = string.Empty;
+        public string NewPassword { get; set; } = string.Empty;
     }
 }

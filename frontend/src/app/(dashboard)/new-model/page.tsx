@@ -107,7 +107,7 @@ const CircularProgress = ({ value, size = 36, strokeWidth = 3, colorClass = "tex
 };
 
 export default function NewModelPage() {
-  const { user } = useAuth();
+  const { user, activeRoleLens } = useAuth();
   const [appMode, setAppMode] = useState<'workspace' | 'knowledge'>('workspace');
   
   // Set to null to show Operational Home Screen by default
@@ -252,57 +252,122 @@ export default function NewModelPage() {
                     {/* Urgent Action Grid (2/3 width) */}
                     <div className="xl:col-span-2 space-y-6">
                       
-                      <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
-                        <div className="flex justify-between items-center mb-6">
-                          <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> My Tasks</h3>
-                          <button className="text-sm font-bold text-[#1428A0] dark:text-blue-400 hover:underline">View all (12)</button>
-                        </div>
-                        <div className="space-y-3">
-                          {[
-                            { title: "Upload PVR Jig Test Validation", project: "Galaxy Z Fold 7", time: "Due Today", c: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" },
-                            { title: "Review Supplier B Acoustic Capacity", project: "Galaxy S26 Ultra", time: "Overdue", c: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" },
-                            { title: "Sign-off Final BOM Document", project: "Galaxy Buds 4 Pro", time: "Tomorrow", c: "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300" }
-                          ].map((t, i) => (
-                            <div key={i} className="flex items-center justify-between p-4 border border-gray-100 dark:border-white/5 rounded-2xl hover:border-gray-300 dark:hover:border-white/10 transition-colors cursor-pointer group bg-gray-50/50 dark:bg-[#1A1A1A]">
-                              <div className="flex items-center space-x-4">
-                                <div className="w-5 h-5 rounded-md border-2 border-gray-300 dark:border-gray-600 group-hover:border-[#1428A0] transition-colors"></div>
-                                <div>
-                                  <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#1428A0] dark:group-hover:text-blue-400 transition-colors">{t.title}</h4>
-                                  <p className="text-xs text-gray-500 font-medium">{t.project}</p>
+                      {activeRoleLens === 'Staff' && (
+                        <>
+                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="flex justify-between items-center mb-6">
+                              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> My Tasks</h3>
+                              <button className="text-sm font-bold text-[#1428A0] dark:text-blue-400 hover:underline">View all (12)</button>
+                            </div>
+                            <div className="space-y-3">
+                              {[
+                                { title: "Upload PVR Jig Test Validation", project: "Galaxy Z Fold 7", time: "Due Today", c: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" },
+                                { title: "Review Supplier B Acoustic Capacity", project: "Galaxy S26 Ultra", time: "Overdue", c: "bg-rose-50 text-rose-700 dark:bg-rose-900/20 dark:text-rose-400" },
+                                { title: "Sign-off Final BOM Document", project: "Galaxy Buds 4 Pro", time: "Tomorrow", c: "bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-gray-300" }
+                              ].map((t, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 border border-gray-100 dark:border-white/5 rounded-2xl hover:border-gray-300 dark:hover:border-white/10 transition-colors cursor-pointer group bg-gray-50/50 dark:bg-[#1A1A1A]">
+                                  <div className="flex items-center space-x-4">
+                                    <div className="w-5 h-5 rounded-md border-2 border-gray-300 dark:border-gray-600 group-hover:border-[#1428A0] transition-colors"></div>
+                                    <div>
+                                      <h4 className="text-sm font-bold text-gray-900 dark:text-white group-hover:text-[#1428A0] dark:group-hover:text-blue-400 transition-colors">{t.title}</h4>
+                                      <p className="text-xs text-gray-500 font-medium">{t.project}</p>
+                                    </div>
+                                  </div>
+                                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${t.c}`}>{t.time}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><CheckCircle2 className="w-4 h-4 mr-2" /> Pending Approvals</h3>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><FileText className="w-5 h-5" /></div>
+                                    <div><p className="text-xs font-bold text-gray-900 dark:text-white">Camera Spec v2</p><p className="text-[10px] text-gray-500">Z Fold 7 • 2h ago</p></div>
+                                  </div>
+                                  <button className="text-[10px] font-bold bg-[#1428A0] text-white px-3 py-1.5 rounded-lg shadow-sm">Review</button>
                                 </div>
                               </div>
-                              <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${t.c}`}>{t.time}</span>
                             </div>
-                          ))}
-                        </div>
-                      </div>
+                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" /> Open NCRs</h3>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-600 dark:text-rose-400"><ShieldAlert className="w-5 h-5" /></div>
+                                    <div><p className="text-xs font-bold text-gray-900 dark:text-white">Yield Rate Drop</p><p className="text-[10px] text-gray-500">Supplier B • Critical</p></div>
+                                  </div>
+                                  <button className="text-[10px] font-bold bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg">Solve</button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
 
-                      <div className="grid grid-cols-2 gap-6">
-                        <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
-                          <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><CheckCircle2 className="w-4 h-4 mr-2" /> Pending Approvals</h3>
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400"><FileText className="w-5 h-5" /></div>
-                                <div><p className="text-xs font-bold text-gray-900 dark:text-white">Camera Spec v2</p><p className="text-[10px] text-gray-500">Z Fold 7 • 2h ago</p></div>
-                              </div>
-                              <button className="text-[10px] font-bold bg-[#1428A0] text-white px-3 py-1.5 rounded-lg shadow-sm">Review</button>
+                      {activeRoleLens === 'Cell Leader' && (
+                        <>
+                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="flex justify-between items-center mb-6">
+                              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Layers className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> Projects in Scope ({user.scope})</h3>
+                            </div>
+                            <div className="space-y-3">
+                              {MOCK_PROJECTS.slice(0, 2).map((p, i) => (
+                                <div key={i} className="flex items-center justify-between p-4 border border-gray-100 dark:border-white/5 rounded-2xl hover:border-[#1428A0]/30 transition-colors cursor-pointer bg-gray-50/50 dark:bg-[#1A1A1A]">
+                                  <div>
+                                    <h4 className="text-sm font-bold text-gray-900 dark:text-white">{p.name}</h4>
+                                    <p className="text-xs text-gray-500 font-medium">Stage: {p.stage.toUpperCase()}</p>
+                                  </div>
+                                  <CircularProgress value={p.progress} size={30} strokeWidth={4} />
+                                </div>
+                              ))}
                             </div>
                           </div>
-                        </div>
-                        <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
-                          <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" /> Open NCRs</h3>
-                          <div className="space-y-4">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center space-x-3">
-                                <div className="w-10 h-10 rounded-xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center text-rose-600 dark:text-rose-400"><ShieldAlert className="w-5 h-5" /></div>
-                                <div><p className="text-xs font-bold text-gray-900 dark:text-white">Yield Rate Drop</p><p className="text-[10px] text-gray-500">Supplier B • Critical</p></div>
-                              </div>
-                              <button className="text-[10px] font-bold bg-gray-100 dark:bg-white/10 text-gray-700 dark:text-gray-300 px-3 py-1.5 rounded-lg">Solve</button>
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><Clock className="w-4 h-4 mr-2" /> Pending Stage Approvals</h3>
+                              <p className="text-3xl font-black text-gray-900 dark:text-white mb-2">4</p>
+                              <p className="text-xs text-gray-500">Awaiting your sign-off to proceed.</p>
+                            </div>
+                            <div className="bg-rose-50 dark:bg-rose-900/10 rounded-3xl border border-rose-200 dark:border-rose-900/30 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-rose-600 dark:text-rose-400 uppercase tracking-wider mb-4 flex items-center"><ShieldAlert className="w-4 h-4 mr-2" /> Blocked Stages</h3>
+                              <p className="text-3xl font-black text-rose-700 dark:text-rose-400 mb-2">1</p>
+                              <p className="text-xs text-rose-600/80 dark:text-rose-400/80">Galaxy S26 Ultra - Supplier Readiness.</p>
                             </div>
                           </div>
-                        </div>
-                      </div>
+                        </>
+                      )}
+
+                      {['Part Leader', 'Group Leader', 'Team Leader'].includes(activeRoleLens) && (
+                        <>
+                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="flex justify-between items-center mb-6">
+                              <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Activity className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> NPI Strategic Analytics ({user.scope})</h3>
+                            </div>
+                            <div className="h-48 flex items-center justify-center bg-gray-50 dark:bg-white/5 rounded-2xl border border-gray-100 dark:border-white/5 border-dashed">
+                              <p className="text-gray-400 font-bold text-sm">Strategic Project Health Chart Placeholder</p>
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-6">
+                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><Users2 className="w-4 h-4 mr-2" /> Resource Allocation</h3>
+                              <p className="text-3xl font-black text-gray-900 dark:text-white mb-2">94%</p>
+                              <p className="text-xs text-gray-500 flex items-center"><ArrowDownToLine className="w-3 h-3 text-emerald-500 mr-1"/> Optimized load across teams</p>
+                            </div>
+                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                              <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><TrendingUp className="w-4 h-4 mr-2" /> Overall Yield Trend</h3>
+                              <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mb-2">+1.2%</p>
+                              <p className="text-xs text-gray-500">Compared to last month</p>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
                     </div>
 
                     {/* Global Monitoring Column (1/3 width) */}

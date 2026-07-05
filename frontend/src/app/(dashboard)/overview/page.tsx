@@ -12,12 +12,10 @@ import Link from "next/link";
 import { useAuth, Role, DashboardProfile } from "@/lib/contexts/AuthContext";
 
 export default function OverviewPage() {
-  const { user } = useAuth();
+  const { user, activeRoleLens } = useAuth();
   
-  // Dashboard override logic
-  const activeRole: Role = user.dashboardProfile === 'Auto' ? user.position : 
-                           user.dashboardProfile === 'Executive' ? 'Team Leader' : 
-                           (user.dashboardProfile as Role);
+  // Dashboard uses active Role Lens
+  const activeRole = activeRoleLens;
                            
   const activeScope = user.scope;
 
