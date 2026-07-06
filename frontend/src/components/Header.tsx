@@ -1,8 +1,8 @@
 "use client";
 
 import { 
-  Menu, Search, Bell, Moon, Sun, MessageSquare, Sparkles, Command, Home, Users, 
-  CheckCircle, Boxes, Box, ShieldCheck, ChevronDown, Wrench, LogOut, Layers, Lock, 
+   Bell, Moon, Sun, MessageSquare, Sparkles, Command, Users, 
+  CheckCircle, ShieldCheck, ChevronDown, Wrench, LogOut, Layers, Lock, 
   Eye, EyeOff, X, FileBadge, UserCog, HelpCircle, Award, BookOpen, LayoutDashboard, 
   ShieldAlert, Settings, PackageSearch, Hexagon
 } from "lucide-react";
@@ -489,5 +489,6 @@ export function Header() {
     </>
   );
 }
+
 
 
