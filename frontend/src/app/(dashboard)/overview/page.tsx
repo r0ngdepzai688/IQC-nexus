@@ -20,33 +20,40 @@ export default function OverviewPage() {
   const activeScope = user.scope;
 
   return (
-    <div className="min-h-full bg-[#F4F6F8] dark:bg-[#000000] p-6 lg:p-10 pb-20">
+    <div className="min-h-full bg-transparent p-4 lg:p-6 pb-20 relative z-0">
+      {/* Ambient Pastel Background for Light Mode */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none z-[-1] dark:hidden">
+        <div className="absolute top-[-10%] right-[10%] w-[600px] h-[600px] bg-blue-200/40 rounded-full blur-[100px]"></div>
+        <div className="absolute top-[20%] left-[0%] w-[500px] h-[500px] bg-indigo-200/40 rounded-full blur-[100px]"></div>
+        <div className="absolute bottom-[-10%] right-[20%] w-[700px] h-[700px] bg-purple-200/30 rounded-full blur-[120px]"></div>
+      </div>
 
       {/* ================= 1. HEADER & AI BRIEFING ================= */}
-      <div className="mb-10">
-        <h1 className="text-4xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Enterprise Command Center</h1>
-        <p className="text-gray-500 font-medium mb-8">System-wide situational awareness & operational priorities.</p>
+      <div className="mb-6">
+        <h1 className="text-3xl font-black text-gray-900 dark:text-white mb-1 tracking-tight">Enterprise Command Center</h1>
+        <p className="text-gray-500 font-medium text-sm mb-4">System-wide situational awareness & operational priorities.</p>
 
-        <div className="bg-gradient-to-br from-[#1428A0] via-indigo-800 to-blue-900 rounded-[2rem] p-8 md:p-10 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-white/5 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+        <div className="bg-white/70 dark:bg-white/[0.03] backdrop-blur-3xl border border-white dark:border-white/10 rounded-[2rem] p-5 md:p-6 text-gray-900 dark:text-white shadow-xl shadow-blue-900/5 dark:shadow-none relative overflow-hidden transition-all duration-500 hover:border-white/50 dark:hover:border-white/20">
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-indigo-500/5 dark:bg-indigo-500/10 rounded-full blur-3xl -translate-x-1/3 translate-y-1/3 pointer-events-none"></div>
           
-          <div className="relative z-10 flex flex-col lg:flex-row gap-8 items-start lg:items-center justify-between">
-            <div className="flex-1">
-              <div className="flex items-center space-x-2 mb-4">
-                <Sparkles className="w-5 h-5 text-blue-300" />
-                <span className="text-xs font-bold text-blue-200 uppercase tracking-widest">AI Executive Briefing • {activeRole}</span>
+          <div className="relative z-10 flex flex-col lg:flex-row gap-6 items-start lg:items-center justify-between">
+            <div className="flex-1 min-w-[200px]">
+              <div className="flex items-center space-x-2 mb-3">
+                <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                <span className="text-[10px] font-bold text-blue-700 dark:text-blue-200 uppercase tracking-widest">AI Executive Briefing • {activeRole}</span>
               </div>
               
               {/* Dynamic AI Briefing Content */}
               {activeRole === 'Staff' && (
                 <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-snug">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4 leading-snug">
                     Good morning.<br/>You have 5 tasks to finish today.
                   </h2>
-                  <p className="text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
+                  <p className="text-gray-600 dark:text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
                     Next recommended action: Approve Jig Design for Galaxy Z Fold 8. Estimated work duration: 3.5 hours for today's queue.
                   </p>
-                  <button className="bg-white text-[#1428A0] px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
+                  <button className="bg-[#1428A0] text-white dark:bg-white dark:text-[#1428A0] px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
                     Start Next Task <ArrowRight className="w-4 h-4 ml-2" />
                   </button>
                 </>
@@ -54,13 +61,13 @@ export default function OverviewPage() {
 
               {activeRole === 'Cell Leader' && (
                 <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-snug">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4 leading-snug">
                     Good morning.<br/>3 Projects in {activeScope} require attention.
                   </h2>
-                  <p className="text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
+                  <p className="text-gray-600 dark:text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
                     Critical blocker identified in PVR stage. Supplier ABC has delayed readiness. 2 approvals are pending in your queue.
                   </p>
-                  <button className="bg-white text-[#1428A0] px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
+                  <button className="bg-[#1428A0] text-white dark:bg-white dark:text-[#1428A0] px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
                     Resolve Blockers <ArrowRight className="w-4 h-4 ml-2" />
                   </button>
                 </>
@@ -68,10 +75,10 @@ export default function OverviewPage() {
 
               {activeRole === 'Part Leader' && (
                 <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-snug">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4 leading-snug">
                     {activeScope} Department Performance:<br/>Yield improved by 1.2% this week.
                   </h2>
-                  <p className="text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
+                  <p className="text-gray-600 dark:text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
                     Resource utilization is at 94%. Project Galaxy S26 Ultra poses a high risk due to Supplier capacity. Management recommendation: Reallocate 2 engineers to NPI cell.
                   </p>
                 </>
@@ -79,10 +86,10 @@ export default function OverviewPage() {
 
               {activeRole === 'Group Leader' && (
                 <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-snug">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4 leading-snug">
                     {activeScope} Operational Health:<br/>Stable with emerging risks in 2P.
                   </h2>
-                  <p className="text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
+                  <p className="text-gray-600 dark:text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
                     Cross-part comparison shows IQC 1P outperforming IQC 2P in defect resolution time. Forecast indicates a resource bottleneck next month due to upcoming mass production.
                   </p>
                 </>
@@ -90,13 +97,13 @@ export default function OverviewPage() {
 
               {activeRole === 'Team Leader' && (
                 <>
-                  <h2 className="text-2xl md:text-3xl font-bold mb-4 leading-snug">
+                  <h2 className="text-xl md:text-2xl font-bold mb-4 leading-snug">
                     Organization Health: 92/100<br/>Factory yield at 98.4%.
                   </h2>
-                  <p className="text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
+                  <p className="text-gray-600 dark:text-blue-100 font-medium max-w-2xl text-sm md:text-base opacity-90 leading-relaxed mb-6">
                     Strategic recommendation: Supplier consolidation required for acoustic components to reduce Quality Cost by 4%. Major compliance audit upcoming in 14 days.
                   </p>
-                  <button className="bg-white text-[#1428A0] px-5 py-2.5 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
+                  <button className="bg-[#1428A0] text-white dark:bg-white dark:text-[#1428A0] px-5 py-2 rounded-xl text-sm font-bold shadow-lg hover:shadow-xl transition-all flex items-center">
                     View Monthly Executive Report <ArrowRight className="w-4 h-4 ml-2" />
                   </button>
                 </>
@@ -107,24 +114,24 @@ export default function OverviewPage() {
             <div className="flex gap-4">
               {['Team Leader', 'Group Leader'].includes(activeRole) ? (
                 <>
-                  <div className="bg-black/20 backdrop-blur-md p-5 rounded-2xl border border-white/10 text-center min-w-[120px]">
-                    <span className="block text-4xl font-black mb-1 text-emerald-400">98%</span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-blue-200">Factory Yield</span>
+                  <div className="bg-black/5 dark:bg-black/20 backdrop-blur-md p-4 rounded-xl border border-white/50 dark:border-white/10 text-center min-w-[100px]">
+                    <span className="block text-3xl font-black mb-1 text-emerald-600 dark:text-emerald-400">98%</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-blue-200">Factory Yield</span>
                   </div>
-                  <div className="bg-black/20 backdrop-blur-md p-5 rounded-2xl border border-white/10 text-center min-w-[120px]">
-                    <span className="block text-4xl font-black mb-1 text-amber-400">$1.2M</span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-blue-200">Quality Cost</span>
+                  <div className="bg-black/5 dark:bg-black/20 backdrop-blur-md p-4 rounded-xl border border-white/50 dark:border-white/10 text-center min-w-[100px]">
+                    <span className="block text-3xl font-black mb-1 text-amber-500 dark:text-amber-400">$1.2M</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-blue-200">Quality Cost</span>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="bg-black/20 backdrop-blur-md p-5 rounded-2xl border border-white/10 text-center min-w-[120px]">
-                    <span className="block text-4xl font-black mb-1">2</span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-blue-200">Blocked</span>
+                  <div className="bg-black/5 dark:bg-black/20 backdrop-blur-md p-4 rounded-xl border border-white/50 dark:border-white/10 text-center min-w-[100px]">
+                    <span className="block text-3xl font-black mb-1">2</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-blue-200">Blocked</span>
                   </div>
-                  <div className="bg-black/20 backdrop-blur-md p-5 rounded-2xl border border-white/10 text-center min-w-[120px]">
-                    <span className="block text-4xl font-black mb-1 text-emerald-400">94%</span>
-                    <span className="text-[10px] uppercase tracking-wider font-bold text-blue-200">Pass Rate</span>
+                  <div className="bg-black/5 dark:bg-black/20 backdrop-blur-md p-4 rounded-xl border border-white/50 dark:border-white/10 text-center min-w-[100px]">
+                    <span className="block text-3xl font-black mb-1 text-emerald-600 dark:text-emerald-400">94%</span>
+                    <span className="text-[10px] uppercase tracking-wider font-bold text-gray-500 dark:text-blue-200">Pass Rate</span>
                   </div>
                 </>
               )}
@@ -147,14 +154,20 @@ export default function OverviewPage() {
           <div className="space-y-6 lg:space-y-8 flex flex-col">
             
             {/* My Action Center (Common for all, but content varies slightly) */}
-            <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 flex-1">
-              <div className="flex justify-between items-center mb-6">
+            <div className="bg-gradient-to-b from-rose-50/80 to-white/60 dark:from-rose-500/10 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-[3px] border-t-rose-500 dark:border-white/10 dark:border-t-rose-500 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 flex-1 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-rose-500/5 rounded-full blur-2xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
+              <div className="flex justify-between items-center mb-6 relative z-10">
                 <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center">
-                  <Target className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> My Action Center
+                  <Target className="w-5 h-5 mr-2 text-rose-600 dark:text-rose-500" /> 
+                  My Action Center
+                  <span className="relative flex h-3 w-3 ml-3">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                  </span>
                 </h3>
               </div>
               <div className="space-y-4">
-                <div className="p-4 bg-rose-50 dark:bg-rose-900/10 border border-rose-100 dark:border-rose-900/30 rounded-2xl flex items-start space-x-3 cursor-pointer hover:border-rose-200 dark:hover:border-rose-800 transition-colors">
+                <div className="p-4 bg-rose-50/80 dark:bg-rose-500/10 backdrop-blur-md border border-rose-200/50 dark:border-rose-500/20 rounded-2xl flex items-start space-x-3 cursor-pointer hover:border-rose-300 dark:hover:border-rose-500/40 hover:shadow-[0_0_15px_rgba(244,63,94,0.15)] transition-all duration-300">
                   <AlertTriangle className="w-5 h-5 text-rose-600 dark:text-rose-400 mt-0.5" />
                   <div>
                     <h4 className="text-sm font-bold text-gray-900 dark:text-white">Approve Jig Design (Z Fold 8)</h4>
@@ -182,7 +195,7 @@ export default function OverviewPage() {
 
             {/* Workforce/Capacity (Hidden for Staff) */}
             {activeRole !== 'Staff' && (
-              <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6">
+              <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                     <Users className="w-4 h-4 mr-2 text-gray-400" /> {activeRole === 'Team Leader' ? 'Org Capacity' : 'Team Capacity'}
@@ -208,7 +221,7 @@ export default function OverviewPage() {
             {/* Show specific widgets based on Role and Scope */}
             {activeRole === 'Staff' ? (
               // STAFF: Execution focus
-              <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 flex-1">
+              <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 flex-1">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                     <Briefcase className="w-4 h-4 mr-2 text-indigo-500" /> Assigned Projects
@@ -242,7 +255,7 @@ export default function OverviewPage() {
               </div>
             ) : ['Team Leader', 'Group Leader'].includes(activeRole) ? (
               // HIGH LEVEL: KPI & Cross-comparison
-              <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 flex-1">
+              <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 flex-1">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                     <BarChart3 className="w-4 h-4 mr-2 text-indigo-500" /> {activeRole === 'Team Leader' ? 'Organization KPI' : 'Cross-Part Comparison'}
@@ -286,7 +299,7 @@ export default function OverviewPage() {
               // DOMAIN FOCUS: Cell Leader / Part Leader
               <>
                 {activeScope === 'New Models' || activeRole === 'Part Leader' ? (
-                  <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 flex-1">
+                  <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 flex-1">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                         <Layers className="w-4 h-4 mr-2 text-indigo-500" /> NPI Lifecycle
@@ -315,7 +328,7 @@ export default function OverviewPage() {
                 ) : null}
 
                 {activeScope === 'Inspection' || activeRole === 'Part Leader' ? (
-                  <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 flex-1">
+                  <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 flex-1">
                     <div className="flex justify-between items-center mb-6">
                       <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                         <Activity className="w-4 h-4 mr-2 text-emerald-500" /> Quality Inspections
@@ -349,7 +362,7 @@ export default function OverviewPage() {
             <div className="space-y-6 lg:space-y-8 flex flex-col xl:col-span-1 md:col-span-2">
               
               {/* Supplier Health */}
-              <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 xl:flex-1 md:grid xl:block md:grid-cols-2 md:gap-6 xl:gap-0">
+              <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 xl:flex-1 md:grid xl:block md:grid-cols-2 md:gap-6 xl:gap-0">
                 <div className="col-span-2 xl:col-span-1 flex justify-between items-center mb-6">
                   <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                     <Factory className="w-4 h-4 mr-2 text-amber-500" /> Supplier {activeRole === 'Team Leader' ? 'Performance' : 'Health'}
@@ -375,7 +388,7 @@ export default function OverviewPage() {
               </div>
 
               {/* Compliance Summary */}
-              <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm p-6 xl:flex-1 md:grid xl:block md:grid-cols-2 md:gap-6 xl:gap-0">
+              <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 xl:flex-1 md:grid xl:block md:grid-cols-2 md:gap-6 xl:gap-0">
                 <div className="col-span-2 xl:col-span-1 flex justify-between items-center mb-6">
                   <h3 className="text-base font-black text-gray-900 dark:text-white flex items-center">
                     <ShieldCheck className="w-4 h-4 mr-2 text-purple-500" /> Compliance {activeRole === 'Team Leader' ? 'Health' : '& Audit'}

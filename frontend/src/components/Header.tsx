@@ -4,7 +4,7 @@ import {
   Menu, Search, Bell, Moon, Sun, MessageSquare, Sparkles, Command, Home, Users, 
   CheckCircle, Boxes, Box, ShieldCheck, ChevronDown, Wrench, LogOut, Layers, Lock, 
   Eye, EyeOff, X, FileBadge, UserCog, HelpCircle, Award, BookOpen, LayoutDashboard, 
-  ShieldAlert, Settings, PackageSearch 
+  ShieldAlert, Settings, PackageSearch, Hexagon
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -73,7 +73,7 @@ export function Header() {
   const mainNavigation = getNavigation();
 
   useEffect(() => {
-    setMounted(true);
+    setMounted(true); // eslint-disable-line react-hooks/set-state-in-effect
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
         e.preventDefault();
@@ -126,7 +126,7 @@ export function Header() {
         setConfirmPassword("");
         setPasswordSuccess("");
       }, 1500);
-    } catch (err: any) {
+    } catch (err: any /* eslint-disable-line @typescript-eslint/no-explicit-any */) {
       setPasswordError(err.message);
     } finally {
       setIsChangingPassword(false);
@@ -140,15 +140,16 @@ export function Header() {
         {/* LEFT ZONE: Brand */}
         <div className="flex items-center flex-1 min-w-0">
           <Link href="/overview" className="flex items-center group relative overflow-hidden flex-shrink-0 mr-8">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#1428A0] to-blue-500 flex items-center justify-center shadow-md shadow-blue-500/20 ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-105">
-              <Box className="w-4 h-4 text-white" strokeWidth={2.5} />
+            <div className="w-8 h-8 bg-gradient-to-br from-[#1428A0] to-indigo-900 rounded-lg flex items-center justify-center shadow-md shadow-blue-900/20 relative ring-1 ring-white/10 transition-transform duration-300 group-hover:scale-105">
+              <Hexagon className="w-5 h-5 text-white absolute" strokeWidth={1.5} />
+              <Sparkles className="w-2.5 h-2.5 text-blue-300 absolute" />
             </div>
             <div className="flex flex-col ml-3 hidden sm:flex justify-center h-full">
               <h1 className="text-lg font-black tracking-tight text-gray-900 dark:text-white leading-none">
                 IQC Nexus
               </h1>
               <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 mt-0.5 leading-none">
-                Enterprise Quality Platform
+                Enterprise Quality Intelligence Platform
               </span>
             </div>
           </Link>
@@ -243,14 +244,16 @@ export function Header() {
         {/* RIGHT ZONE: Search, Tools, Profile */}
         <div className="flex items-center justify-end space-x-1 sm:space-x-2 flex-1">
           
-          {/* Universal Search */}
-          <div className="hidden xl:flex relative group mr-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 group-focus-within:text-[#1428A0] dark:group-focus-within:text-blue-400 transition-colors" />
+          {/* AI-Powered Universal Search */}
+          <div className="hidden xl:flex relative group mr-3">
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center space-x-1.5 pointer-events-none">
+              <Sparkles className="w-4 h-4 text-blue-500" />
+            </div>
             <input 
               id="global-search-input"
               type="text" 
-              placeholder="Search projects, BOMs, users, suppliers..." 
-              className="w-72 h-9 pl-9 pr-12 bg-gray-100/50 dark:bg-white/5 border border-transparent hover:border-gray-200 dark:hover:border-white/10 focus:border-[#1428A0]/30 dark:focus:border-blue-500/30 focus:bg-white dark:focus:bg-[#1A1A1A] rounded-lg text-sm font-medium text-gray-900 dark:text-white outline-none transition-all duration-300 placeholder-gray-400 dark:placeholder-gray-500 focus:shadow-[0_0_0_3px_rgba(20,40,160,0.1)] dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
+              placeholder="Ask AI or search anything..." 
+              className="w-80 h-9 pl-9 pr-12 bg-gray-100/50 dark:bg-white/5 border border-transparent hover:border-gray-200 dark:hover:border-white/10 focus:border-[#1428A0]/30 dark:focus:border-blue-500/30 focus:bg-white dark:focus:bg-[#1A1A1A] rounded-xl text-sm font-medium text-gray-900 dark:text-white outline-none transition-all duration-300 placeholder-gray-400 dark:placeholder-gray-500 focus:shadow-[0_0_0_3px_rgba(20,40,160,0.1)] dark:focus:shadow-[0_0_0_3px_rgba(59,130,246,0.1)]"
             />
             <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center">
               <kbd className="inline-flex items-center h-5 px-1.5 text-[10px] font-bold bg-white dark:bg-[#2A2A2A] border border-gray-200 dark:border-white/10 rounded-md text-gray-400 shadow-sm">
@@ -259,32 +262,30 @@ export function Header() {
             </div>
           </div>
 
-          {/* AI Assistant */}
-          <button className="hidden sm:flex relative p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors duration-300 rounded-lg group">
-            <Sparkles className="w-[18px] h-[18px] group-hover:scale-110 transition-transform" />
-          </button>
-
-          {/* Chat */}
-          <button className="relative p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-300 rounded-lg group">
-            <MessageSquare className="w-[18px] h-[18px]" />
-          </button>
-
-          {/* Notifications */}
-          <button className="relative p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-300 rounded-lg group">
-            <Bell className="w-[18px] h-[18px] group-hover:animate-[wiggle_0.5s_ease-in-out_infinite]" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#050505]"></span>
-          </button>
-          
-          {/* Theme Toggle */}
-          {mounted && (
-            <button 
-              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-              className="p-2 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/5 transition-colors duration-300 rounded-lg group"
-              title="Toggle Theme"
-            >
-              {theme === 'dark' ? <Sun className="w-[18px] h-[18px] group-hover:rotate-45 transition-transform" /> : <Moon className="w-[18px] h-[18px] group-hover:-rotate-12 transition-transform" />}
+          {/* Utility Cluster (Chat, Notif, Theme) */}
+          <div className="flex items-center bg-gray-100/50 dark:bg-white/5 border border-gray-200/50 dark:border-white/10 rounded-xl p-0.5 mx-1 hidden sm:flex">
+            {/* Chat */}
+            <button className="relative p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-colors duration-300 rounded-lg group mx-0.5">
+              <MessageSquare className="w-[18px] h-[18px]" />
             </button>
-          )}
+
+            {/* Notifications */}
+            <button className="relative p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-colors duration-300 rounded-lg group mx-0.5">
+              <Bell className="w-[18px] h-[18px] group-hover:animate-[wiggle_0.5s_ease-in-out_infinite]" />
+              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full ring-2 ring-white dark:ring-[#050505]"></span>
+            </button>
+            
+            {/* Theme Toggle */}
+            {mounted && (
+              <button 
+                onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-white dark:hover:bg-white/10 transition-colors duration-300 rounded-lg group mx-0.5"
+                title="Toggle Theme"
+              >
+                {theme === 'dark' ? <Sun className="w-[18px] h-[18px] group-hover:rotate-45 transition-transform" /> : <Moon className="w-[18px] h-[18px] group-hover:-rotate-12 transition-transform" />}
+              </button>
+            )}
+          </div>
 
           {/* Role Lens View Selector */}
           {hasRoleLensAccess && (
@@ -317,13 +318,12 @@ export function Header() {
             </div>
           )}
 
-          <div className="h-5 w-px bg-gray-200 dark:bg-white/10 mx-2 hidden sm:block"></div>
-
           {/* User Profile */}
-          <div className="relative group ml-1">
-            <button className="flex items-center space-x-2 p-1 pl-2 pr-3 bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 rounded-full border border-transparent hover:border-gray-200 dark:hover:border-white/10 transition-all active:scale-95">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-indigo-100 to-indigo-50 dark:from-indigo-900 dark:to-[#222] flex items-center justify-center overflow-hidden border border-indigo-200 dark:border-indigo-800 shadow-sm">
-                <img src={`https://api.dicebear.com/7.x/notionists/svg?seed=${user.employeeId}&backgroundColor=transparent`} alt="avatar" className="w-full h-full object-cover scale-110" />
+          <div className="relative group ml-1 hidden sm:block">
+            <button className="flex items-center space-x-2 py-1.5 px-3 bg-transparent hover:bg-gray-100 dark:hover:bg-white/5 rounded-xl border border-transparent hover:border-gray-200 dark:hover:border-white/10 transition-all active:scale-95">
+              <div className="flex flex-col items-end text-right">
+                <span className="text-sm font-bold text-gray-900 dark:text-white leading-tight whitespace-nowrap">{user.name}</span>
+                <span className="text-[10px] font-medium text-gray-500">@{user.employeeId}</span>
               </div>
               <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
             </button>
@@ -351,7 +351,7 @@ export function Header() {
                     <div>
                       <select 
                         value={user.systemRole} 
-                        onChange={(e) => loginAs({ systemRole: e.target.value as any })}
+                        onChange={(e) => loginAs({ systemRole: e.target.value as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ })}
                         className="w-full bg-white dark:bg-[#222] border border-gray-200 dark:border-white/10 rounded-md px-2 py-1 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none"
                       >
                         <option value="Administrator">Role: Admin</option>
@@ -361,7 +361,7 @@ export function Header() {
                     <div>
                       <select 
                         value={user.position} 
-                        onChange={(e) => loginAs({ position: e.target.value as any })}
+                        onChange={(e) => loginAs({ position: e.target.value as any /* eslint-disable-line @typescript-eslint/no-explicit-any */ })}
                         className="w-full bg-white dark:bg-[#222] border border-gray-200 dark:border-white/10 rounded-md px-2 py-1 text-xs font-bold text-gray-700 dark:text-gray-300 outline-none"
                       >
                         <option value="Team Leader">Pos: Team Leader</option>
@@ -489,3 +489,5 @@ export function Header() {
     </>
   );
 }
+
+

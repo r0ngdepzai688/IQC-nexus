@@ -17,6 +17,13 @@ namespace IqcQms.Api.Controllers
             _context = context;
         }
 
+        [HttpGet("count")]
+        public async Task<IActionResult> GetUserCount()
+        {
+            var count = await _context.Users.CountAsync();
+            return Ok(new { count });
+        }
+
         [HttpGet]
         public async Task<IActionResult> GetUsers()
         {

@@ -20,7 +20,7 @@ export default function AuditLogsPage() {
 
   if (user.systemRole !== "Administrator") {
     return (
-      <div className="min-h-[80vh] flex flex-col items-center justify-center p-10 bg-[#F4F6F8] dark:bg-[#000000] rounded-3xl">
+      <div className="min-h-[80vh] flex flex-col items-center justify-center p-10 bg-transparent rounded-3xl">
         <div className="w-24 h-24 bg-rose-100 dark:bg-rose-900/20 rounded-full flex items-center justify-center mb-6">
           <ShieldAlert className="w-12 h-12 text-rose-600 dark:text-rose-500" />
         </div>
@@ -39,7 +39,7 @@ export default function AuditLogsPage() {
   );
 
   return (
-    <div className="min-h-full bg-[#F4F6F8] dark:bg-[#000000] p-6 lg:p-10 pb-20 relative">
+    <div className="min-h-full bg-transparent p-6 lg:p-10 pb-20 relative">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center">
@@ -52,7 +52,7 @@ export default function AuditLogsPage() {
         </button>
       </div>
 
-      <div className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-sm overflow-hidden flex flex-col min-h-[500px]">
+      <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 overflow-hidden flex flex-col min-h-[500px]">
         <div className="p-4 border-b border-gray-200 dark:border-white/10 flex flex-col md:flex-row justify-between gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

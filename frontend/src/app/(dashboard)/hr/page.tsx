@@ -200,7 +200,7 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
           <h3 className="text-sm font-black text-blue-800 dark:text-blue-400 uppercase tracking-widest mb-3 flex items-center">
             <Zap className="w-4 h-4 mr-2" /> AI Executive Summary
           </h3>
-          <p className="text-blue-900 dark:text-blue-100 font-medium leading-relaxed max-w-4xl text-sm md:text-base">
+          <p className="text-blue-900 dark:text-gray-600 dark:text-blue-100 font-medium leading-relaxed max-w-4xl text-sm md:text-base">
             {node.status === 'Healthy' 
               ? `${node.name} is operating in Healthy condition. Quality Score improved by 2% this week. Inspection pass rate remains stable. Supplier dependencies are well-managed with minimal risk.`
               : node.status === 'Critical'
@@ -341,7 +341,7 @@ export default function OrganizationHealthPage() {
   const selectedNode = selectedNodeId ? allNodes.find(n => n.id === selectedNodeId) : null;
 
   return (
-    <div className="min-h-full bg-[#F4F6F8] dark:bg-[#000000] p-6 lg:p-10 relative overflow-hidden">
+    <div className="min-h-full bg-transparent p-6 lg:p-10 relative overflow-hidden">
       
       {/* Background Decor */}
       <div className="absolute top-0 right-0 w-[800px] h-[800px] bg-gradient-to-bl from-blue-100/50 via-transparent to-transparent dark:from-blue-900/10 rounded-full blur-3xl pointer-events-none -z-10 transform translate-x-1/3 -translate-y-1/3" />

@@ -96,6 +96,20 @@ export function Sidebar() {
             );
           })}
         </nav>
+
+        {/* Creator Signature Footer */}
+        <div 
+          className={`px-5 pb-2 mt-auto pt-8 transition-all duration-400 overflow-hidden ${
+            isHovered ? "opacity-100 max-h-40" : "opacity-0 max-h-0"
+          }`}
+        >
+          <div className="text-[11px] text-gray-400/60 dark:text-gray-500/50 font-medium select-none border-t border-gray-200/50 dark:border-white/5 pt-4">
+            <span className="italic">&quot;Your concept. Engineered for<br/>exceptional experiences.&quot;</span><br/>
+            <span className="mt-1 block opacity-70">
+              &copy; 2026 IQC Nexus.<br/>Designed &amp; developed by hai.duong.
+            </span>
+          </div>
+        </div>
       </div>
     </div>
   );

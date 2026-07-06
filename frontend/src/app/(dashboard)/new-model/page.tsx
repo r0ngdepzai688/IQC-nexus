@@ -130,7 +130,9 @@ export default function NewModelPage() {
   };
 
   return (
-    <div className="h-[calc(100vh-64px)] flex bg-[#F8F9FA] dark:bg-[#050505] overflow-hidden">
+    <div className="h-[calc(100vh-64px)] flex bg-transparent relative z-0 overflow-hidden">
+      {/* Ambient Pastel Background for Light Mode */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10 bg-gradient-to-br from-indigo-50/40 via-white to-blue-50/40 dark:from-indigo-950/20 dark:via-[#0a0a0a] dark:to-blue-900/10"></div>
       
       {/* ================= MODE TOGGLE NAV ================= */}
       <div className="w-16 bg-white dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/10 flex flex-col items-center py-6 z-20">
@@ -153,7 +155,7 @@ export default function NewModelPage() {
       {appMode === 'workspace' ? (
         <>
           {/* ================= LEFT PANEL (MASTER LIST) ================= */}
-          <div className="w-[380px] flex-shrink-0 flex flex-col border-r border-gray-200 dark:border-white/10 bg-white dark:bg-[#0A0A0A] z-10">
+          <div className="w-[380px] flex-shrink-0 flex flex-col border-r border-white/40 dark:border-white/10 bg-white/60 dark:bg-[#0A0A0A]/60 backdrop-blur-xl z-10 shadow-[1px_0_10px_rgba(0,0,0,0.02)]">
             <div className="px-5 py-4 border-b border-gray-100 dark:border-white/5">
               <div className="flex justify-between items-center mb-4">
                 <h1 className="text-lg font-black text-gray-900 dark:text-white tracking-tight">Active Projects</h1>
@@ -219,31 +221,35 @@ export default function NewModelPage() {
           </div>
 
           {/* ================= RIGHT PANEL (WORKSPACE OR HOME) ================= */}
-          <div className="flex-1 flex flex-col bg-[#F8F9FA] dark:bg-[#050505] overflow-hidden relative">
+          <div className="flex-1 flex flex-col bg-transparent overflow-hidden relative">
             
             {/* If NO PROJECT is selected -> Show Operational Home Screen */}
             {!activeProject ? (
-              <div className="flex-1 overflow-y-auto custom-scrollbar bg-gray-50/30 dark:bg-black p-8">
-                <div className="max-w-6xl mx-auto space-y-6">
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-4 lg:p-6 pb-20 relative z-0">
+                
+                <div className="max-w-6xl mx-auto space-y-4">
                   
                   {/* Greeting & AI Summary Banner */}
-                  <div className="bg-gradient-to-r from-[#1428A0] to-indigo-800 rounded-3xl p-8 text-white shadow-lg flex justify-between items-center relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full blur-3xl translate-x-1/2 -translate-y-1/2"></div>
+                  <div className="bg-white/70 dark:bg-white/[0.03] backdrop-blur-3xl border border-white dark:border-white/10 rounded-[2rem] p-5 md:p-6 text-gray-900 dark:text-white shadow-xl shadow-blue-900/5 dark:shadow-none relative overflow-hidden transition-all duration-500 hover:border-white/50 dark:hover:border-white/20 flex justify-between items-center">
+                    <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-500/5 dark:bg-blue-500/10 rounded-full blur-3xl translate-x-1/3 -translate-y-1/3 pointer-events-none"></div>
                     <div className="relative z-10 max-w-2xl">
-                      <h2 className="text-3xl font-black mb-2 tracking-tight">Good morning, {user.name}!</h2>
-                      <p className="text-indigo-100 font-medium text-lg flex items-center">
-                        <Sparkles className="w-5 h-5 mr-2 text-indigo-300" />
+                      <div className="flex items-center space-x-2 mb-3">
+                        <Sparkles className="w-4 h-4 text-blue-600 dark:text-blue-300" />
+                        <span className="text-[10px] font-bold text-blue-700 dark:text-blue-200 uppercase tracking-widest">AI Executive Briefing • {activeRoleLens}</span>
+                      </div>
+                      <h2 className="text-xl md:text-2xl font-bold mb-1 tracking-tight">Good morning, {user.name}!</h2>
+                      <p className="text-gray-600 dark:text-blue-100 font-medium text-xs md:text-sm">
                         You have 12 tasks requiring attention today. 2 critical blockers identified.
                       </p>
                     </div>
-                    <div className="relative z-10 flex space-x-4 text-center">
-                      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 min-w-[100px] border border-white/20">
-                        <p className="text-3xl font-black">2</p>
-                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mt-1">Blocked</p>
+                    <div className="relative z-10 flex space-x-3 text-center">
+                      <div className="bg-white/80 dark:bg-white/5 backdrop-blur-md rounded-2xl px-4 py-2 min-w-[80px] border border-white/50 dark:border-white/10 shadow-sm">
+                        <p className="text-xl font-black text-rose-600 dark:text-rose-400">2</p>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Blocked</p>
                       </div>
-                      <div className="bg-white/10 backdrop-blur-md rounded-2xl p-4 min-w-[100px] border border-white/20">
-                        <p className="text-3xl font-black">12</p>
-                        <p className="text-[10px] font-bold text-indigo-200 uppercase tracking-widest mt-1">Pending</p>
+                      <div className="bg-white/80 dark:bg-white/5 backdrop-blur-md rounded-2xl px-4 py-2 min-w-[80px] border border-white/50 dark:border-white/10 shadow-sm">
+                        <p className="text-xl font-black text-indigo-600 dark:text-indigo-400">12</p>
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Pending</p>
                       </div>
                     </div>
                   </div>
@@ -254,7 +260,7 @@ export default function NewModelPage() {
                       
                       {activeRoleLens === 'Staff' && (
                         <>
-                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                          <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                             <div className="flex justify-between items-center mb-6">
                               <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Target className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> My Tasks</h3>
                               <button className="text-sm font-bold text-[#1428A0] dark:text-blue-400 hover:underline">View all (12)</button>
@@ -280,7 +286,7 @@ export default function NewModelPage() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                               <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><CheckCircle2 className="w-4 h-4 mr-2" /> Pending Approvals</h3>
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -292,7 +298,7 @@ export default function NewModelPage() {
                                 </div>
                               </div>
                             </div>
-                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                               <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><AlertTriangle className="w-4 h-4 mr-2" /> Open NCRs</h3>
                               <div className="space-y-4">
                                 <div className="flex items-center justify-between">
@@ -310,7 +316,7 @@ export default function NewModelPage() {
 
                       {activeRoleLens === 'Cell Leader' && (
                         <>
-                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                          <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                             <div className="flex justify-between items-center mb-6">
                               <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Layers className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> Projects in Scope ({user.scope})</h3>
                             </div>
@@ -328,7 +334,7 @@ export default function NewModelPage() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                               <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><Clock className="w-4 h-4 mr-2" /> Pending Stage Approvals</h3>
                               <p className="text-3xl font-black text-gray-900 dark:text-white mb-2">4</p>
                               <p className="text-xs text-gray-500">Awaiting your sign-off to proceed.</p>
@@ -344,7 +350,7 @@ export default function NewModelPage() {
 
                       {['Part Leader', 'Group Leader', 'Team Leader'].includes(activeRoleLens) && (
                         <>
-                          <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                          <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                             <div className="flex justify-between items-center mb-6">
                               <h3 className="text-lg font-black text-gray-900 dark:text-white flex items-center"><Activity className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> NPI Strategic Analytics ({user.scope})</h3>
                             </div>
@@ -354,12 +360,12 @@ export default function NewModelPage() {
                           </div>
 
                           <div className="grid grid-cols-2 gap-6">
-                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                               <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><Users2 className="w-4 h-4 mr-2" /> Resource Allocation</h3>
                               <p className="text-3xl font-black text-gray-900 dark:text-white mb-2">94%</p>
                               <p className="text-xs text-gray-500 flex items-center"><ArrowDownToLine className="w-3 h-3 text-emerald-500 mr-1"/> Optimized load across teams</p>
                             </div>
-                            <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                            <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                               <h3 className="text-sm font-black text-gray-500 uppercase tracking-wider mb-4 flex items-center"><TrendingUp className="w-4 h-4 mr-2" /> Overall Yield Trend</h3>
                               <p className="text-3xl font-black text-emerald-600 dark:text-emerald-400 mb-2">+1.2%</p>
                               <p className="text-xs text-gray-500">Compared to last month</p>
@@ -372,7 +378,7 @@ export default function NewModelPage() {
 
                     {/* Global Monitoring Column (1/3 width) */}
                     <div className="space-y-6">
-                      <div className="bg-white dark:bg-[#151515] rounded-3xl border border-gray-200 dark:border-white/5 shadow-sm p-6">
+                      <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6">
                         <h3 className="text-lg font-black text-gray-900 dark:text-white mb-6">Monitoring</h3>
                         
                         <div className="space-y-5">
@@ -428,7 +434,7 @@ export default function NewModelPage() {
                           <h4 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-3">Today's Tasks</h4>
                           <div className="space-y-2">
                             <button className="w-full flex items-center justify-between p-3 bg-blue-50/50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-500/20 rounded-xl hover:bg-blue-100/50 transition-colors group">
-                              <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div><span className="text-xs font-bold text-blue-900 dark:text-blue-300">Upload PVR Jig Test</span></div>
+                              <div className="flex items-center"><div className="w-2 h-2 rounded-full bg-blue-500 mr-2"></div><span className="text-xs font-bold text-blue-900 dark:text-blue-600 dark:text-blue-300">Upload PVR Jig Test</span></div>
                               <ArrowRight className="w-3 h-3 text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             </button>
                             <button className="w-full flex items-center justify-between p-3 bg-white dark:bg-[#151515] border border-gray-200 dark:border-white/10 rounded-xl hover:border-gray-300 transition-colors group">
@@ -690,3 +696,4 @@ export default function NewModelPage() {
     </div>
   );
 }
+

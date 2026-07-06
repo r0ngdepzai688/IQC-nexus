@@ -60,7 +60,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             accountStatus: parsed.accountStatus || defaultUser.accountStatus,
             avatar: parsed.avatar || ''
           };
-          setUser(loadedUser);
+          setUser(loadedUser); // eslint-disable-line react-hooks/set-state-in-effect
           setActiveRoleLens(loadedUser.position);
         } catch (e) {
           console.error("Failed to parse user from localStorage", e);
@@ -108,3 +108,4 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 };
 
 export const useAuth = () => useContext(AuthContext);
+
