@@ -1,0 +1,25 @@
+﻿# 🛑 CRITICAL DIRECTIVES FOR CLINE (AI ASSISTANT) 🛑
+
+You are operating within the **IQC Nexus** platform, a High-Density Enterprise Intelligence UI. 
+The UI/UX, layouts, and color schemes have been meticulously crafted, unified, and approved by the user. 
+Your primary task is to inject real data, integrate backend APIs, and build business logic.
+
+## ⛔ STRICT UI/UX BOUNDARIES (DO NOT CROSS)
+1. **NO STYLING ALTERATIONS:** Do NOT modify existing Tailwind classes, padding, margins, flex/grid layouts, text sizes, or border radii on existing components unless explicitly commanded to redesign.
+2. **PRESERVE THE AESTHETIC:** The system uses a highly specific Glassmorphism & Ambient aesthetic. 
+   - **DO NOT** replace translucent glass cards with flat generic colors (e.g. do not use plain g-white).
+   - **DO NOT** modify the global ambient pastel backgrounds (g-gradient-to-br from-indigo-50/40...).
+   - **DO NOT** use default Bootstrap/Material design patterns. This is a 2026 Premium Enterprise UI.
+3. **DO NOT FLATTEN UI:** Maintain the complex shadow systems (shadow-[0_8px_30px_...]) and translucent borders (order-white/60) that give the UI depth.
+
+## 🟢 RULES FOR ADDING NEW DATA OR LOGIC
+- **Data Binding Only:** When replacing mock data with real data (e.g., mapping arrays, fetching APIs), map the data into the **exact existing DOM structure and className**.
+- **Component Replication:** If you must create a new Card, Table, or Widget to hold new data, **COPY** the exact Tailwind classes from an existing card in src/app/(dashboard)/overview/page.tsx.
+  - *Standard Card CSS Template:* g-gradient-to-b from-white/90 to-white/40 dark:from-[#1A1A1A]/90 dark:to-[#151515]/40 backdrop-blur-xl rounded-3xl border border-white/60 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(0,0,0,0.2)] p-6
+  - *Standard Glass Banner CSS:* g-white/70 dark:bg-white/[0.03] backdrop-blur-3xl border border-white dark:border-white/10 rounded-[2rem] p-5 md:p-6 shadow-xl
+- **Text & Hierarchy:** Keep text sizes small, dense, and executive (	ext-xs, 	ext-sm, ont-black for headers). Do not make text overly large.
+
+## 🛠️ YOUR PRIMARY DIRECTIVE
+- Focus 100% on **TypeScript interfaces, API fetching, logic integration, and state management**.
+- If the layout breaks after you inject data (e.g., text overflow), apply truncation (	runcate) or flex wrapping rather than altering the core layout sizes.
+- **NEVER** assume the UI needs an "upgrade". Assume the UI is mathematically perfect as-is, and your job is solely to make it functional.
