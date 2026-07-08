@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Fingerprint, Eye, EyeOff, Lock, User, ArrowRight, ShieldCheck, Zap, Hexagon, Sparkles } from "lucide-react";
 import { useRouter } from "next/navigation";
 import NumberTicker from "@/components/ui/NumberTicker";
@@ -18,7 +18,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   useEffect(() => {
-    fetch("http://localhost:5215/api/users/count")
+    fetch("http://localhost:5000/api/users/count")
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.count === 'number') {
@@ -33,32 +33,35 @@ export default function LoginPage() {
     if (!employeeId || !password) return;
     
     setIsLoading(true);
-    try {
-      const res = await fetch("http://localhost:5215/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username: employeeId, password })
-      });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        alert(data.message || "Đăng nhập thất bại");
-        setIsLoading(false);
-        return;
+    
+    // MOCK LOGIN FOR DEVELOPMENT
+    setTimeout(() => {
+      if (employeeId === "admin" || employeeId === "10545898") {
+        // Save fake token and user info
+        localStorage.setItem("token", "mock-jwt-token-12345");
+        localStorage.setItem("user", JSON.stringify({
+          id: employeeId,
+          name: "Nguyễn Hải Đường",
+          role: employeeId === "admin" ? "admin" : "user",
+          department: "IQC"
+        }));
+        
+        router.push("/");
+      } else {
+        // Any other user can also login for testing
+        localStorage.setItem("token", "mock-jwt-token-test");
+        localStorage.setItem("user", JSON.stringify({
+          id: employeeId,
+          name: employeeId,
+          role: "user",
+          department: "Test"
+        }));
+        router.push("/");
       }
-
-      // Save token and user info
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-      
-      router.push("/");
-    } catch (err) {
-      console.error(err);
-      alert("Lỗi kết nối đến máy chủ.");
       setIsLoading(false);
-    }
+    }, 1000);
   };
+
 
   const handleBiometricLogin = () => {
     setIsBiometric(true);
@@ -82,7 +85,7 @@ export default function LoginPage() {
               scale: [1, 1.2, 1],
             }}
             transition={{ duration: 30, repeat: Infinity, ease: "linear" }}
-            className="absolute -top-[20%] -left-[10%] w-[800px] h-[800px] rounded-full bg-[#1428A0]/20 blur-[120px]"
+            className="absolute -top-[20%] -left-[10%] w-[800px] h-[800px] rounded-full bg-primary/20 blur-[120px]"
           />
           <motion.div 
             animate={{ 
@@ -107,7 +110,7 @@ export default function LoginPage() {
           transition={{ duration: 0.8 }}
           className="relative z-10 flex items-center space-x-3"
         >
-          <div className="w-12 h-12 bg-gradient-to-br from-[#1428A0] to-indigo-900 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20 relative border border-white/10">
+          <div className="w-12 h-12 bg-gradient-to-br from-primary to-indigo-900 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-900/20 relative border border-white/10">
             <Hexagon className="w-7 h-7 text-white absolute" strokeWidth={1.5} />
             <Sparkles className="w-3.5 h-3.5 text-blue-300 absolute" />
           </div>
@@ -204,7 +207,7 @@ export default function LoginPage() {
         >
           {/* Creator Signature */}
           <div className="text-[11px] text-gray-400/60 font-medium select-none">
-            <span className="italic">"Your concept. Engineered for exceptional experiences."</span><br/>
+            <span className="italic">&quot;Your concept. Engineered for exceptional experiences.&quot;</span><br/>
             <span className="mt-1 block opacity-70">
               &copy; 2026 IQC Nexus. Designed &amp; developed by hai.duong.
             </span>
@@ -216,7 +219,7 @@ export default function LoginPage() {
       <div className="w-full lg:w-1/2 flex items-center justify-center p-6 sm:p-12 relative">
         {/* Mobile Logo */}
         <div className="absolute top-8 left-8 lg:hidden flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-[#1428A0] to-indigo-900 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 relative border border-white/10">
+          <div className="w-10 h-10 bg-gradient-to-br from-primary to-indigo-900 rounded-xl flex items-center justify-center shadow-lg shadow-blue-900/20 relative border border-white/10">
             <Hexagon className="w-6 h-6 text-white absolute" strokeWidth={1.5} />
             <Sparkles className="w-3 h-3 text-blue-300 absolute" />
           </div>
@@ -325,7 +328,7 @@ export default function LoginPage() {
               <ShieldCheck className="w-4 h-4 mr-2 text-blue-400 group-hover:scale-110 transition-transform" />
               Knox SSO
             </button>
-            <button type="button" onClick={handleBiometricLogin} className="flex-1 bg-[#1428A0]/10 hover:bg-[#1428A0]/20 border border-[#1428A0]/30 text-blue-400 rounded-2xl py-3 text-sm font-semibold flex items-center justify-center transition-all duration-300 group">
+            <button type="button" onClick={handleBiometricLogin} className="flex-1 bg-primary/10 hover:bg-primary/20 border border-primary/30 text-blue-400 rounded-2xl py-3 text-sm font-semibold flex items-center justify-center transition-all duration-300 group">
               <Fingerprint className="w-4 h-4 mr-2 group-hover:scale-110 transition-transform" />
               {isBiometric ? "Đang xác thực..." : "Passkey"}
             </button>

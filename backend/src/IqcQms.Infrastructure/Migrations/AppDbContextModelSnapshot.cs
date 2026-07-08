@@ -69,6 +69,10 @@ namespace IqcQms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("FullName")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -91,6 +95,10 @@ namespace IqcQms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("Part")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("PasswordHash")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -101,6 +109,10 @@ namespace IqcQms.Infrastructure.Migrations
 
                     b.Property<int?>("RoleId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("RoleProfile")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<string>("Scope")
                         .IsRequired()
@@ -463,6 +475,268 @@ namespace IqcQms.Infrastructure.Migrations
                     b.ToTable("AuditLogs");
                 });
 
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskAttachment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("FilePath")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<long>("FileSize")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("FileType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UploadedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UploaderId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("TaskAttachments");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskChecklist", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsCompleted")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Order")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("TaskChecklists");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("AuthorId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CommentType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Content")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("TaskItemId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TaskItemId");
+
+                    b.ToTable("TaskComments");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskDependency", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("PrerequisiteTaskId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("TaskId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PrerequisiteTaskId");
+
+                    b.HasIndex("TaskId");
+
+                    b.ToTable("TaskDependencies");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskItem", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal?>("ActualHours")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApprovalStatus")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ApproverId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AssigneeId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Category")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletionDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatorId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal?>("EstimatedHours")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Followers")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Module")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ParentTaskId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Priority")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Progress")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Project")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelatedEntityId")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RelatedEntityName")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Severity")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceModule")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("StartDate")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Tags")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaskNumber")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TaskType")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ParentTaskId");
+
+                    b.ToTable("TaskItems");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskTemplate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("DefinitionJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("TaskTemplates");
+                });
+
             modelBuilder.Entity("IqcQms.Domain.Entities.Auth.User", b =>
                 {
                     b.HasOne("IqcQms.Domain.Entities.Auth.Role", "Role")
@@ -538,6 +812,68 @@ namespace IqcQms.Infrastructure.Migrations
                     b.Navigation("Part");
                 });
 
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskAttachment", b =>
+                {
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "TaskItem")
+                        .WithMany("Attachments")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskChecklist", b =>
+                {
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "TaskItem")
+                        .WithMany("Checklists")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskComment", b =>
+                {
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "TaskItem")
+                        .WithMany("Comments")
+                        .HasForeignKey("TaskItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("TaskItem");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskDependency", b =>
+                {
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "PrerequisiteTask")
+                        .WithMany("RequiredBy")
+                        .HasForeignKey("PrerequisiteTaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "Task")
+                        .WithMany("DependentOn")
+                        .HasForeignKey("TaskId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PrerequisiteTask");
+
+                    b.Navigation("Task");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskItem", b =>
+                {
+                    b.HasOne("IqcQms.Domain.Entities.Tasks.TaskItem", "ParentTask")
+                        .WithMany("Subtasks")
+                        .HasForeignKey("ParentTaskId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("ParentTask");
+                });
+
             modelBuilder.Entity("IqcQms.Domain.Entities.Auth.Role", b =>
                 {
                     b.Navigation("Users");
@@ -560,6 +896,21 @@ namespace IqcQms.Infrastructure.Migrations
             modelBuilder.Entity("IqcQms.Domain.Entities.Standards.InspectionStandard", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("IqcQms.Domain.Entities.Tasks.TaskItem", b =>
+                {
+                    b.Navigation("Attachments");
+
+                    b.Navigation("Checklists");
+
+                    b.Navigation("Comments");
+
+                    b.Navigation("DependentOn");
+
+                    b.Navigation("RequiredBy");
+
+                    b.Navigation("Subtasks");
                 });
 #pragma warning restore 612, 618
         }

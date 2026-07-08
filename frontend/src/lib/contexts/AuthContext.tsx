@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
-export type Role = 'Team Leader' | 'Group Leader' | 'Part Leader' | 'Cell Leader' | 'Staff';
+export type Role = 'Group Leader' | 'Part Leader' | 'Cell Leader' | 'Staff';
 export type SystemRole = 'Administrator' | 'User';
 export type AccountStatus = 'Active' | 'Inactive' | 'Pending' | 'Locked';
 
@@ -14,6 +14,10 @@ interface AuthState {
   systemRole: SystemRole;
   accountStatus: AccountStatus;
   avatar: string;
+  organization: string;
+  part: string;
+  email: string;
+  roleProfile: string;
 }
 
 interface AuthContextProps {
@@ -26,11 +30,15 @@ interface AuthContextProps {
 const defaultUser: AuthState = {
   employeeId: '10545998',
   name: 'Nguyễn Văn A',
-  position: 'Team Leader',
-  scope: 'Factory',
+  position: 'IQC Group Leader',
+  scope: 'All',
   systemRole: 'Administrator',
   accountStatus: 'Active',
-  avatar: ''
+  avatar: '',
+  organization: 'IQC Group',
+  part: 'All',
+  email: 'admin@iqc-nexus.local',
+  roleProfile: 'Admin'
 };
 
 const AuthContext = createContext<AuthContextProps>({
@@ -58,7 +66,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             scope: parsed.scope || defaultUser.scope,
             systemRole: parsed.systemRole || defaultUser.systemRole,
             accountStatus: parsed.accountStatus || defaultUser.accountStatus,
-            avatar: parsed.avatar || ''
+            avatar: parsed.avatar || '',
+            organization: parsed.organization || defaultUser.organization,
+            part: parsed.part || defaultUser.part,
+            email: parsed.email || defaultUser.email,
+            roleProfile: parsed.roleProfile || defaultUser.roleProfile
           };
           setUser(loadedUser); // eslint-disable-line react-hooks/set-state-in-effect
           setActiveRoleLens(loadedUser.position);
@@ -87,7 +99,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           fullName: newUser.name,
           position: newUser.position,
           scope: newUser.scope,
-          systemRole: newUser.systemRole
+          systemRole: newUser.systemRole,
+          organization: newUser.organization,
+          part: newUser.part,
+          email: newUser.email,
+          roleProfile: newUser.roleProfile
         };
         localStorage.setItem('user', JSON.stringify(parsed));
       }

@@ -11,9 +11,12 @@ namespace IqcQms.Domain.Entities.Auth
         public string Department { get; set; } = string.Empty;
         public string Organization { get; set; } = string.Empty;
         public string ClName { get; set; } = string.Empty;
+        public string Part { get; set; } = string.Empty;
         public string KnoxId { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
         public string Position { get; set; } = string.Empty;
         public string Scope { get; set; } = string.Empty;
+        public string RoleProfile { get; set; } = string.Empty;
         public string SystemRole { get; set; } = "User";
         public string DashboardProfile { get; set; } = "Auto";
         

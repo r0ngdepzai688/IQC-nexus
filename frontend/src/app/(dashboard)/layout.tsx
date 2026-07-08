@@ -21,6 +21,7 @@ export default function DashboardLayout({
     if (!token) {
       router.push("/login");
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsAuthenticated(true);
     }
   }, [router]);

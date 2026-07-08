@@ -41,7 +41,7 @@ export function Sidebar() {
       <div 
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        className={`absolute top-0 left-0 h-full bg-white/70 dark:bg-[#111111]/70 backdrop-blur-2xl border border-white/80 dark:border-white/10 rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col overflow-hidden ${
+        className={`absolute top-0 left-0 h-full bg-white/70 dark:bg-muted/70 backdrop-blur-2xl border border-white/80 border-border rounded-[2rem] shadow-[0_8px_32px_rgba(0,0,0,0.04)] dark:shadow-none transition-all duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] flex flex-col overflow-hidden ${
           isHovered ? "w-[240px]" : "w-16"
         }`}
       >
@@ -63,7 +63,7 @@ export function Sidebar() {
                 href={item.href}
                 className={`relative flex items-center h-12 px-2 text-sm font-semibold rounded-2xl transition-all duration-300 group ${
                   isActive
-                    ? "bg-white/80 dark:bg-white/10 text-[#1428A0] dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
+                    ? "bg-white/80 dark:bg-white/10 text-primary dark:text-white shadow-sm ring-1 ring-black/5 dark:ring-white/10"
                     : "text-gray-500 dark:text-gray-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-gray-900 dark:hover:text-gray-200"
                 }`}
                 title={!isHovered ? item.name : undefined}
@@ -71,7 +71,7 @@ export function Sidebar() {
                 <div className="flex items-center w-full">
                   <item.icon
                     className={`w-5 h-5 flex-shrink-0 ml-1.5 transition-transform duration-300 group-hover:scale-110 ${
-                      isActive ? "text-[#1428A0] dark:text-white" : "text-gray-400 dark:text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"
+                      isActive ? "text-primary dark:text-white" : "text-gray-400 dark:text-gray-500 group-hover:text-gray-700 dark:group-hover:text-gray-300"
                     }`}
                     strokeWidth={isActive ? 2.5 : 2}
                   />
@@ -90,7 +90,7 @@ export function Sidebar() {
                 </div>
 
                 {isActive && isHovered && (
-                  <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-[#1428A0] dark:bg-white animate-pulse" />
+                  <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-primary dark:bg-white animate-pulse" />
                 )}
               </Link>
             );
@@ -103,7 +103,7 @@ export function Sidebar() {
             isHovered ? "opacity-100 max-h-40" : "opacity-0 max-h-0"
           }`}
         >
-          <div className="text-[11px] text-gray-400/60 dark:text-gray-500/50 font-medium select-none border-t border-gray-200/50 dark:border-white/5 pt-4">
+          <div className="text-[11px] text-gray-400/60 dark:text-gray-500/50 font-medium select-none border-t border-gray-200/50 border-border pt-4">
             <span className="italic">&quot;Your concept. Engineered for<br/>exceptional experiences.&quot;</span><br/>
             <span className="mt-1 block opacity-70">
               &copy; 2026 IQC Nexus.<br/>Designed &amp; developed by hai.duong.

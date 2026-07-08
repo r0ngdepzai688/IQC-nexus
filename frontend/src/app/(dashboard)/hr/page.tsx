@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Building2, Users, ShieldAlert, CheckCircle, TrendingUp, TrendingDown,
-  AlertTriangle, Folder, Activity, Zap, HardDrive, BookOpen, Clock, 
-  ArrowRight, ShieldCheck, FileWarning, BarChart4, ChevronRight, X
+  Users, ShieldAlert, TrendingUp, AlertTriangle, Folder, 
+  Activity, Zap, Clock, FileWarning, X
 } from "lucide-react";
 
 // ============================================================================
@@ -112,7 +111,7 @@ const HealthNode = ({ node, isRoot = false, isSelected, onClick }: { node: OrgNo
       whileHover={{ y: -5, scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
-      className={`relative w-72 rounded-3xl p-5 cursor-pointer shadow-lg transition-all duration-300 border-2 ${isSelected ? 'ring-4 ring-[#1428A0]/30 dark:ring-white/20 border-[#1428A0] dark:border-white' : 'border-transparent'} ${isRoot ? 'bg-white dark:bg-[#1A1A1A]' : 'bg-white dark:bg-[#151515]'}`}
+      className={`relative w-72 rounded-3xl p-5 cursor-pointer shadow-lg transition-all duration-300 border-2 ${isSelected ? 'ring-4 ring-primary/30 dark:ring-white/20 border-primary dark:border-white' : 'border-transparent'} ${isRoot ? 'bg-white dark:bg-popover' : 'bg-white dark:bg-popover'}`}
     >
       {/* Top Header */}
       <div className="flex justify-between items-start mb-4">
@@ -136,19 +135,19 @@ const HealthNode = ({ node, isRoot = false, isSelected, onClick }: { node: OrgNo
 
       {/* Key Metrics Grid */}
       <div className="grid grid-cols-2 gap-2 mb-4">
-        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/5">
+        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-border">
           <p className="text-[10px] font-bold text-gray-500 uppercase">Health Score</p>
           <p className={`text-lg font-black ${node.healthScore >= 90 ? 'text-emerald-600' : node.healthScore >= 75 ? 'text-yellow-600' : 'text-rose-600'}`}>{node.healthScore}%</p>
         </div>
-        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/5">
+        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-border">
           <p className="text-[10px] font-bold text-gray-500 uppercase">Quality</p>
           <p className="text-lg font-black text-gray-900 dark:text-white">{node.metrics.qualityScore}%</p>
         </div>
-        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/5">
+        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-border">
           <p className="text-[10px] font-bold text-gray-500 uppercase">Open NCR</p>
           <p className="text-lg font-black text-gray-900 dark:text-white">{node.metrics.openNcr}</p>
         </div>
-        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-gray-100 dark:border-white/5">
+        <div className="p-2 bg-gray-50 dark:bg-white/5 rounded-lg border border-border">
           <p className="text-[10px] font-bold text-gray-500 uppercase">Projects</p>
           <p className="text-lg font-black text-gray-900 dark:text-white">{node.metrics.projects}</p>
         </div>
@@ -173,10 +172,10 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
       initial={{ opacity: 0, y: 50 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: 50 }}
-      className="bg-white dark:bg-[#121212] rounded-3xl border border-gray-200 dark:border-white/10 shadow-xl overflow-hidden mt-12 mb-20"
+      className="bg-white dark:bg-card rounded-3xl border border-border shadow-xl overflow-hidden mt-12 mb-20"
     >
       {/* Dashboard Header */}
-      <div className="p-6 md:p-8 border-b border-gray-200 dark:border-white/10 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/50 dark:bg-white/[0.02]">
+      <div className="p-6 md:p-8 border-b border-border flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-gray-50/50 dark:bg-white/[0.02]">
         <div>
           <div className="flex items-center space-x-3 mb-2">
             <h2 className="text-3xl font-black text-gray-900 dark:text-white">{node.name}</h2>
@@ -215,7 +214,7 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
         {/* Left Col: KPI Cards */}
         <div className="lg:col-span-2 space-y-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div className="p-5 bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="p-5 bg-gray-50 dark:bg-popover rounded-2xl border border-border">
               <p className="text-xs font-bold text-gray-500 uppercase">Quality Score</p>
               <div className="flex items-end mt-2"><p className="text-3xl font-black">{node.metrics.qualityScore}%</p><TrendingUp className="w-4 h-4 ml-2 mb-1 text-emerald-500" /></div>
             </div>
@@ -223,11 +222,11 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
               <p className="text-xs font-bold text-rose-500 uppercase">Open NCR</p>
               <div className="flex items-end mt-2"><p className="text-3xl font-black text-rose-600 dark:text-rose-400">{node.metrics.openNcr}</p><AlertTriangle className="w-4 h-4 ml-2 mb-1 text-rose-500" /></div>
             </div>
-            <div className="p-5 bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="p-5 bg-gray-50 dark:bg-popover rounded-2xl border border-border">
               <p className="text-xs font-bold text-gray-500 uppercase">Active Projects</p>
               <div className="flex items-end mt-2"><p className="text-3xl font-black">{node.metrics.projects}</p></div>
             </div>
-            <div className="p-5 bg-gray-50 dark:bg-[#1A1A1A] rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="p-5 bg-gray-50 dark:bg-popover rounded-2xl border border-border">
               <p className="text-xs font-bold text-gray-500 uppercase">Delayed Tasks</p>
               <div className="flex items-end mt-2"><p className="text-3xl font-black">{node.metrics.delayedTasks}</p></div>
             </div>
@@ -236,9 +235,9 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
           {/* Project Pipeline */}
           <div>
             <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4 flex items-center">
-              <Folder className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> Project Pipeline
+              <Folder className="w-5 h-5 mr-2 text-primary dark:text-blue-500" /> Project Pipeline
             </h3>
-            <div className="bg-gray-50 dark:bg-[#1A1A1A] p-6 rounded-2xl border border-gray-100 dark:border-white/5">
+            <div className="bg-gray-50 dark:bg-popover p-6 rounded-2xl border border-border">
               <div className="flex flex-col space-y-4">
                 {[
                   { stage: 'Planning', count: Math.floor(node.metrics.projects * 0.1), progress: 100 },
@@ -252,7 +251,7 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
                       <span className="text-gray-700 dark:text-gray-300">{p.stage} ({p.count})</span>
                     </div>
                     <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-2">
-                      <div className="bg-[#1428A0] dark:bg-blue-500 h-2 rounded-full" style={{ width: `${p.progress}%` }}></div>
+                      <div className="bg-primary dark:bg-blue-500 h-2 rounded-full" style={{ width: `${p.progress}%` }}></div>
                     </div>
                   </div>
                 ))}
@@ -265,7 +264,7 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
         <div className="space-y-8">
           <div>
             <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4 flex items-center">
-              <Activity className="w-5 h-5 mr-2 text-[#1428A0] dark:text-blue-500" /> Smart Alerts
+              <Activity className="w-5 h-5 mr-2 text-primary dark:text-blue-500" /> Smart Alerts
             </h3>
             <div className="space-y-3">
               {node.metrics.openNcr > 10 && (
@@ -300,14 +299,14 @@ const ExpandedDashboard = ({ node, onClose }: { node: OrgNode, onClose: () => vo
             <h3 className="text-lg font-black text-gray-900 dark:text-white mb-4 flex items-center">
               <Clock className="w-5 h-5 mr-2 text-gray-400" /> Recent Activities
             </h3>
-            <div className="relative border-l-2 border-gray-100 dark:border-white/10 ml-3 space-y-6">
+            <div className="relative border-l-2 border-border ml-3 space-y-6">
               {[
                 { time: '2 hours ago', title: 'NCR Approved', desc: 'QMS-2024-089 was closed.' },
                 { time: '5 hours ago', title: 'Inspection Failed', desc: 'Lot #882 rejected for dimension error.' },
                 { time: '1 day ago', title: 'Supplier Update', desc: 'Supplier ABC uploaded PPAP documents.' }
               ].map((act, i) => (
                 <div key={i} className="pl-6 relative">
-                  <div className="absolute w-3 h-3 bg-white dark:bg-[#121212] border-2 border-[#1428A0] dark:border-blue-500 rounded-full -left-[7px] top-1.5" />
+                  <div className="absolute w-3 h-3 bg-white dark:bg-card border-2 border-primary dark:border-blue-500 rounded-full -left-[7px] top-1.5" />
                   <p className="text-xs font-bold text-gray-400 mb-1">{act.time}</p>
                   <p className="text-sm font-bold text-gray-900 dark:text-white">{act.title}</p>
                   <p className="text-xs font-medium text-gray-500">{act.desc}</p>
@@ -349,7 +348,7 @@ export default function OrganizationHealthPage() {
       {/* Header */}
       <div className="mb-12">
         <h1 className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 mb-3 flex items-center">
-          <Activity className="w-10 h-10 mr-4 text-[#1428A0] dark:text-blue-500" />
+          <Activity className="w-10 h-10 mr-4 text-primary dark:text-blue-500" />
           Organization Health Center
         </h1>
         <p className="text-lg font-medium text-gray-500 max-w-3xl leading-relaxed">

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/contexts/AuthContext";
 import { 
-  ShieldAlert, Search, Filter, ShieldCheck, Clock, FileText, ArrowRight, Download, Eye
+  ShieldAlert, Search, Filter, Clock, FileText, ArrowRight, Download
 } from "lucide-react";
 
 // Mock Data
@@ -43,17 +43,17 @@ export default function AuditLogsPage() {
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
           <h1 className="text-3xl font-black text-gray-900 dark:text-white flex items-center">
-            <FileText className="w-8 h-8 mr-3 text-[#1428A0] dark:text-blue-500" /> Security Audit Logs
+            <FileText className="w-8 h-8 mr-3 text-primary dark:text-blue-500" /> Security Audit Logs
           </h1>
           <p className="text-gray-500 font-medium mt-1">Immutable record of all administrative actions in the system.</p>
         </div>
-        <button className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-colors">
+        <button className="bg-white dark:bg-popover border border-border hover:bg-gray-50 dark:hover:bg-white/5 px-4 py-2.5 rounded-xl text-sm font-bold flex items-center transition-colors">
           <Download className="w-4 h-4 mr-2" /> Export to CSV
         </button>
       </div>
 
-      <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white dark:border-white/10 dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 overflow-hidden flex flex-col min-h-[500px]">
-        <div className="p-4 border-b border-gray-200 dark:border-white/10 flex flex-col md:flex-row justify-between gap-4">
+      <div className="bg-gradient-to-b from-white/90 to-white/40 dark:from-white/5 dark:to-transparent backdrop-blur-xl rounded-3xl border border-white/60 border-t-white border-border dark:border-t-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-none hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 p-5 md:p-6 overflow-hidden flex flex-col min-h-[500px]">
+        <div className="p-4 border-b border-border flex flex-col md:flex-row justify-between gap-4">
           <div className="relative w-full md:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input 
@@ -61,10 +61,10 @@ export default function AuditLogsPage() {
               placeholder="Search by Admin, Target, or Action..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-[#1428A0]"
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-border rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
-          <button className="flex items-center px-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-gray-200 dark:border-white/10 rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 transition-colors">
+          <button className="flex items-center px-4 py-2.5 bg-gray-50 dark:bg-white/5 border border-border rounded-xl text-sm font-bold text-gray-700 dark:text-gray-300 hover:bg-gray-100 transition-colors">
             <Filter className="w-4 h-4 mr-2" /> Filter Range
           </button>
         </div>
@@ -72,7 +72,7 @@ export default function AuditLogsPage() {
         <div className="overflow-x-auto flex-1">
           <table className="w-full text-left border-collapse whitespace-nowrap">
             <thead>
-              <tr className="bg-gray-50/50 dark:bg-white/5 border-b border-gray-200 dark:border-white/10 text-xs font-bold text-gray-500 uppercase tracking-wider">
+              <tr className="bg-gray-50/50 dark:bg-white/5 border-b border-border text-xs font-bold text-gray-500 uppercase tracking-wider">
                 <th className="px-6 py-4">Timestamp</th>
                 <th className="px-6 py-4">Administrator</th>
                 <th className="px-6 py-4">Action Type</th>

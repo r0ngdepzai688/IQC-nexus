@@ -5,6 +5,7 @@ using IqcQms.Domain.Entities.Equipment;
 using IqcQms.Domain.Entities.Standards;
 using IqcQms.Domain.Entities.System;
 using IqcQms.Domain.Entities.Chat;
+using IqcQms.Domain.Entities.Tasks;
 
 namespace IqcQms.Infrastructure.Data
 {
@@ -30,6 +31,14 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<Message> Messages { get; set; }
         public DbSet<MessageAttachment> MessageAttachments { get; set; }
         public DbSet<MessageReaction> MessageReactions { get; set; }
+
+        // Tasks module
+        public DbSet<TaskItem> TaskItems { get; set; }
+        public DbSet<TaskChecklist> TaskChecklists { get; set; }
+        public DbSet<TaskComment> TaskComments { get; set; }
+        public DbSet<TaskAttachment> TaskAttachments { get; set; }
+        public DbSet<TaskTemplate> TaskTemplates { get; set; }
+        public DbSet<TaskDependency> TaskDependencies { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -75,6 +84,43 @@ namespace IqcQms.Infrastructure.Data
                 .WithMany(m => m.Reactions)
                 .HasForeignKey(mr => mr.MessageId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Tasks module
+            modelBuilder.Entity<TaskChecklist>()
+                .HasOne(tc => tc.TaskItem)
+                .WithMany(t => t.Checklists)
+                .HasForeignKey(tc => tc.TaskItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TaskComment>()
+                .HasOne(tc => tc.TaskItem)
+                .WithMany(t => t.Comments)
+                .HasForeignKey(tc => tc.TaskItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TaskAttachment>()
+                .HasOne(ta => ta.TaskItem)
+                .WithMany(t => t.Attachments)
+                .HasForeignKey(ta => ta.TaskItemId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<TaskItem>()
+                .HasOne(t => t.ParentTask)
+                .WithMany(t => t.Subtasks)
+                .HasForeignKey(t => t.ParentTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TaskDependency>()
+                .HasOne(td => td.Task)
+                .WithMany(t => t.DependentOn)
+                .HasForeignKey(td => td.TaskId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TaskDependency>()
+                .HasOne(td => td.PrerequisiteTask)
+                .WithMany(t => t.RequiredBy)
+                .HasForeignKey(td => td.PrerequisiteTaskId)
+                .OnDelete(DeleteBehavior.Restrict);
         }
     }
 }

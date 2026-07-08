@@ -1,14 +1,14 @@
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { MessageCircle, X, Send, Paperclip, Smile, Search as SearchIcon, Users, CheckCheck, Sparkles, Hash, ArrowRight, ShieldCheck, FileSpreadsheet, Plus, MessageSquare, ChevronLeft, MoreVertical, Maximize2, Minimize2, PanelRight, Pin, Check, Layers, Wrench, Image as ImageIcon, Mic, FileText, AtSign, Video, Info, Trash2, Edit2, UserPlus, UserMinus, ChevronDown, ChevronRight, Star } from "lucide-react";
+import { MessageCircle, X, Send, Paperclip, Smile, Search as SearchIcon, CheckCheck, Sparkles, Hash, Plus, MessageSquare, ChevronLeft, Maximize2, Minimize2, PanelRight, Check, Image as ImageIcon, Mic, FileText, AtSign, Video, Info, Trash2, UserPlus, UserMinus, ChevronDown, ChevronRight, Star } from "lucide-react";
 import TextareaAutosize from "react-textarea-autosize";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
 import usersData from "@/data/users.json";
 
 // --- PARSE USERS FROM JSON ---
-const DB_USERS = (usersData as any[]).slice(1).map((u, idx) => ({
+const DB_USERS = (usersData as Record<string, string>[]).slice(1).map((u, idx) => ({
   id: u["Unnamed: 1"]?.toString() || `user_${idx}`,
   name: u["Unnamed: 2"] || "Unknown",
   department: u["Unnamed: 3"] || "Khác",
@@ -103,16 +103,16 @@ export function FloatingChat() {
 
   useEffect(() => {
     if (activeThread && activeThread.id.startsWith('th_')) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect`n      setMessages([
+      setTimeout(() => setMessages([
         { id: '1', senderId: 'system', content: 'Đã tạo cuộc trò chuyện.', createdAt: new Date().toISOString(), isMe: false },
-      ]);
+      ]), 0);
     } else if (activeThread) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect`n      setMessages([
+      setTimeout(() => setMessages([
         { id: '1', senderId: 'user', content: 'Tin nhắn cũ mô phỏng...', createdAt: new Date(Date.now() - 86400000).toISOString(), isMe: false },
-      ]);
+      ]), 0);
     }
-    setIsSettingsOpen(false); // close settings when switching threads
-  }, [activeThread?.id]);
+    setTimeout(() => setIsSettingsOpen(false), 0); // close settings when switching threads
+  }, [activeThread]);
 
   const toggleMode = /* eslint-disable-line @typescript-eslint/no-unused-vars */ (newMode: DisplayMode) => {
     setDisplayMode(displayMode === newMode ? 'closed' : newMode);
@@ -205,7 +205,7 @@ export function FloatingChat() {
 
   const handleClearChat = () => {
     if(confirm("Bạn có chắc chắn muốn xóa toàn bộ tin nhắn trong nhóm này?")) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect`n      setMessages([]);
+      setMessages([]);
     }
   };
 
@@ -308,7 +308,7 @@ export function FloatingChat() {
     return (
       <button
         onClick={() => setDisplayMode('floating')}
-        className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-2xl bg-gradient-to-tr from-[#1428A0] to-indigo-600 text-white shadow-[0_8px_30px_rgb(20,40,160,0.3)] hover:shadow-[0_12px_40px_rgb(20,40,160,0.4)] hover:-translate-y-1 flex items-center justify-center transition-all duration-300 group"
+        className="fixed bottom-6 right-6 z-[100] w-14 h-14 rounded-2xl bg-gradient-to-tr from-primary to-indigo-600 text-white shadow-[0_8px_30px_rgb(20,40,160,0.3)] hover:shadow-[0_12px_40px_rgb(20,40,160,0.4)] hover:-translate-y-1 flex items-center justify-center transition-all duration-300 group"
       >
         <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
         <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-rose-500 border-2 border-white dark:border-[#0A0A0A] rounded-full animate-pulse"></span>
@@ -319,24 +319,24 @@ export function FloatingChat() {
   return (
     <div className={`fixed z-[100] flex transition-all duration-500 ease-[cubic-bezier(0.2,0,0,1)] ${
       displayMode === 'docked' 
-        ? 'top-0 right-0 h-screen w-[400px] border-l border-gray-200 dark:border-white/10 shadow-2xl' 
+        ? 'top-0 right-0 h-screen w-[400px] border-l border-border shadow-2xl' 
         : displayMode === 'expanded'
-        ? 'top-[10vh] left-[15vw] right-[15vw] bottom-[10vh] rounded-3xl shadow-[0_20px_60px_rgb(0,0,0,0.15)] border border-gray-200 dark:border-white/10'
-        : 'bottom-6 right-6 w-[380px] h-[600px] rounded-3xl shadow-[0_12px_40px_rgb(0,0,0,0.12)] border border-gray-200 dark:border-white/10'
+        ? 'top-[10vh] left-[15vw] right-[15vw] bottom-[10vh] rounded-3xl shadow-[0_20px_60px_rgb(0,0,0,0.15)] border border-border'
+        : 'bottom-6 right-6 w-[380px] h-[600px] rounded-3xl shadow-[0_12px_40px_rgb(0,0,0,0.12)] border border-border'
     }`}>
       
-      <div className="bg-white dark:bg-[#121212] w-full h-full flex overflow-hidden rounded-inherit relative">
+      <div className="bg-white dark:bg-card w-full h-full flex overflow-hidden rounded-inherit relative">
         
         {/* ================= SIDEBAR ================= */}
-        <div className={`flex-col border-r border-gray-100 dark:border-white/5 bg-[#F8F9FA] dark:bg-[#0A0A0A] ${
+        <div className={`flex-col border-r border-border bg-muted dark:bg-background ${
           displayMode === 'floating' && activeThread ? 'hidden' : 'flex w-[300px] flex-shrink-0'
         } ${displayMode === 'floating' && !activeThread ? 'w-full' : ''}`}>
           
           {/* Header */}
-          <div className="px-4 py-3 flex items-center justify-between border-b border-gray-200 dark:border-white/5">
+          <div className="px-4 py-3 flex items-center justify-between border-b border-border">
             <h2 className="font-bold text-gray-900 dark:text-white tracking-tight">Collaboration Hub</h2>
             <div className="flex space-x-1">
-              <button onClick={() => {setModalType('create'); setIsModalOpen(true);}} className="p-1.5 text-[#1428A0] hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-white/10 rounded-lg transition-colors" title="New Chat">
+              <button onClick={() => {setModalType('create'); setIsModalOpen(true);}} className="p-1.5 text-primary hover:bg-blue-50 dark:text-blue-400 dark:hover:bg-white/10 rounded-lg transition-colors" title="New Chat">
                 <Plus className="w-4 h-4" />
               </button>
               {displayMode !== 'docked' && (
@@ -361,7 +361,7 @@ export function FloatingChat() {
           </div>
 
           {/* TABS */}
-          <div className="flex p-2 bg-white dark:bg-[#121212] border-b border-gray-100 dark:border-white/5">
+          <div className="flex p-2 bg-white dark:bg-card border-b border-border">
             <button 
               onClick={() => setActiveTab('chats')} 
               className={`flex-1 py-1.5 text-xs font-bold rounded-lg transition-colors ${activeTab === 'chats' ? 'bg-gray-100 dark:bg-white/10 text-gray-900 dark:text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-white/5'}`}
@@ -385,7 +385,7 @@ export function FloatingChat() {
                 placeholder={activeTab === 'chats' ? "Search chats..." : "Search contacts..."} 
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-[#1428A0] transition-colors shadow-sm"
+                className="w-full bg-white dark:bg-popover border border-border rounded-xl pl-9 pr-3 py-2 text-xs font-medium focus:outline-none focus:border-primary transition-colors shadow-sm"
               />
             </div>
             
@@ -398,8 +398,8 @@ export function FloatingChat() {
                     onClick={() => setChatFilter(f)}
                     className={`px-3 py-1 border rounded-full text-[10px] font-bold transition-colors whitespace-nowrap shadow-sm
                       ${chatFilter === f 
-                        ? 'bg-[#1428A0] text-white border-[#1428A0] dark:bg-blue-600 dark:border-blue-600' 
-                        : 'bg-white dark:bg-[#1A1A1A] text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:text-[#1428A0] hover:border-[#1428A0]'}
+                        ? 'bg-primary text-white border-primary dark:bg-blue-600 dark:border-blue-600' 
+                        : 'bg-white dark:bg-popover text-gray-600 dark:text-gray-300 border-border hover:text-primary hover:border-primary'}
                     `}
                   >
                     {f}
@@ -425,7 +425,7 @@ export function FloatingChat() {
                       <div key={thread.id} className="relative group/thread mb-1">
                         <button 
                           onClick={() => setActiveThread(thread)}
-                          className={`w-full flex items-center p-2.5 rounded-xl transition-colors text-left pr-10 ${activeThread?.id === thread.id ? 'bg-white dark:bg-white/10 shadow-sm border border-gray-200 dark:border-white/5' : 'hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent'}`}
+                          className={`w-full flex items-center p-2.5 rounded-xl transition-colors text-left pr-10 ${activeThread?.id === thread.id ? 'bg-white dark:bg-white/10 shadow-sm border border-border' : 'hover:bg-gray-100 dark:hover:bg-white/5 border border-transparent'}`}
                         >
                           <div className="relative">
                             <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-white shadow-sm bg-gradient-to-br ${thread.color || 'from-amber-400 to-orange-500'}`}>
@@ -450,7 +450,7 @@ export function FloatingChat() {
                             <div className="w-4 h-4 rounded-full bg-rose-500 text-white flex items-center justify-center text-[9px] font-bold shadow-sm ml-2 shrink-0">{thread.unreadCount}</div>
                           )}
                         </button>
-                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 opacity-0 group-hover/thread:opacity-100 transition-all z-10 bg-white/80 dark:bg-[#1A1A1A]/80 backdrop-blur-sm rounded-lg p-0.5 shadow-sm border border-gray-100 dark:border-white/5">
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center space-x-0.5 opacity-0 group-hover/thread:opacity-100 transition-all z-10 bg-white/80 dark:bg-popover/80 backdrop-blur-sm rounded-lg p-0.5 shadow-sm border border-border">
                           <button 
                             onClick={(e) => handleToggleFavorite(e, thread.id)}
                             className={`p-1.5 rounded-md transition-colors ${thread.isFavorite ? 'text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10' : 'text-gray-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10'}`}
@@ -506,7 +506,7 @@ export function FloatingChat() {
                                   setModalType('create');
                                   setIsModalOpen(true);
                                 }} 
-                                className="opacity-0 group-hover/item:opacity-100 p-1.5 bg-blue-50 dark:bg-blue-900/20 text-[#1428A0] dark:text-blue-400 rounded-lg transition-all hover:scale-105"
+                                className="opacity-0 group-hover/item:opacity-100 p-1.5 bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 rounded-lg transition-all hover:scale-105"
                                 title="Start Chat"
                               >
                                 <MessageSquare className="w-3.5 h-3.5" />
@@ -529,21 +529,21 @@ export function FloatingChat() {
         </div>
 
         {/* ================= CHAT AREA ================= */}
-        <div className={`flex-1 flex flex-col relative bg-white dark:bg-[#121212] ${
+        <div className={`flex-1 flex flex-col relative bg-white dark:bg-card ${
           displayMode === 'floating' && !activeThread ? 'hidden' : 'flex'
         }`}>
           
           {activeThread ? (
             <>
               {/* Thread Header */}
-              <div className="px-4 md:px-5 py-3 border-b border-gray-100 dark:border-white/5 flex items-center justify-between bg-white dark:bg-[#121212]/90 backdrop-blur-md sticky top-0 z-10">
+              <div className="px-4 md:px-5 py-3 border-b border-border flex items-center justify-between bg-white dark:bg-card/90 backdrop-blur-md sticky top-0 z-10">
                 <div className="flex items-center space-x-3 overflow-hidden">
                   {displayMode === 'floating' && (
                     <button onClick={() => setActiveThread(null)} className="p-1.5 hover:bg-gray-100 dark:hover:bg-white/5 rounded-lg transition-colors flex-shrink-0 text-gray-500 mr-1">
                       <ChevronLeft className="w-5 h-5" />
                     </button>
                   )}
-                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0 bg-gradient-to-br ${activeThread.color || 'from-[#1428A0] to-blue-500'}`}>
+                  <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0 bg-gradient-to-br ${activeThread.color || 'from-primary to-blue-500'}`}>
                     {activeThread.type === 'AI Assistant' ? <Sparkles className="w-4 h-4" /> : activeThread.isGroup ? <Hash className="w-4 h-4" /> : activeThread.title.charAt(0)}
                   </div>
                   <div className="truncate">
@@ -558,10 +558,10 @@ export function FloatingChat() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <button className="p-2 text-gray-400 hover:text-[#1428A0] dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
+                  <button className="p-2 text-gray-400 hover:text-primary dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors">
                     <Video className="w-4 h-4" />
                   </button>
-                  <button onClick={() => {setIsSettingsOpen(!isSettingsOpen); setEditThreadName(activeThread.title);}} className={`p-2 rounded-lg transition-colors ${isSettingsOpen ? 'bg-blue-50 text-[#1428A0] dark:bg-white/10 dark:text-white' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'}`}>
+                  <button onClick={() => {setIsSettingsOpen(!isSettingsOpen); setEditThreadName(activeThread.title);}} className={`p-2 rounded-lg transition-colors ${isSettingsOpen ? 'bg-blue-50 text-primary dark:bg-white/10 dark:text-white' : 'text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-white/10'}`}>
                     <Info className="w-4 h-4" />
                   </button>
                 </div>
@@ -571,7 +571,7 @@ export function FloatingChat() {
               <div className="flex-1 flex overflow-hidden relative">
                 
                 {/* Messages Container */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-5 custom-scrollbar bg-[#F8F9FA]/50 dark:bg-[#0A0A0A]/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed dark:opacity-10">
+                <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-5 custom-scrollbar bg-muted/50 dark:bg-background/50 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] bg-fixed dark:opacity-10">
                   <div className="text-center text-xs font-semibold text-gray-400 my-4 uppercase tracking-wider">Beginning of Thread</div>
                   
                   {messages.map((msg, idx) => (
@@ -583,8 +583,8 @@ export function FloatingChat() {
                       )}
                       <div className={`relative max-w-[80%] rounded-[1.25rem] px-4 py-2.5 ${
                         msg.isMe 
-                          ? "bg-[#1428A0] text-white rounded-br-sm shadow-md shadow-blue-500/10" 
-                          : "bg-white dark:bg-[#1C1C1C] text-gray-800 dark:text-gray-200 rounded-bl-sm border border-gray-100 dark:border-white/5 shadow-sm"
+                          ? "bg-primary text-white rounded-br-sm shadow-md shadow-blue-500/10" 
+                          : "bg-white dark:bg-[#1C1C1C] text-gray-800 dark:text-gray-200 rounded-bl-sm border border-border shadow-sm"
                       }`}>
                         <div className="text-[13px] whitespace-pre-wrap leading-relaxed font-medium">
                           {msg.content}
@@ -609,10 +609,10 @@ export function FloatingChat() {
                       animate={{ x: 0, opacity: 1 }}
                       exit={{ x: "100%", opacity: 0 }}
                       transition={{ type: "spring", damping: 25, stiffness: 250 }}
-                      className="absolute inset-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md overflow-y-auto custom-scrollbar z-30 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.05)]"
+                      className="absolute inset-0 bg-white/95 dark:bg-card/95 backdrop-blur-md overflow-y-auto custom-scrollbar z-30 flex flex-col shadow-[-10px_0_30px_rgba(0,0,0,0.05)]"
                     >
                       <div className="p-4 md:p-5 w-full h-full flex flex-col">
-                        <div className="flex items-center justify-between mb-5 border-b border-gray-100 dark:border-white/5 pb-3">
+                        <div className="flex items-center justify-between mb-5 border-b border-border pb-3">
                           <h4 className="font-bold text-sm text-gray-900 dark:text-white">Chat Settings</h4>
                           <button onClick={() => setIsSettingsOpen(false)} className="p-1.5 text-gray-400 hover:text-gray-900 dark:hover:text-white bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 rounded-lg transition-colors">
                             <X className="w-4 h-4" />
@@ -627,9 +627,9 @@ export function FloatingChat() {
                               type="text" 
                               value={editThreadName}
                               onChange={e => setEditThreadName(e.target.value)}
-                              className="flex-1 bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-[#1428A0] transition-colors"
+                              className="flex-1 bg-gray-50 dark:bg-popover border border-border rounded-xl px-3 py-2 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
                             />
-                            <button onClick={handleRenameThread} className="p-2.5 bg-[#1428A0] text-white rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all">
+                            <button onClick={handleRenameThread} className="p-2.5 bg-primary text-white rounded-xl hover:bg-blue-700 shadow-md shadow-blue-500/20 transition-all">
                               <Check className="w-4 h-4"/>
                             </button>
                           </div>
@@ -641,7 +641,7 @@ export function FloatingChat() {
                             <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Members ({activeThread.members?.length || 0})</label>
                             <button 
                               onClick={() => { setModalType('add_member'); setIsModalOpen(true); }}
-                              className="text-[#1428A0] dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-1.5 rounded-lg transition-colors"
+                              className="text-primary dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 p-1.5 rounded-lg transition-colors"
                             >
                               <UserPlus className="w-4 h-4" />
                             </button>
@@ -669,7 +669,7 @@ export function FloatingChat() {
                         </div>
 
                         {/* Actions */}
-                        <div className="pt-4 border-t border-gray-100 dark:border-white/5 mt-auto shrink-0 space-y-2">
+                        <div className="pt-4 border-t border-border mt-auto shrink-0 space-y-2">
                           <button onClick={handleClearChat} className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-orange-50 dark:bg-orange-500/10 text-orange-600 dark:text-orange-400 hover:bg-orange-100 dark:hover:bg-orange-500/20 transition-colors text-sm font-bold">
                             <Trash2 className="w-4 h-4" />
                             <span>Clear Chat History</span>
@@ -686,7 +686,7 @@ export function FloatingChat() {
               </div>
 
               {/* Modern Input Area */}
-              <div className="p-3 md:p-4 bg-white dark:bg-[#121212] border-t border-gray-100 dark:border-white/5 relative z-20">
+              <div className="p-3 md:p-4 bg-white dark:bg-card border-t border-border relative z-20">
                 {/* Floating Attachments Menu */}
                 <AnimatePresence>
                   {isAttachmentMenuOpen && (
@@ -694,10 +694,10 @@ export function FloatingChat() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute bottom-full left-4 mb-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 shadow-xl rounded-2xl p-2 flex space-x-1 z-50"
+                      className="absolute bottom-full left-4 mb-2 bg-white dark:bg-popover border border-border shadow-xl rounded-2xl p-2 flex space-x-1 z-50"
                     >
                       <button className="p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl flex flex-col items-center justify-center transition-colors group">
-                        <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-[#1428A0] dark:text-blue-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform"><ImageIcon className="w-5 h-5" /></div>
+                        <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/20 text-primary dark:text-blue-400 flex items-center justify-center mb-1 group-hover:scale-110 transition-transform"><ImageIcon className="w-5 h-5" /></div>
                         <span className="text-[9px] font-bold text-gray-600 dark:text-gray-400">Photos</span>
                       </button>
                       <button className="p-3 hover:bg-gray-100 dark:hover:bg-white/10 rounded-xl flex flex-col items-center justify-center transition-colors group">
@@ -719,7 +719,7 @@ export function FloatingChat() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute bottom-full right-16 mb-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 shadow-xl rounded-2xl p-3 z-50 w-[240px]"
+                      className="absolute bottom-full right-16 mb-2 bg-white dark:bg-popover border border-border shadow-xl rounded-2xl p-3 z-50 w-[240px]"
                     >
                       <div className="grid grid-cols-4 gap-2">
                         {EMOJIS.map(emoji => (
@@ -743,9 +743,9 @@ export function FloatingChat() {
                       initial={{ opacity: 0, y: 10, scale: 0.95 }}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute bottom-full left-4 mb-2 w-64 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 shadow-xl rounded-2xl py-2 z-50 max-h-48 overflow-y-auto custom-scrollbar"
+                      className="absolute bottom-full left-4 mb-2 w-64 bg-white dark:bg-popover border border-border shadow-xl rounded-2xl py-2 z-50 max-h-48 overflow-y-auto custom-scrollbar"
                     >
-                      <div className="px-3 pb-2 mb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100 dark:border-white/5">
+                      <div className="px-3 pb-2 mb-1 text-[10px] font-bold text-gray-500 uppercase tracking-wider border-b border-border">
                         Mentions ({mentionCandidates.length})
                       </div>
                       {mentionCandidates.map(u => (
@@ -766,12 +766,12 @@ export function FloatingChat() {
                   )}
                 </AnimatePresence>
 
-                <form onSubmit={handleSendMessage} className="flex items-end space-x-2 bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-3xl p-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-[#1428A0] transition-all shadow-sm">
+                <form onSubmit={handleSendMessage} className="flex items-end space-x-2 bg-gray-50 dark:bg-popover border border-border rounded-3xl p-1.5 focus-within:ring-2 focus-within:ring-blue-500/20 focus-within:border-primary transition-all shadow-sm">
                   
                   <button 
                     type="button" 
                     onClick={() => {setIsAttachmentMenuOpen(!isAttachmentMenuOpen); setIsEmojiPickerOpen(false);}}
-                    className={`p-2.5 rounded-full transition-colors flex-shrink-0 ml-1 ${isAttachmentMenuOpen ? 'bg-[#1428A0] text-white rotate-45' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-[#2A2A2A] shadow-sm border border-gray-100 dark:border-white/5'}`}
+                    className={`p-2.5 rounded-full transition-colors flex-shrink-0 ml-1 ${isAttachmentMenuOpen ? 'bg-primary text-white rotate-45' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white bg-white dark:bg-[#2A2A2A] shadow-sm border border-border'}`}
                   >
                     <Plus className="w-5 h-5" />
                   </button>
@@ -811,7 +811,7 @@ export function FloatingChat() {
                         <Mic className="w-5 h-5" />
                       </button>
                     ) : (
-                      <button type="submit" className="w-10 h-10 rounded-full bg-gradient-to-r from-[#1428A0] to-blue-600 flex items-center justify-center text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all flex-shrink-0 hover:scale-105">
+                      <button type="submit" className="w-10 h-10 rounded-full bg-gradient-to-r from-primary to-blue-600 flex items-center justify-center text-white hover:shadow-lg hover:shadow-blue-500/30 transition-all flex-shrink-0 hover:scale-105">
                         <Send className="w-4 h-4 ml-0.5" />
                       </button>
                     )}
@@ -820,10 +820,10 @@ export function FloatingChat() {
               </div>
             </>
           ) : (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/50 dark:bg-[#121212]">
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/50 dark:bg-card">
               <div className="w-24 h-24 mb-6 bg-blue-50 dark:bg-blue-900/10 rounded-full flex items-center justify-center border-8 border-white dark:border-[#1A1A1A] shadow-sm relative">
-                <div className="absolute inset-0 rounded-full bg-[#1428A0]/5 animate-ping"></div>
-                <MessageSquare className="w-10 h-10 text-[#1428A0] dark:text-blue-500 relative z-10" />
+                <div className="absolute inset-0 rounded-full bg-primary/5 animate-ping"></div>
+                <MessageSquare className="w-10 h-10 text-primary dark:text-blue-500 relative z-10" />
               </div>
               <h3 className="text-xl font-black text-gray-900 dark:text-white mb-2 tracking-tight">Enterprise Messaging</h3>
               <p className="text-sm text-gray-500 max-w-sm font-medium leading-relaxed">
@@ -841,9 +841,9 @@ export function FloatingChat() {
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-white/95 dark:bg-[#121212]/95 backdrop-blur-md z-50 flex flex-col"
+              className="absolute inset-0 bg-white/95 dark:bg-card/95 backdrop-blur-md z-50 flex flex-col"
             >
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-white/10 flex items-center justify-between bg-white/50 dark:bg-black/20">
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-white/50 dark:bg-black/20">
                 <h3 className="font-bold text-gray-900 dark:text-white">
                   {modalType === 'create' ? 'New Chat' : 'Add Members'}
                 </h3>
@@ -852,7 +852,7 @@ export function FloatingChat() {
                 </button>
               </div>
               
-              <div className="p-4 border-b border-gray-100 dark:border-white/5">
+              <div className="p-4 border-b border-border">
                 <div className="relative">
                   <SearchIcon className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
                   <input 
@@ -860,7 +860,7 @@ export function FloatingChat() {
                     placeholder="Search personnel by name or department..." 
                     value={modalSearch}
                     onChange={e => setModalSearch(e.target.value)}
-                    className="w-full bg-gray-50 dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:border-[#1428A0] transition-colors"
+                    className="w-full bg-gray-50 dark:bg-popover border border-border rounded-xl pl-10 pr-4 py-2.5 text-sm font-medium focus:outline-none focus:border-primary transition-colors"
                   />
                 </div>
                 
@@ -872,7 +872,7 @@ export function FloatingChat() {
                     placeholder="Enter group name (optional)..." 
                     value={groupName}
                     onChange={e => setGroupName(e.target.value)}
-                    className="w-full bg-white dark:bg-[#222] border border-gray-200 dark:border-white/10 shadow-sm rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-[#1428A0] focus:ring-2 focus:ring-blue-500/20 transition-colors mt-3"
+                    className="w-full bg-white dark:bg-secondary border border-border shadow-sm rounded-xl px-4 py-2.5 text-sm font-bold focus:outline-none focus:border-primary focus:ring-2 focus:ring-blue-500/20 transition-colors mt-3"
                   />
                 )}
               </div>
@@ -902,21 +902,21 @@ export function FloatingChat() {
                       )}
                     </div>
                     <div className="ml-3 flex-1 overflow-hidden">
-                      <h4 className={`font-bold text-sm truncate ${selectedUsers.includes(user.id) ? 'text-[#1428A0] dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>{user.name}</h4>
+                      <h4 className={`font-bold text-sm truncate ${selectedUsers.includes(user.id) ? 'text-primary dark:text-blue-400' : 'text-gray-900 dark:text-white'}`}>{user.name}</h4>
                       <p className="text-[11px] text-gray-500 truncate mt-0.5 font-medium">{user.department} {user.position ? `• ${user.position}` : ''}</p>
                     </div>
                   </button>
                 ))}
               </div>
 
-              <div className="p-4 border-t border-gray-100 dark:border-white/5 flex justify-end space-x-2 bg-white dark:bg-[#1A1A1A] shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
+              <div className="p-4 border-t border-border flex justify-end space-x-2 bg-white dark:bg-popover shadow-[0_-10px_20px_rgba(0,0,0,0.02)]">
                 <button onClick={() => { setIsModalOpen(false); setSelectedUsers([]); setGroupName(""); }} className="px-5 py-2.5 rounded-xl text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors">
                   Cancel
                 </button>
                 <button 
                   onClick={modalType === 'create' ? handleCreateChat : handleAddMembersToThread}
                   disabled={selectedUsers.length === 0}
-                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-[#1428A0] text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-500/30 flex items-center"
+                  className="px-5 py-2.5 rounded-xl text-sm font-bold bg-primary text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:shadow-none shadow-lg shadow-blue-500/30 flex items-center"
                 >
                   {modalType === 'create' ? 'Start Chat' : 'Add to Group'} {selectedUsers.length > 0 && <span className="ml-1.5 bg-white/20 px-2 py-0.5 rounded-md">{selectedUsers.length}</span>}
                 </button>
