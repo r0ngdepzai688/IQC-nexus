@@ -25,3 +25,4 @@ localstorage.db
 # OS
 .DS_Store
 Thumbs.db
+*.zip
