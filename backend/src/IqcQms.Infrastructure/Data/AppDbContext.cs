@@ -6,6 +6,7 @@ using IqcQms.Domain.Entities.Standards;
 using IqcQms.Domain.Entities.System;
 using IqcQms.Domain.Entities.Chat;
 using IqcQms.Domain.Entities.Tasks;
+using IqcQms.Domain.Entities.NewModels;
 
 namespace IqcQms.Infrastructure.Data
 {
@@ -39,6 +40,11 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<TaskAttachment> TaskAttachments { get; set; }
         public DbSet<TaskTemplate> TaskTemplates { get; set; }
         public DbSet<TaskDependency> TaskDependencies { get; set; }
+
+        // New Models module
+        public DbSet<MasterPlanUpload> MasterPlanUploads { get; set; }
+        public DbSet<MasterPlanRecord> MasterPlanRecords { get; set; }
+        public DbSet<ProjectWorkspace> ProjectWorkspaces { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

@@ -26,6 +26,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR(); // Add SignalR
 
+// Register Application Services
+builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
+
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
