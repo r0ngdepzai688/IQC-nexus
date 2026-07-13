@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using IqcQms.Infrastructure.Data;
 using IqcQms.Api.Hubs;
+using IqcQms.Application.Interfaces.DataHub;
+using IqcQms.Infrastructure.Services.DataHub;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,6 +22,10 @@ builder.Services.AddCors(options =>
         });
 });
 
+// Register Configuration
+builder.Services.Configure<IqcQms.Application.Interfaces.DataHub.DataHubPathConfig>(
+    builder.Configuration.GetSection("DataHub"));
+
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
@@ -28,6 +34,8 @@ builder.Services.AddSignalR(); // Add SignalR
 
 // Register Application Services
 builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
+builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
+builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");

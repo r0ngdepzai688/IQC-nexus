@@ -9,7 +9,11 @@ import {
   History,
   Settings2,
   ChevronRight,
-  LucideIcon
+  LucideIcon,
+  UploadCloud,
+  AlertTriangle,
+  ListChecks,
+  BookOpen
 } from "lucide-react";
 
 // Mock sub-menus for demonstration
@@ -19,6 +23,12 @@ const subMenus: Record<string, { name: string; href: string; icon: LucideIcon }[
     { name: "Dynamic Form Design", href: "/standards/forms", icon: ListPlus },
     { name: "Version History", href: "/standards/history", icon: History },
     { name: "Standard Settings", href: "/standards/settings", icon: Settings2 },
+  ],
+  "/support/data-hub": [
+    { name: "Import History", href: "/support/data-hub/history", icon: History },
+    { name: "Validation Errors", href: "/support/data-hub/validation-errors", icon: AlertTriangle },
+    { name: "Review Queue", href: "/support/data-hub/review-queue", icon: ListChecks },
+    { name: "Mapping Dictionary", href: "/support/data-hub/mapping-dictionary", icon: BookOpen },
   ]
 };
 

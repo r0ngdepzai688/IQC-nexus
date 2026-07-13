@@ -38,3 +38,22 @@ When a Manager issues a directive (Task) to a Worker:
 
 ## 4. Audit Trail
 Every state change (column movement), comment, or file upload MUST be timestamped and tagged with the user's `empId` to ensure a strict chain of custody and accountability.
+
+## 5. Master Plan Data Hub Architecture (New Models)
+### 5.1 Pipeline (Process & Commit)
+The system uses a 2-phase pipeline for Excel imports:
+1. **Process Phase (No Writes to Core)**: Upload -> SHA256 Duplication Check -> ImportBatch Creation -> Raw Archive -> Excel Parsing (ExcelDataReader) -> StagingMasterPlan -> Validation Engine (V1-V13) -> Core Validation (Insert/Update detection) -> Preview.
+2. **Commit Phase**: Upsert to `MasterPlanRecords` -> `DataHubAuditLog` entry per field change -> Move to Processed folder.
+
+### 5.2 Core Entities
+- **New Models Module**: `MasterPlanRecord`, `MasterPlanUpload`, `ProjectWorkspace`.
+- **Data Hub Module**: `ImportBatch`, `RawFile`, `StagingMasterPlan`, `ValidationError`, `ReviewQueueItem`, `ImportLog`, `DataHubAuditLog`, `MappingDictionary`, `ImportSource`, `ImportNotification`.
+
+### 5.3 Validation & Alias Engine
+- **ExcelDataReader** is used for header detection (top 20 rows) and parsing.
+- **Alias Mapping** resolves header names like "project name", "model", etc., to canonical names.
+- **Validation Engine (V1-V13)** evaluates missing fields, formats, lengths, and date order logic. Generates statuses: `ValidationError`, `ReviewRequired`, or `ReadyToInsert/Update`.
+
+### 5.4 UI Architecture (Frontend)
+- **Unified Master Plan (`/new-model`)**: Split view with Left panel for search/selection, Right panel for Master Plan view vs Project Workspace (KPI Dashboard, Stepper). Implements Glassmorphism, specific design token paddings/radius, and strict Light/Dark mode.
+- **Import Wizard (`/new-model/import-master-plan`)**: 4-step state machine (Select -> Processing -> Preview -> Committed). Includes summary cards, preview table with action badges, and commit confirmation.

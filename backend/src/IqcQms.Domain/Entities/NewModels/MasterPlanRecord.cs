@@ -21,7 +21,7 @@ namespace IqcQms.Domain.Entities.NewModels
         public DateTime? PvrTargetDate { get; set; }
         public DateTime? PraTargetDate { get; set; }
         public DateTime? SraTargetDate { get; set; }
-        public string PicIqc { get; set; } = string.Empty; // HW 검증 (IQC)
+        public string HwPic { get; set; } = string.Empty; // HW 검증 (IQC)
         
         // Calculated state for Candidate Pool
         public string ActionStatus { get; set; } = "Future"; // Urgent, Ready, Future

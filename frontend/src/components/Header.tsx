@@ -4,7 +4,7 @@ import {
    Bell, Moon, Sun, MessageSquare, Sparkles, Command, Users, 
   CheckCircle, ShieldCheck, ChevronDown, Wrench, LogOut, Layers, Lock, 
   Eye, EyeOff, X, FileBadge, UserCog, HelpCircle, Award, BookOpen, LayoutDashboard, 
-  ShieldAlert, Settings, PackageSearch, Hexagon, CheckSquare, Search
+  ShieldAlert, Settings, PackageSearch, Hexagon, CheckSquare, Search, Database
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -38,6 +38,7 @@ export function Header() {
   // Dynamic Navigation builder
   const getNavigation = () => {
     const supportSubItems = [
+      { name: "Data Hub (History)", href: "/support/data-hub/history", icon: Database },
       { name: t.nav.faq, href: "/support/faq", icon: HelpCircle },
       { name: t.nav.qa, href: "/support/qa", icon: MessageSquare },
       { name: t.nav.chatWithAdmin, href: "#chat-with-admin", icon: ShieldAlert },

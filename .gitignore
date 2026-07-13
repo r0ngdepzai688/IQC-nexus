@@ -26,3 +26,11 @@ localstorage.db
 .DS_Store
 Thumbs.db
 *.zip
+
+# Data Hub Data files
+DataHub/
+*.xlsx
+*.xls
+*.xlsm
+*.csv
+*.pdf

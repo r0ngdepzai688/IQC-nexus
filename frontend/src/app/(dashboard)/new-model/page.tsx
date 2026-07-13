@@ -12,6 +12,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserBadge } from "@/components/ui/user-badge";
+import Link from "next/link";
+import { useEffect } from "react";
+import { fetchMasterPlanRecords, MasterPlanDisplayDto } from "@/lib/api/masterPlanApi";
 
 // --- MOCK DATA ---
 const STAGES = [
@@ -101,6 +104,18 @@ export default function NewModelPage() {
   const [activeProject, setActiveProject] = useState<typeof MOCK_PROJECTS[0] | null>(null);
   const [activeTab, setActiveTab] = useState("bom");
   const [hasRiskData, setHasRiskData] = useState(false);
+  const [masterPlans, setMasterPlans] = useState<MasterPlanDisplayDto[]>([]);
+  const [isLoadingMasterPlans, setIsLoadingMasterPlans] = useState(false);
+
+  useEffect(() => {
+    if (activeProject === null) {
+      setIsLoadingMasterPlans(true);
+      fetchMasterPlanRecords()
+        .then(data => setMasterPlans(data))
+        .catch(err => console.error(err))
+        .finally(() => setIsLoadingMasterPlans(false));
+    }
+  }, [activeProject]);
 
   const handleProjectSelect = (project: typeof MOCK_PROJECTS[0] | null) => {
     setActiveProject(project);
@@ -205,9 +220,11 @@ export default function NewModelPage() {
                 <h1 className="text-3xl font-black tracking-tight text-foreground">Kế Hoạch Tổng Thể (Master Plan)</h1>
                 <p className="text-muted-foreground mt-2 font-medium">Theo dõi kế hoạch từ R&D và khởi tạo dự án mới cho IQC.</p>
               </div>
-              <Button className="rounded-xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-bold h-11 px-6">
-                <Download className="w-4 h-4 mr-2" /> Đồng bộ từ ERP
-              </Button>
+              <Link href="/new-models/master-plan/import">
+                <Button className="rounded-xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-bold h-11 px-6">
+                  <Download className="w-4 h-4 mr-2" /> Import Master Plan
+                </Button>
+              </Link>
             </div>
 
             <Card className="rounded-[2rem] border-0 shadow-xl shadow-gray-200/50 dark:shadow-none bg-white dark:bg-[#121826] overflow-hidden">
@@ -215,42 +232,92 @@ export default function NewModelPage() {
                 <table className="w-full text-sm text-left">
                   <thead className="bg-gray-50 dark:bg-white/5 border-b border-gray-100 dark:border-white/10">
                     <tr>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Tên Model</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Phân khúc</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Base Model</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Thời gian (PR)</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Trạng thái</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Hành động</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Project Name</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Basic</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Area</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Grade</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SKU</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q'ty (LPR)</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q'ty (LSR)</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PVR Target</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PRA Target</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SRA Target</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">IQC PIC</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-white/10">
-                    {MOCK_PROJECTS.map((project) => (
-                      <tr key={project.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
-                        <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">
-                          {project.name}
+                    {isLoadingMasterPlans ? (
+                      <tr>
+                        <td colSpan={13} className="px-6 py-8 text-center text-gray-500">
+                          <div className="flex items-center justify-center">
+                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                          </div>
                         </td>
-                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{project.segment}</td>
-                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{project.baseModel}</td>
-                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{project.dueDate}</td>
+                      </tr>
+                    ) : masterPlans.length === 0 ? (
+                      <tr>
+                        <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                          Chưa có dữ liệu Master Plan. Vui lòng Import.
+                        </td>
+                      </tr>
+                    ) : masterPlans.map((mp) => (
+                      <tr key={mp.id} className="hover:bg-gray-50/50 dark:hover:bg-white/5 transition-colors">
+                        <td className="px-6 py-4 font-bold text-gray-900 dark:text-white">{mp.projectName}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.basic}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.area}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.grade}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.sku}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.qtyLpr}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.qtyLsr}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.pvrTargetDate ? new Date(mp.pvrTargetDate).toLocaleDateString('vi-VN') : '-'}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.praTargetDate ? new Date(mp.praTargetDate).toLocaleDateString('vi-VN') : '-'}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.sraTargetDate ? new Date(mp.sraTargetDate).toLocaleDateString('vi-VN') : '-'}</td>
                         <td className="px-6 py-4">
-                          {project.status === 'Initiated' ? (
-                            <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 hover:bg-green-100 border-0 rounded-full px-3 py-1">
-                              Đã khởi tạo
+                          <UserBadge name={mp.hwPic} size="sm" />
+                        </td>
+                        <td className="px-6 py-4">
+                          {mp.displayStatus === 'Created' && (
+                            <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 border-0 rounded-full px-3 py-1 whitespace-nowrap">
+                              Created
                             </Badge>
-                          ) : (
-                            <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 hover:bg-orange-100 border-0 rounded-full px-3 py-1">
-                              Chờ phân bổ (Pending)
+                          )}
+                          {mp.displayStatus === 'Urgent' && (
+                            <Badge className="bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 hover:bg-rose-100 border-0 rounded-full px-3 py-1 whitespace-nowrap">
+                              Urgent
+                            </Badge>
+                          )}
+                          {mp.displayStatus === 'Ready' && (
+                            <Badge className="bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 hover:bg-amber-100 border-0 rounded-full px-3 py-1 whitespace-nowrap">
+                              Ready
+                            </Badge>
+                          )}
+                          {mp.displayStatus === 'Future' && (
+                            <Badge className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 hover:bg-blue-50 border-0 rounded-full px-3 py-1 whitespace-nowrap">
+                              Future
+                            </Badge>
+                          )}
+                          {mp.displayStatus === 'Review Required' && (
+                            <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400 hover:bg-gray-100 border-0 rounded-full px-3 py-1 whitespace-nowrap">
+                              Review Required
                             </Badge>
                           )}
                         </td>
-                        <td className="px-6 py-4">
-                          {project.status === 'Initiated' ? (
-                            <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 font-semibold" onClick={() => handleProjectSelect(project)}>
-                              Xem Project <ArrowRight className="w-4 h-4 ml-1" />
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          {mp.displayAction === 'View Project' && (
+                            <Button variant="ghost" className="text-primary hover:text-primary hover:bg-primary/10 font-semibold h-8 px-3">
+                              View Project <ArrowRight className="w-3 h-3 ml-1" />
                             </Button>
-                          ) : (
-                            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md font-semibold">
-                              Khởi tạo Project
+                          )}
+                          {mp.displayAction === 'Create Project' && (
+                            <Button className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-md font-semibold h-8 px-3">
+                              <Plus className="w-3 h-3 mr-1" /> Create Project
+                            </Button>
+                          )}
+                          {mp.displayAction === 'Fix Data' && (
+                            <Button variant="outline" className="border-rose-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-semibold h-8 px-3">
+                              Fix Data
                             </Button>
                           )}
                         </td>

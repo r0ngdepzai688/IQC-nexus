@@ -1,0 +1,27 @@
+# External DataHub files - never send real data to LLM
+../DataHub/
+D:/Viber_Code/DataHub/
+**/DataHub/**
+
+# Excel / data files
+**/*.xlsx
+**/*.xlsm
+**/*.xls
+**/*.csv
+**/*.zip
+**/*.rar
+**/*.pdf
+
+# Generated import reports that may be large
+**/ColumnDiscoveryReport.json
+**/ValidationResult*.json
+**/ImportPreview*.json
+**/ErrorReport*.json
+
+# Build / dependency folders
+node_modules/
+dist/
+build/
+.git/
+.vscode/
+coverage/

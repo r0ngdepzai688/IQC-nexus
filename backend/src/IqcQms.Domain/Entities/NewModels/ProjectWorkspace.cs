@@ -10,7 +10,7 @@ namespace IqcQms.Domain.Entities.NewModels
         public string ProjectName { get; set; } = string.Empty;
         public string Sku { get; set; } = string.Empty;
         
-        public string OwnerId { get; set; } = string.Empty; // PIC được map từ PicIqc
+        public string OwnerId { get; set; } = string.Empty; // PIC được map từ HwPic
         
         public DateTime ActivatedDate { get; set; } = DateTime.UtcNow;
         public string Status { get; set; } = "Preparation"; // Preparation, InProgress, Completed

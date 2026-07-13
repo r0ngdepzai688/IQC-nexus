@@ -3,6 +3,7 @@ using System;
 using IqcQms.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace IqcQms.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260713134433_AddDataHubEntities")]
+    partial class AddDataHubEntities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.26");
@@ -592,7 +595,7 @@ namespace IqcQms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("HwPic")
+                    b.Property<string>("PicIqc")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -776,20 +779,12 @@ namespace IqcQms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("HwPic")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("ImportedStatus")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("LastImportBatchId")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<int?>("LinkedProjectId")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("PicIqc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("PraTargetDate")
                         .HasColumnType("TEXT");
@@ -806,10 +801,6 @@ namespace IqcQms.Infrastructure.Migrations
 
                     b.Property<int>("QtyLsr")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Remark")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
 
                     b.Property<string>("Sku")
                         .IsRequired()
@@ -856,12 +847,12 @@ namespace IqcQms.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("HwPic")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<bool>("IsActivated")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("PicIqc")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("PraTargetDate")
                         .HasColumnType("TEXT");
@@ -936,22 +927,11 @@ namespace IqcQms.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
-                    b.Property<int>("MasterPlanId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("MilestoneType")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
                     b.Property<string>("OwnerId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.Property<string>("ProjectName")
-                        .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("SourceBatchId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
@@ -961,12 +941,6 @@ namespace IqcQms.Infrastructure.Migrations
 
                     b.Property<string>("Status")
                         .IsRequired()
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime?>("TargetDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");

@@ -7,6 +7,7 @@ using IqcQms.Domain.Entities.System;
 using IqcQms.Domain.Entities.Chat;
 using IqcQms.Domain.Entities.Tasks;
 using IqcQms.Domain.Entities.NewModels;
+using IqcQms.Domain.Entities.DataHub;
 
 namespace IqcQms.Infrastructure.Data
 {
@@ -45,6 +46,19 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<MasterPlanUpload> MasterPlanUploads { get; set; }
         public DbSet<MasterPlanRecord> MasterPlanRecords { get; set; }
         public DbSet<ProjectWorkspace> ProjectWorkspaces { get; set; }
+        public DbSet<MasterPlan> MasterPlans { get; set; }
+        public DbSet<ProjectMilestone> ProjectMilestones { get; set; }
+
+        // Data Hub module
+        public DbSet<DataSource> DataSources { get; set; }
+        public DbSet<ImportBatch> ImportBatches { get; set; }
+        public DbSet<RawFile> RawFiles { get; set; }
+        public DbSet<StagingMasterPlan> StagingMasterPlans { get; set; }
+        public DbSet<ValidationError> ValidationErrors { get; set; }
+        public DbSet<BusinessReviewQueue> BusinessReviewQueues { get; set; }
+        public DbSet<MappingDictionary> MappingDictionaries { get; set; }
+        public DbSet<ImportLog> ImportLogs { get; set; }
+        public DbSet<DataHubAuditLog> DataHubAuditLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

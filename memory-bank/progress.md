@@ -27,12 +27,18 @@
    - Bổ sung bộ lọc mở rộng: All, Unread, Mentions, Favorite.
    - Thêm tính năng Emoji Picker bằng animation mượt mà.
    - Thêm tính năng Tag tên (`@mention`): Hiển thị menu gợi ý thành viên khi gõ `@` theo thời gian thực.
-8. **UI/UX Refinements:**
+8. **Data Hub & Master Plan Ingestion Pipeline (Phase 1 & 2):**
+   - Hoàn thành DataHub API với khả năng Upload, Phân tích (Parse), Staging, Validate (Hard Columns, Business Logic), Duplicate Checks, và Ghi Log.
+   - Hoàn thành Commit Transaction chuyển đổi từ `Staging_MasterPlan` sang `MasterPlans` (Core) và `ProjectMilestones` an toàn.
+   - Xử lý thành công PVR Target Logic (`Urgent`, `Ready`, `Future`, `Created`) cho giao diện Master Plan.
+   - Tích hợp thành công dữ liệu Core API thật (`GET /api/masterplan/records`) vào UI Master Plan Dashboard.
+9. **UI/UX Refinements:**
    - Sửa lỗi điều hướng menu chính: Ngăn chặn tự động chuyển trang khi click vào menu chính nếu menu đó có danh sách menu phụ.
    - Tối ưu hóa UI/UX các nút chức năng trong Chat (nút Favorite dạng Star, Xóa Chat nhanh trên danh sách hover).
 
-## Đang thực hiện / Cần làm tiếp (Next Steps)
-1. **Backend Integration cho New Models:** Bổ sung Entity Framework Models (như `NewModelProject`, `NpiStage`, v.v.) vào `AppDbContext`.
-2. **Module Compliance (Standards Library):** Xây dựng trang thư viện quản lý tiêu chuẩn kỹ thuật (`InspectionStandard`, `InspectionItem`).
-3. **Module Overview (Dashboard):** Lên thiết kế các Biểu đồ phân tích dữ liệu chuyên sâu bằng Recharts, đồng thời làm Dashboard biến đổi thông minh theo Role của người dùng (từ User DB).
-4. **Hoàn thiện UI cho Workforce:** Dựng nội dung thực tế cho các trang Training, Certificate và Test.
+## Đang thực hiện / Cần làm tiếp (Next Steps - Phase 3)
+1. **Validation Errors & Review Queue UI:** Triển khai màn hình xử lý lỗi validation và hàng chờ duyệt dữ liệu cho Data Hub.
+2. **Mapping Dictionary UI:** Xây dựng giao diện quản lý từ điển ánh xạ (alias mapping).
+3. **Batch Detail & Report Export:** Xây dựng giao diện xem chi tiết Batch, audit log và export file Excel/CSV báo cáo lỗi.
+4. **Module Compliance (Standards Library):** Xây dựng trang thư viện quản lý tiêu chuẩn kỹ thuật (`InspectionStandard`, `InspectionItem`).
+5. **Hoàn thiện UI cho Workforce:** Dựng nội dung thực tế cho các trang Training, Certificate và Test.
