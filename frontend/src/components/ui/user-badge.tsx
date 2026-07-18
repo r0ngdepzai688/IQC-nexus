@@ -5,7 +5,7 @@ import { MessageSquare } from 'lucide-react';
 import { getUserById } from '@/lib/data/usersService';
 
 export interface UserBadgeProps {
-  name: string; // This can now be the EmpId (e.g. "10545998") or fallback name
+  name: string; // This can now be the EmpId (e.g. "SYN-0001") or fallback name
   avatarUrl?: string;
   size?: 'sm' | 'md' | 'lg';
   className?: string;

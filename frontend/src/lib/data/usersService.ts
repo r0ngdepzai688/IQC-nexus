@@ -5,15 +5,16 @@ import {
 
 export type UserData = PersonnelRecord;
 
-export const getAllUsers = (): UserData[] => mockPersonnel;
+export const getAllUsers = (): UserData[] =>
+  mockPersonnel.map((user) => ({ ...user }));
 
-// Create a fast lookup map at module scope.
 const userMap = new Map<string, UserData>(
-  mockPersonnel.map((user) => [user.empId, user]),
+  mockPersonnel.map((user) => [user.empId, { ...user }]),
 );
 
 export const getUserById = (empId: string): UserData | null => {
   const cleanId = empId.startsWith('@') ? empId.substring(1) : empId;
+  const user = userMap.get(cleanId);
 
-  return userMap.get(cleanId) ?? null;
+  return user ? { ...user } : null;
 };

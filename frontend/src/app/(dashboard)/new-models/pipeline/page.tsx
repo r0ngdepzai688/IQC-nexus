@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { MasterPlanRecord, ProjectWorkspace, mockMasterPlanData, mockActiveWorkspaces } from "@/lib/mock-data/newModelsMock";
+import { getUserById } from "@/lib/data/usersService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -109,7 +110,7 @@ export default function EnterpriseMasterPlanPage() {
       projectName: record.projectName,
       sku: record.sku,
       ownerId: record.picIqc,
-      ownerName: record.picIqc,
+      ownerName: getUserById(record.picIqc)?.name ?? record.picIqc,
       status: 'Preparation',
       activatedDate: new Date().toISOString().split('T')[0],
       completionPercentage: 0,

@@ -28,8 +28,8 @@ interface AuthContextProps {
 }
 
 const defaultUser: AuthState = {
-  employeeId: '10545998',
-  name: 'Nguyễn Văn A',
+  employeeId: 'SYN-ADMIN-001',
+  name: 'Synthetic Administrator',
   position: 'Group Leader',
   scope: 'All',
   systemRole: 'Administrator',
@@ -37,7 +37,7 @@ const defaultUser: AuthState = {
   avatar: '',
   organization: 'IQC Group',
   part: 'All',
-  email: 'admin@iqc-nexus.local',
+  email: 'admin@example.invalid',
   roleProfile: 'Admin'
 };
 

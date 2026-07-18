@@ -45,11 +45,11 @@ export const mockMasterPlanData: MasterPlanRecord[] = [
     // --- URGENT (< 4 WEEKS) ---
     {
         id: 1, projectName: 'Project Smaf', basic: 'SM-L345F_JPN_DCM', areaRegion: 'DCM', grade: 'D+', sku: 'SM-L345FZKJDCM', category: 'LPR', qtyLpr: 150, qtyLsr: 200,
-        prePvrTargetDate: addWeeks(today, 1), praTargetDate: addWeeks(today, 5), sraTargetDate: addWeeks(today, 8), picIqc: 'Hoang Duc Nhien', actionStatus: 'Urgent', isActivated: false
+        prePvrTargetDate: addWeeks(today, 1), praTargetDate: addWeeks(today, 5), sraTargetDate: addWeeks(today, 8), picIqc: 'SYN-0001', actionStatus: 'Urgent', isActivated: false
     },
     {
         id: 2, projectName: 'Project Q4 Lite', basic: 'SM-A156_MEA', areaRegion: 'MEA', grade: 'C', sku: 'SM-A156MZKIMEA', category: 'LPR', qtyLpr: 300, qtyLsr: 500,
-        prePvrTargetDate: addWeeks(today, 2), praTargetDate: addWeeks(today, 6), sraTargetDate: addWeeks(today, 9), picIqc: 'Nguyen Van Kien', actionStatus: 'Urgent', isActivated: false
+        prePvrTargetDate: addWeeks(today, 2), praTargetDate: addWeeks(today, 6), sraTargetDate: addWeeks(today, 9), picIqc: 'SYN-0002', actionStatus: 'Urgent', isActivated: false
     },
     {
         id: 3, projectName: 'Galaxy A36 5G', basic: 'SM-A366B_EU', areaRegion: 'EU', grade: 'B', sku: 'SM-A366BZKAEUB', category: 'LPR', qtyLpr: 200, qtyLsr: 400,
@@ -59,7 +59,7 @@ export const mockMasterPlanData: MasterPlanRecord[] = [
     // --- READY (6 - 8 WEEKS) ---
     {
         id: 4, projectName: 'Fresh9', basic: 'SM-L335F_JPN_DCM', areaRegion: 'DCM', grade: 'D+', sku: 'SM-L335FZKIXOM', category: 'LPR', qtyLpr: 150, qtyLsr: 200,
-        prePvrTargetDate: addWeeks(today, 6), praTargetDate: addWeeks(today, 10), sraTargetDate: addWeeks(today, 13), picIqc: 'Hoang Duc Nhien', actionStatus: 'Ready', isActivated: false
+        prePvrTargetDate: addWeeks(today, 6), praTargetDate: addWeeks(today, 10), sraTargetDate: addWeeks(today, 13), picIqc: 'SYN-0001', actionStatus: 'Ready', isActivated: false
     },
     {
         id: 5, projectName: 'Project V2', basic: 'SM-L715F_JPN_DCM', areaRegion: 'DCM', grade: 'D+', sku: 'SM-L715FZKJDCM', category: 'LPR', qtyLpr: 150, qtyLsr: 200,
@@ -67,11 +67,11 @@ export const mockMasterPlanData: MasterPlanRecord[] = [
     },
     {
         id: 6, projectName: 'Galaxy S25 FE', basic: 'SM-S721B_DS', areaRegion: 'GLB', grade: 'A', sku: 'SM-S721BZKADSM', category: 'LPR', qtyLpr: 500, qtyLsr: 1000,
-        prePvrTargetDate: addWeeks(today, 7), praTargetDate: addWeeks(today, 12), sraTargetDate: addWeeks(today, 16), picIqc: 'Nguyen Van Kien', actionStatus: 'Ready', isActivated: false
+        prePvrTargetDate: addWeeks(today, 7), praTargetDate: addWeeks(today, 12), sraTargetDate: addWeeks(today, 16), picIqc: 'SYN-0002', actionStatus: 'Ready', isActivated: false
     },
     {
         id: 7, projectName: 'Galaxy Z Flip 7', basic: 'SM-F751B', areaRegion: 'GLB', grade: 'Flagship', sku: 'SM-F751BZKAEUB', category: 'LPR', qtyLpr: 100, qtyLsr: 150,
-        prePvrTargetDate: addWeeks(today, 8), praTargetDate: addWeeks(today, 14), sraTargetDate: addWeeks(today, 18), picIqc: 'Hoang Duc Nhien', actionStatus: 'Ready', isActivated: false
+        prePvrTargetDate: addWeeks(today, 8), praTargetDate: addWeeks(today, 14), sraTargetDate: addWeeks(today, 18), picIqc: 'SYN-0001', actionStatus: 'Ready', isActivated: false
     },
 
     // --- FUTURE (> 8 WEEKS) ---
@@ -85,17 +85,17 @@ export const mockMasterPlanData: MasterPlanRecord[] = [
     },
     {
         id: 10, projectName: 'Galaxy Watch 8', basic: 'SM-R980', areaRegion: 'GLB', grade: 'Wearable', sku: 'SM-R980NZKAEUB', category: 'LPR', qtyLpr: 250, qtyLsr: 500,
-        prePvrTargetDate: addWeeks(today, 15), praTargetDate: addWeeks(today, 20), sraTargetDate: addWeeks(today, 24), picIqc: 'Nguyen Van Kien', actionStatus: 'Future', isActivated: false
+        prePvrTargetDate: addWeeks(today, 15), praTargetDate: addWeeks(today, 20), sraTargetDate: addWeeks(today, 24), picIqc: 'SYN-0002', actionStatus: 'Future', isActivated: false
     },
 
     // --- ACTIVE (Đã khởi tạo) ---
     {
         id: 11, projectName: 'Galaxy Z Fold 7', basic: 'SM-F966B', areaRegion: 'GLB', grade: 'Flagship', sku: 'SM-F966BZKAEUB', category: 'LPR', qtyLpr: 150, qtyLsr: 200,
-        prePvrTargetDate: '2026-08-15', praTargetDate: '2026-10-15', sraTargetDate: '2026-12-01', picIqc: 'Hoang Duc Nhien', actionStatus: 'Active', isActivated: true
+        prePvrTargetDate: '2026-08-15', praTargetDate: '2026-10-15', sraTargetDate: '2026-12-01', picIqc: 'SYN-0001', actionStatus: 'Active', isActivated: true
     },
     {
         id: 12, projectName: 'Galaxy S26 Ultra', basic: 'SM-S948B', areaRegion: 'GLB', grade: 'Flagship', sku: 'SM-S948BZKAEUB', category: 'LPR', qtyLpr: 300, qtyLsr: 500,
-        prePvrTargetDate: '2026-09-01', praTargetDate: '2026-11-01', sraTargetDate: '2027-01-15', picIqc: 'Nguyen Van Kien', actionStatus: 'Active', isActivated: true
+        prePvrTargetDate: '2026-09-01', praTargetDate: '2026-11-01', sraTargetDate: '2027-01-15', picIqc: 'SYN-0002', actionStatus: 'Active', isActivated: true
     }
 ];
 
@@ -105,8 +105,8 @@ export const mockActiveWorkspaces: ProjectWorkspace[] = [
         sourceRecordId: 11,
         projectName: 'Galaxy Z Fold 7',
         sku: 'SM-F966BZKAEUB',
-        ownerId: 'EMP0001',
-        ownerName: 'Alex Morgan',
+        ownerId: 'SYN-0001',
+        ownerName: 'Alex Tran',
         status: 'InProgress',
         activatedDate: '2026-06-15',
         completionPercentage: 45
@@ -116,8 +116,8 @@ export const mockActiveWorkspaces: ProjectWorkspace[] = [
         sourceRecordId: 12,
         projectName: 'Galaxy S26 Ultra',
         sku: 'SM-S948BZKAEUB',
-        ownerId: 'EMP0002',
-        ownerName: 'Jordan Lee',
+        ownerId: 'SYN-0002',
+        ownerName: 'Jamie Nguyen',
         status: 'Preparation',
         activatedDate: '2026-07-01',
         completionPercentage: 10
