@@ -16,10 +16,20 @@ export interface MasterPlanRecord {
     isActivated: boolean;
 }
 
+export type WorkspaceStatus =
+    | 'Preparation'
+    | 'InProgress'
+    | 'Completed';
+
 export interface ProjectWorkspace {
     id: number;
     sourceRecordId: number;
     projectName: string;
+    sku: string;
+    ownerId: string;
+    ownerName: string;
+    status: WorkspaceStatus;
+    activatedDate: string;
     completionPercentage: number;
 }
 
@@ -94,12 +104,22 @@ export const mockActiveWorkspaces: ProjectWorkspace[] = [
         id: 101,
         sourceRecordId: 11,
         projectName: 'Galaxy Z Fold 7',
+        sku: 'SM-F966BZKAEUB',
+        ownerId: 'EMP0001',
+        ownerName: 'Alex Morgan',
+        status: 'InProgress',
+        activatedDate: '2026-06-15',
         completionPercentage: 45
     },
     {
         id: 102,
-        sourceRecordId: 12, 
+        sourceRecordId: 12,
         projectName: 'Galaxy S26 Ultra',
+        sku: 'SM-S948BZKAEUB',
+        ownerId: 'EMP0002',
+        ownerName: 'Jordan Lee',
+        status: 'Preparation',
+        activatedDate: '2026-07-01',
         completionPercentage: 10
     }
 ];

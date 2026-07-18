@@ -107,7 +107,12 @@ export default function EnterpriseMasterPlanPage() {
       id: Date.now(),
       sourceRecordId: record.id,
       projectName: record.projectName,
-      completionPercentage: 0
+      sku: record.sku,
+      ownerId: record.picIqc,
+      ownerName: record.picIqc,
+      status: 'Preparation',
+      activatedDate: new Date().toISOString().split('T')[0],
+      completionPercentage: 0,
     };
     setActiveProjects([newWorkspace, ...activeProjects]);
     const newRecords = records.map(r => 
