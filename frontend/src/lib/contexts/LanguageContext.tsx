@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import React, { createContext, useContext, useState, ReactNode } from "react";
 import { dictionaries, Locale, Dictionary } from "../i18n/dictionaries";
 
 interface LanguageContextType {
@@ -11,23 +11,30 @@ interface LanguageContextType {
 
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>("vi"); // Default to vi for workers
+function getInitialLocale(): Locale {
+  if (typeof window === "undefined") {
+    return "vi";
+  }
 
-  useEffect(() => {
-    const savedLocale = localStorage.getItem("app_locale") as Locale;
-    if (savedLocale && (savedLocale === "en" || savedLocale === "vi")) {
-      setLocaleState(savedLocale);
-    }
-  }, []);
+  const savedLocale = window.localStorage.getItem("app_locale");
+
+  if (savedLocale === "en" || savedLocale === "vi") {
+    return savedLocale;
+  }
+
+  return "vi";
+}
+
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [locale, setLocaleState] = useState<Locale>(getInitialLocale);
 
   const setLocale = (newLocale: Locale) => {
     setLocaleState(newLocale);
-    localStorage.setItem("app_locale", newLocale);
+    window.localStorage.setItem("app_locale", newLocale);
   };
 
   const t = dictionaries[locale];
-  
+
   return (
     <LanguageContext.Provider value={{ locale, t, setLocale }}>
       {children}
@@ -37,8 +44,10 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
 export function useLanguage() {
   const context = useContext(LanguageContext);
+
   if (context === undefined) {
     throw new Error("useLanguage must be used within a LanguageProvider");
   }
+
   return context;
 }
