@@ -1,5 +1,7 @@
 "use client";
 
+import Image from "next/image";
+
 import React, { useMemo } from 'react';
 import { MessageSquare } from 'lucide-react';
 import { getUserById } from '@/lib/data/usersService';
@@ -49,7 +51,7 @@ export function UserBadge({ name, avatarUrl, size = 'sm', className = '', avatar
     >
       <div className={`${sizeClasses[size].avatar} rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center font-bold text-indigo-700 dark:text-indigo-300 flex-shrink-0 relative overflow-hidden`}>
         {avatarUrl ? (
-          <img src={avatarUrl} alt={realName} className="w-full h-full rounded-full object-cover" />
+          <Image src={avatarUrl} alt={realName} width={40} height={40} className="w-full h-full rounded-full object-cover" />
         ) : (
           getInitials(realName)
         )}

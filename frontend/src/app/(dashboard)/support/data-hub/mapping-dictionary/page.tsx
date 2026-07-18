@@ -1,5 +1,5 @@
 "use client";
-import { BookOpen, Construction } from "lucide-react";
+import { Construction } from "lucide-react";
 
 export default function MappingDictionaryPage() {
   return (

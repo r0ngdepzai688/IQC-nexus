@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -21,19 +21,7 @@ export default function DataHubDashboard() {
   const [stagingRecords, setStagingRecords] = useState<StagingMasterPlan[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (activeTab === "history") {
-      fetchHistory();
-    }
-  }, [activeTab]);
-
-  useEffect(() => {
-    if (urlBatchId && activeTab === "history") {
-      viewBatchDetails(urlBatchId);
-    }
-  }, [urlBatchId]);
-
-  const fetchHistory = async () => {
+  const fetchHistory = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getHistory();
@@ -43,9 +31,9 @@ export default function DataHubDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const viewBatchDetails = async (batchId: string) => {
+  const viewBatchDetails = useCallback(async (batchId: string) => {
     setLoading(true);
     try {
       const batchData = await getBatchPreview(batchId);
@@ -58,7 +46,27 @@ export default function DataHubDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== "history") return;
+
+    const timeoutId = window.setTimeout(() => {
+      void fetchHistory();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTab, fetchHistory]);
+
+  useEffect(() => {
+    if (!urlBatchId || activeTab !== "history") return;
+
+    const timeoutId = window.setTimeout(() => {
+      void viewBatchDetails(urlBatchId);
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [activeTab, urlBatchId, viewBatchDetails]);
 
   const formatDuration = (ms: number) => {
     if (ms < 1000) return `${ms}ms`;
