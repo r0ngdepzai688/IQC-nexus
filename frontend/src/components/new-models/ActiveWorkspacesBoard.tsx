@@ -5,7 +5,7 @@ import { ProjectWorkspace } from "@/lib/mock-data/newModelsMock";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserBadge } from "@/components/ui/user-badge";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, CheckCircle2, Clock, PlayCircle } from "lucide-react";
+import { Calendar, CheckCircle2, Clock } from "lucide-react";
 
 interface ActiveWorkspacesBoardProps {
   workspaces: ProjectWorkspace[];
@@ -13,18 +13,7 @@ interface ActiveWorkspacesBoardProps {
 
 export function ActiveWorkspacesBoard({ workspaces }: ActiveWorkspacesBoardProps) {
 
-  const getStatusDisplay = (status: string) => {
-    switch (status) {
-      case "Preparation":
-        return { label: "Preparation", icon: Clock, color: "text-amber-500" };
-      case "InProgress":
-        return { label: "In Progress", icon: PlayCircle, color: "text-blue-500" };
-      case "Completed":
-        return { label: "Completed", icon: CheckCircle2, color: "text-emerald-500" };
-      default:
-        return { label: status, icon: Clock, color: "text-muted-foreground" };
-    }
-  };
+
 
   if (workspaces.length === 0) {
     return (

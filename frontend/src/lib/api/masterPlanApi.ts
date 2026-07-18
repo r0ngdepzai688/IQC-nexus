@@ -16,6 +16,14 @@ export interface MasterPlanDisplayDto {
   linkedProjectId: number | null;
 }
 
+export interface ActivateProjectResponse {
+  success?: boolean;
+  message?: string;
+  projectId?: number;
+  recordId?: number;
+  [key: string]: unknown;
+}
+
 const API_BASE = 'http://localhost:5000/api/masterplan';
 
 export const fetchMasterPlanRecords = async (): Promise<MasterPlanDisplayDto[]> => {
@@ -26,7 +34,7 @@ export const fetchMasterPlanRecords = async (): Promise<MasterPlanDisplayDto[]> 
   return await response.json();
 };
 
-export const activateProject = async (recordId: number): Promise<any> => {
+export const activateProject = async (recordId: number): Promise<ActivateProjectResponse> => {
   const response = await fetch(`${API_BASE}/activate/${recordId}`, {
     method: 'POST',
   });

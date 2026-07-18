@@ -1,19 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { 
   Plus, Search, Filter, CheckCircle2, ChevronRight, Target, Wrench, AlertCircle, 
-  Check, ChevronDown, Users2, LayoutDashboard, SearchIcon, History, ArrowRight, Home, Upload, AlertTriangle, FileText, Download, Play
+  Check, LayoutDashboard, History, ArrowRight, Upload, AlertTriangle, FileText, Download
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
-import { useAuth } from "@/lib/contexts/AuthContext";
-import { Card, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { UserBadge } from "@/components/ui/user-badge";
 import Link from "next/link";
-import { useEffect } from "react";
 import { fetchMasterPlanRecords, MasterPlanDisplayDto } from "@/lib/api/masterPlanApi";
 
 // --- MOCK DATA ---
@@ -83,43 +81,40 @@ const MOCK_RISK_ITEMS = [
   { partCode: "GH98-98765B", desc: "Tỉ lệ lỗi ngoại quan viền camera > 2% do vết xước gia công", stage: "DV", countermeasure: "Cập nhật lại thông số máy phay CNC tại chuyền sản xuất của Vendor", status: "Closed", pic: "Anh Thư" },
 ];
 
-const CircularProgress = ({ value, size = 36, strokeWidth = 3, colorClass = "text-blue-600" }: { value: number, size?: number, strokeWidth?: number, colorClass?: string }) => {
-  const radius = (size - strokeWidth) / 2;
-  const circumference = radius * 2 * Math.PI;
-  const offset = circumference - (value / 100) * circumference;
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg className="transform -rotate-90 w-full h-full">
-        <circle cx={size / 2} cy={size / 2} r={radius} className="stroke-gray-200 dark:stroke-white/10" strokeWidth={strokeWidth} fill="transparent" />
-        <circle cx={size / 2} cy={size / 2} r={radius} className={`stroke-current ${colorClass} transition-all duration-1000 ease-in-out`} strokeWidth={strokeWidth} fill="transparent" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
-      </svg>
-    </div>
-  );
-};
-
 export default function NewModelPage() {
-  const { user, activeRoleLens } = useAuth();
-  
   // Set to null to show Master Plan by default
   const [activeProject, setActiveProject] = useState<typeof MOCK_PROJECTS[0] | null>(null);
   const [activeTab, setActiveTab] = useState("bom");
   const [hasRiskData, setHasRiskData] = useState(false);
   const [masterPlans, setMasterPlans] = useState<MasterPlanDisplayDto[]>([]);
-  const [isLoadingMasterPlans, setIsLoadingMasterPlans] = useState(false);
+  const [isLoadingMasterPlans, setIsLoadingMasterPlans] = useState(true);
 
   useEffect(() => {
-    if (activeProject === null) {
-      setIsLoadingMasterPlans(true);
-      fetchMasterPlanRecords()
-        .then(data => setMasterPlans(data))
-        .catch(err => console.error(err))
-        .finally(() => setIsLoadingMasterPlans(false));
-    }
+    if (activeProject !== null) return;
+
+    let cancelled = false;
+
+    fetchMasterPlanRecords()
+      .then((data) => {
+        if (!cancelled) setMasterPlans(data);
+      })
+      .catch((error) => console.error(error))
+      .finally(() => {
+        if (!cancelled) setIsLoadingMasterPlans(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [activeProject]);
 
   const handleProjectSelect = (project: typeof MOCK_PROJECTS[0] | null) => {
+    if (project === null) {
+      setIsLoadingMasterPlans(true);
+    }
+
     setActiveProject(project);
-    if(project) {
+    if (project) {
       setActiveTab("bom"); // Default tab for PIC
     }
   };
@@ -237,8 +232,8 @@ export default function NewModelPage() {
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Area</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Grade</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SKU</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q'ty (LPR)</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q'ty (LSR)</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q&apos;ty (LPR)</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q&apos;ty (LSR)</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PVR Target</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PRA Target</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SRA Target</th>

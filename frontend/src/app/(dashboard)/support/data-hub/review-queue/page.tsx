@@ -1,5 +1,5 @@
 "use client";
-import { ListChecks, Construction } from "lucide-react";
+import { Construction } from "lucide-react";
 
 export default function ReviewQueuePage() {
   return (

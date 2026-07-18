@@ -15,11 +15,7 @@ export default function MasterPlanImportPage() {
   const [loading, setLoading] = useState(true);
   const [processingFile, setProcessingFile] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  const fetchFiles = async () => {
+  async function fetchFiles() {
     try {
       const data = await getManualFiles();
       setFiles(data);
@@ -28,7 +24,15 @@ export default function MasterPlanImportPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      void fetchFiles();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, []);
 
   const handleProcess = async (fileName: string) => {
     setProcessingFile(fileName);

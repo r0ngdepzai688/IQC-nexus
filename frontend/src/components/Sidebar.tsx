@@ -10,7 +10,6 @@ import {
   Settings2,
   ChevronRight,
   LucideIcon,
-  UploadCloud,
   AlertTriangle,
   ListChecks,
   BookOpen

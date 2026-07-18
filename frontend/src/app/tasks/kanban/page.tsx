@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useLanguage } from '@/lib/contexts/LanguageContext';
-import { useTasks, TaskItem } from '@/lib/contexts/TaskContext';
+import { useTasks } from '@/lib/contexts/TaskContext';
 import { UserBadge } from '@/components/ui/user-badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { UserSearchInput } from '@/components/ui/user-search-input';
@@ -18,7 +18,8 @@ export default function TasksKanban() {
   const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
   
   // Modals state
-  const [selectedTask, setSelectedTask] = useState<TaskItem | null>(null);
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const selectedTask = tasks.find((task) => task.id === selectedTaskId) ?? null;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
 
   // Form states for Add Task
@@ -81,14 +82,6 @@ export default function TasksKanban() {
     setNewUpdateText("");
   };
 
-  // Keep selectedTask in sync if it gets updated in Context
-  React.useEffect(() => {
-    if (selectedTask) {
-      const updated = tasks.find(t => t.id === selectedTask.id);
-      if (updated) setSelectedTask(updated);
-    }
-  }, [tasks]);
-
   return (
     <div className="space-y-6 h-full flex flex-col overflow-hidden">
       <div className="flex flex-col md:flex-row md:items-center justify-between flex-shrink-0">
@@ -128,7 +121,7 @@ export default function TasksKanban() {
                     key={task.id} 
                     draggable
                     onDragStart={(e) => handleDragStart(e, task.id)}
-                    onClick={() => setSelectedTask(task)}
+                    onClick={() => setSelectedTaskId(task.id)}
                     className={`shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing border-border ${draggingTaskId === task.id ? 'opacity-50' : 'opacity-100'}`}
                   >
                     <CardContent className="p-4">
@@ -163,7 +156,7 @@ export default function TasksKanban() {
       </div>
 
       {/* Task Detail Modal */}
-      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTask(null)}>
+      <Dialog open={!!selectedTask} onOpenChange={(open) => !open && setSelectedTaskId(null)}>
         <DialogContent className="sm:max-w-3xl">
           {selectedTask && (
             <>

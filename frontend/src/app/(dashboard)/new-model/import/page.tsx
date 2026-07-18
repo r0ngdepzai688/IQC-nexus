@@ -6,17 +6,33 @@ import {
   ChevronRight, ArrowRight, ShieldCheck, Download, ListChecks, ArrowLeft
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export default function ManualImportPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [batchData, setBatchData] = useState<any>(null); // eslint-disable-line @typescript-eslint/no-explicit-any
-  const [serverFiles, setServerFiles] = useState<any[]>([]);
+  interface BatchData {
+    batchId: string;
+    totalRows: number;
+    validRows: number;
+    reviewRequiredRows: number;
+    errorRows: number;
+    createdRecords?: number;
+    updatedRecords?: number;
+  }
+
+  interface ServerFile {
+    fileName: string;
+    sizeBytes: number;
+    lastModifiedUtc: string;
+    duplicateStatus: string;
+  }
+
+  const [batchData, setBatchData] = useState<BatchData | null>(null);
+  const [serverFiles, setServerFiles] = useState<ServerFile[]>([]);
   
   // Step 2: Fetch Manual Files
   useEffect(() => {
@@ -55,7 +71,7 @@ export default function ManualImportPage() {
         setStep(3);
       }, 800);
       
-    } catch (err) {
+    } catch {
       clearInterval(progressInterval);
       setIsUploading(false);
       alert("Error processing server file.");
@@ -67,7 +83,6 @@ export default function ManualImportPage() {
     const selected = e.target.files?.[0];
     if (!selected) return;
     
-    setFile(selected);
     setIsUploading(true);
     setUploadProgress(10);
     
@@ -102,7 +117,7 @@ export default function ManualImportPage() {
         setStep(3);
       }, 800);
       
-    } catch (err) {
+    } catch {
       clearInterval(progressInterval);
       setIsUploading(false);
       alert("Error uploading file. Please check backend connection.");
@@ -126,7 +141,7 @@ export default function ManualImportPage() {
       const data = await res.json();
       setBatchData(data);
       setStep(4);
-    } catch (err) {
+    } catch {
       alert("Error committing batch.");
     } finally {
       setIsUploading(false);

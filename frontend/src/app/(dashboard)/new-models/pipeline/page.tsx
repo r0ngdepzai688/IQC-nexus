@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useMemo, useState } from "react";
 import { MasterPlanRecord, ProjectWorkspace, mockMasterPlanData, mockActiveWorkspaces } from "@/lib/mock-data/newModelsMock";
 import { getUserById } from "@/lib/data/usersService";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -21,8 +21,8 @@ export default function EnterpriseMasterPlanPage() {
   
   // UI States
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterGrade, setFilterGrade] = useState("All");
-  const [filterCat, setFilterCat] = useState("All");
+  const [filterGrade] = useState("All");
+  const [filterCat] = useState("All");
   const [filterStatus, setFilterStatus] = useState("All");
   const [filterUrgentOnly, setFilterUrgentOnly] = useState(false);
   const [selectedRecord, setSelectedRecord] = useState<MasterPlanRecord | null>(null);
@@ -54,7 +54,7 @@ export default function EnterpriseMasterPlanPage() {
 
   // Derived Filtered & Sorted
   const processedRecords = useMemo(() => {
-    let filtered = records.filter(r => {
+    const filtered = records.filter(r => {
       const matchSearch = r.projectName.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           r.basic.toLowerCase().includes(searchQuery.toLowerCase());
       const matchGrade = filterGrade === "All" || r.grade === filterGrade;

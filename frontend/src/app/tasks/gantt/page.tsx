@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { GanttChartSquare, Plus, Settings2, Filter } from 'lucide-react';
+import { Plus, Settings2, Filter } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useTasks } from '@/lib/contexts/TaskContext';
@@ -46,7 +46,7 @@ export default function TasksGantt() {
             <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Task Name</span>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar">
-            {tasks.map((t, i) => (
+            {tasks.map((t) => (
               <div key={t.id} className="h-12 border-b border-border flex items-center px-4 hover:bg-muted/50 cursor-pointer transition-colors group">
                 <span className="text-[10px] font-mono text-muted-foreground mr-2 group-hover:text-primary transition-colors">{t.id}</span>
                 <span className="text-sm font-semibold text-foreground truncate">{t.title}</span>

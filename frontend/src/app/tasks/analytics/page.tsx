@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { BarChart3, TrendingUp, Users, Activity } from 'lucide-react';
+import { TrendingUp, Users, Activity } from 'lucide-react';
 import { useTasks } from '@/lib/contexts/TaskContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { UserBadge } from '@/components/ui/user-badge';
