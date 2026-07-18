@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { createContext, useContext, useState, ReactNode } from "react";
 
@@ -34,7 +34,7 @@ const INITIAL_TASKS: TaskItem[] = [
     title: "Sign-off Final BOM", 
     description: "Review and sign off the final Bill of Materials for the new X90 model. Ensure all components are verified by the sourcing team.",
     module: "New Models", 
-    assignee: "12578026", // Bùi Thị Vân
+    assignee: "SYN-0001", // BÃ¹i Thá»‹ VÃ¢n
     priority: "Low", 
     priorityV: "neutral",
     deadline: "2026-07-15T17:00:00",
@@ -45,13 +45,13 @@ const INITIAL_TASKS: TaskItem[] = [
     title: "Complete MPPR Analysis", 
     description: "Perform the Mass Production Preparation Review. Upload the final spreadsheet.",
     module: "New Models", 
-    assignee: "10548876", // Chu Văn Tú
+    assignee: "SYN-0002", // Chu VÄƒn TÃº
     priority: "High", 
     priorityV: "danger",
     deadline: "2026-07-10T12:00:00",
     columnId: "in_progress",
     progressUpdates: [
-      { id: "u1", user: "10548876", text: "Started gathering data from suppliers.", date: "2026-07-08T09:00:00" }
+      { id: "u1", user: "SYN-0002", text: "Started gathering data from suppliers.", date: "2026-07-08T09:00:00" }
     ]
   },
   { 
@@ -59,7 +59,7 @@ const INITIAL_TASKS: TaskItem[] = [
     title: "Update Compliance Policy", 
     description: "Update the Q3 compliance policy document according to the new safety regulations.",
     module: "Compliance", 
-    assignee: "10548898", // Dương Xuân Văn
+    assignee: "SYN-0003", // DÆ°Æ¡ng XuÃ¢n VÄƒn
     priority: "Medium", 
     priorityV: "warning",
     columnId: "in_progress" 
@@ -69,7 +69,7 @@ const INITIAL_TASKS: TaskItem[] = [
     title: "Update Dashboard UI", 
     description: "Implement the new Design System requirements on the main dashboard.",
     module: "IT", 
-    assignee: "14824007", // Lê Văn Bậc
+    assignee: "SYN-0004", // LÃª VÄƒn Báº­c
     priority: "High", 
     priorityV: "danger",
     columnId: "review" 
@@ -79,7 +79,7 @@ const INITIAL_TASKS: TaskItem[] = [
     title: "Review Supplier Audit", 
     description: "Review the quarterly supplier audit logs.",
     module: "Compliance", 
-    assignee: "14502286", // Nguyễn Ngọc Hùng
+    assignee: "SYN-0005", // Nguyá»…n Ngá»c HÃ¹ng
     priority: "Medium", 
     priorityV: "warning",
     columnId: "done",
@@ -146,3 +146,4 @@ export function useTasks() {
   }
   return context;
 }
+

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React from 'react';
 import { Sparkles, Clock, AlertTriangle, Activity, ListChecks, Plus } from 'lucide-react';
@@ -63,14 +63,14 @@ export default function TasksExecutiveDashboard() {
           <CardContent className="p-5">
             <div className="space-y-3">
               {[
-                { title: 'Approve MPPR Report', module: 'New Models', reqBy: '12578026' },
-                { title: 'Sign off FAI Inspection', module: 'Inspections', reqBy: '10548876' }
+                { title: 'Approve MPPR Report', module: 'New Models', reqBy: 'SYN-0001' },
+                { title: 'Sign off FAI Inspection', module: 'Inspections', reqBy: 'SYN-0002' }
               ].map((i, idx) => (
                 <div key={idx} className="flex items-center justify-between p-3 bg-muted/50 rounded-xl hover:bg-muted transition-colors">
                   <div>
                     <h5 className="text-sm font-semibold text-foreground">{i.title}</h5>
                     <div className="text-[10px] font-medium text-muted-foreground mt-0.5 flex items-center gap-1">
-                      <span>{i.module} • Requested by</span>
+                      <span>{i.module} â€¢ Requested by</span>
                       <UserBadge name={i.reqBy} size="sm" />
                     </div>
                   </div>
@@ -110,3 +110,4 @@ export default function TasksExecutiveDashboard() {
     </div>
   );
 }
+
