@@ -28,7 +28,7 @@ Thumbs.db
 *.zip
 
 # Data Hub Data files
-DataHub/
+/DataHub/
 *.xlsx
 *.xls
 *.xlsm
