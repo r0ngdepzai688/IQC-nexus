@@ -34,3 +34,6 @@ Thumbs.db
 *.xlsm
 *.csv
 *.pdf
+/users.json
+/user_preview.json
+/user_preview_utf8.json

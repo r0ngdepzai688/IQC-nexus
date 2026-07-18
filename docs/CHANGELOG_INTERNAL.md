@@ -49,3 +49,17 @@ Changelog này ghi bằng chứng theo task. Chỉ ghi **Completed** khi Definit
 - **Kết quả:** người dùng xác nhận Task 001 đạt Definition of Done.
 - **Rủi ro còn lại:** các file Data Hub có trailing whitespace tồn tại từ trước; commit mới tồn tại local và chưa push.
 - **Rollback procedure:** revert commit `d2b1de162cba8a844bfeca3412817ee1dcf13f4d` bằng một commit đảo riêng khi được phê duyệt; không amend/reset commit đã tạo và không xóa bản local của Data Hub.
+
+## Task 002 / E01-T02 — Slice 002A: Contain tracked root data
+
+- **Ngày thực hiện:** 2026-07-18.
+- **Trạng thái:** 002A Completed; Task 002 tổng thể In Progress; 002B/002C Not Started.
+- **Tóm tắt thay đổi:** remove tracking bốn root personnel artifacts bằng `git rm --cached`, giữ nguyên file local; thêm ignore rules path-specific và inventory metadata-only.
+- **File thay đổi:** `.gitignore`; bốn root artifacts đổi tracking state; `docs/security/data-inventory.md`; bốn tài liệu Session Closing Protocol.
+- **Migration được tạo:** không.
+- **Build/test:** `dotnet restore backend/IqcQms.sln` thành công; `dotnet build backend/IqcQms.sln --no-restore` thành công với 6 nullable warnings trong Data Hub source không bị sửa bởi 002A và 0 errors; repository/ignore/staged-set scans đạt.
+- **Kết quả:** bốn artifacts không còn tracked; file local vẫn tồn tại; Data Hub source/docs không bị ignore; không sửa code.
+- **Release gate còn lại:** secure store, Data Owner, Security approver, encryption/access/retention và history reassessment đều pending organizational approval.
+- **Rủi ro còn lại:** PII vẫn tồn tại local và trong Git history; history không được rewrite trong 002A.
+- **Rollback procedure:** không recommit PII, không xóa local và không reset/rewrite history; dùng forward-fix hoặc secure-store recovery khi được owner phê duyệt.
+- **Bước tiếp theo:** chỉ chuẩn bị Definition of Ready cho 002B khi có yêu cầu; không tự động triển khai.

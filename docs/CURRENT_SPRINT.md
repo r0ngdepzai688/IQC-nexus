@@ -3,20 +3,31 @@
 ## 1. Sprint
 
 - **Tên:** Sprint 0 — Repository Safety Baseline.
-- **Mục tiêu:** khôi phục repository về trạng thái an toàn và tái lập bằng cách đưa đúng source Data Hub vào version control mà không track dữ liệu runtime hoặc dữ liệu nhạy cảm.
-- **Nguyên tắc:** mỗi lần chỉ thực hiện một task; Sprint 0 hiện chỉ có Task 001 / E01-T01.
+- **Mục tiêu:** thiết lập repository safety baseline: source bắt buộc được track và root personnel artifacts được containment an toàn.
+- **Nguyên tắc:** mỗi lần chỉ thực hiện một execution slice; 002A hoàn thành, không tự động bắt đầu 002B.
 
 ## 2. Danh sách task thuộc sprint
 
 | Task | Mục tiêu | Trạng thái |
 |---|---|---|
 | Task 001 / E01-T01 — Đưa source Data Hub vào version control | Clone sạch chứa đủ entities, interfaces, services và tài liệu contract Data Hub để backend build được. | **Completed** — commit `d2b1de162cba8a844bfeca3412817ee1dcf13f4d`; chưa push. |
+| Task 002 / E01-T02 — 002A Contain tracked root data | Remove tracking bốn root personnel artifacts, giữ file local và ghi inventory metadata-only. | **002A Completed** — Task 002 tổng thể vẫn in progress; 002B/002C chưa bắt đầu. |
 
-Không đưa Task 002 hoặc task khác vào sprint cho tới khi Task 001 đạt DoD và người dùng yêu cầu bắt đầu task tiếp theo.
+Không bắt đầu 002B, 002C hoặc task khác khi chưa có yêu cầu mới và Definition of Ready tương ứng.
 
 ## 3. Task đang active
 
-Hiện không có task active. Task 002 chưa bắt đầu.
+Hiện không có task active. 002A đã hoàn thành; bước tiếp theo chỉ là chuẩn bị Definition of Ready cho 002B khi được yêu cầu.
+
+### Task 002 / E01-T02 — kết quả slice 002A
+
+- Bốn root personnel artifacts không còn được Git track tại HEAD nhưng vẫn tồn tại local và không đổi nội dung.
+- `.gitignore` dùng rule path-specific cho ba JSON root; rule Excel và `/DataHub/` được giữ nguyên.
+- `docs/security/data-inventory.md` chỉ chứa metadata và release gates.
+- Không sửa source, runtime seeding, frontend fixture hoặc backend seeder.
+- Không rewrite Git history, không push và không bắt đầu 002B.
+- Data Owner và Security approval vẫn là release gate.
+- Backend restore thành công; build thành công với 6 nullable warnings trong Data Hub source không bị sửa bởi 002A và 0 errors.
 
 ### Task 001 / E01-T01 — kết quả hoàn thành
 
