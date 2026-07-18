@@ -8,10 +8,10 @@ import {
 
 // Mock Data
 const MOCK_LOGS = [
-  { id: "LOG-001", timestamp: "2024-07-05 09:12:45", admin: "System Admin (10545998)", target: "Mai Thị Oanh (11546567)", action: "Locked Account", oldVal: "Active", newVal: "Locked", ip: "192.168.1.105" },
-  { id: "LOG-002", timestamp: "2024-07-04 15:30:22", admin: "System Admin (10545998)", target: "Lê Văn Huy (12532453)", action: "Changed Position", oldVal: "Cell Leader", newVal: "Staff", ip: "192.168.1.105" },
-  { id: "LOG-003", timestamp: "2024-07-04 15:28:10", admin: "System Admin (10545998)", target: "Bùi Thị Thúy (10525728)", action: "Preview Dashboard", oldVal: "N/A", newVal: "Impersonated Staff", ip: "192.168.1.105" },
-  { id: "LOG-004", timestamp: "2024-07-03 10:15:00", admin: "System Admin (10545998)", target: "Lê Thị Huệ (11556731)", action: "Created User", oldVal: "N/A", newVal: "New Account", ip: "10.0.5.21" },
+  { id: "LOG-001", timestamp: "2024-07-05 09:12:45", admin: "Synthetic Administrator (SYN-ADMIN-001)", target: "Jamie Nguyen (SYN-0002)", action: "Locked Account", oldVal: "Active", newVal: "Locked", ip: "192.0.2.10" },
+  { id: "LOG-002", timestamp: "2024-07-04 15:30:22", admin: "Synthetic Administrator (SYN-ADMIN-001)", target: "Taylor Pham (SYN-0003)", action: "Changed Position", oldVal: "Cell Leader", newVal: "Staff", ip: "192.0.2.10" },
+  { id: "LOG-003", timestamp: "2024-07-04 15:28:10", admin: "Synthetic Administrator (SYN-ADMIN-001)", target: "Morgan Le (SYN-0004)", action: "Preview Dashboard", oldVal: "N/A", newVal: "Impersonated Staff", ip: "192.0.2.10" },
+  { id: "LOG-004", timestamp: "2024-07-03 10:15:00", admin: "Synthetic Administrator (SYN-ADMIN-001)", target: "Jordan Ho (SYN-0005)", action: "Created User", oldVal: "N/A", newVal: "New Account", ip: "198.51.100.21" },
 ];
 
 export default function AuditLogsPage() {

@@ -5,19 +5,25 @@ import { MessageCircle, X, Send, Paperclip, Smile, Search as SearchIcon, CheckCh
 import TextareaAutosize from "react-textarea-autosize";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePathname } from "next/navigation";
-import usersData from "@/data/users.json";
+import { getAllUsers } from "@/lib/data/usersService";
 
-// --- PARSE USERS FROM JSON ---
-const DB_USERS = (usersData as Record<string, string>[]).slice(1).map((u, idx) => ({
-  id: u["Unnamed: 1"]?.toString() || `user_${idx}`,
-  name: u["Unnamed: 2"] || "Unknown",
-  department: u["Unnamed: 3"] || "Khác",
-  org: u["Unnamed: 4"] || "",
-  clName: u["Unnamed: 5"] || "",
-  email: u["Unnamed: 6"] || "",
-  position: u["Unnamed: 7"] || "",
-  scope: u["Unnamed: 8"] || "",
-  color: ["from-blue-500 to-indigo-500", "from-emerald-400 to-teal-500", "from-orange-400 to-rose-500", "from-purple-500 to-pink-500", "from-cyan-400 to-blue-500"][idx % 5]
+// --- SYNTHETIC PERSONNEL DATA ---
+const DB_USERS = getAllUsers().map((user, index) => ({
+  id: user.empId,
+  name: user.name,
+  department: user.department || "Other",
+  org: user.organization,
+  clName: user.clName,
+  email: user.email,
+  position: user.position,
+  scope: user.scope,
+  color: [
+    "from-blue-500 to-indigo-500",
+    "from-emerald-400 to-teal-500",
+    "from-orange-400 to-rose-500",
+    "from-purple-500 to-pink-500",
+    "from-cyan-400 to-blue-500",
+  ][index % 5],
 }));
 
 // --- CONSTANTS ---

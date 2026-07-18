@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useAuth, DashboardProfile } from "@/lib/contexts/AuthContext";
+import { useAuth, type Role } from "@/lib/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { 
   ShieldAlert, Search, Filter, Plus, Users, UserCheck, UserX,
@@ -15,10 +15,16 @@ interface UserData {
   badgeId: string;
   role: string;
   department: string;
-  position: string;
+  dept: string;
+  org: string;
+  position: Role;
+  scope: string;
+  systemRole: string;
   status: string;
   dashboardProfile: string;
-  [key: string]: unknown;
+  createdDate: string;
+  lastLogin: string;
+  notes: string;
 }
 
 export default function UserManagementPage() {
@@ -36,7 +42,6 @@ export default function UserManagementPage() {
       })
       .catch(err => {
         console.error("Failed to fetch users", err);
-        setIsLoading(false);
       });
   }, []);
 
@@ -87,12 +92,17 @@ export default function UserManagementPage() {
   };
 
   const handlePreviewDashboard = () => {
+    if (!selectedUser) {
+      return;
+    }
+
     // Inject the target user's profile to current local session temporarily
     loginAs({
       position: selectedUser.position,
       scope: selectedUser.scope,
-      dashboardProfile: selectedUser.dashboardProfile as DashboardProfile,
+      roleProfile: selectedUser.dashboardProfile,
     });
+
     router.push("/overview");
   };
 

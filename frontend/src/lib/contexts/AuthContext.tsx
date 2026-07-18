@@ -6,7 +6,7 @@ export type Role = 'Group Leader' | 'Part Leader' | 'Cell Leader' | 'Staff';
 export type SystemRole = 'Administrator' | 'User';
 export type AccountStatus = 'Active' | 'Inactive' | 'Pending' | 'Locked';
 
-interface AuthState {
+export interface AuthState {
   employeeId: string;
   name: string;
   position: Role;
@@ -28,16 +28,16 @@ interface AuthContextProps {
 }
 
 const defaultUser: AuthState = {
-  employeeId: '10545998',
-  name: 'Nguyễn Văn A',
-  position: 'IQC Group Leader',
+  employeeId: 'SYN-ADMIN-001',
+  name: 'Synthetic Administrator',
+  position: 'Group Leader',
   scope: 'All',
   systemRole: 'Administrator',
   accountStatus: 'Active',
   avatar: '',
   organization: 'IQC Group',
   part: 'All',
-  email: 'admin@iqc-nexus.local',
+  email: 'admin@example.invalid',
   roleProfile: 'Admin'
 };
 
