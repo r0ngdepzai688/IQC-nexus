@@ -1,0 +1,130 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend (.NET 8)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up .NET from global.json
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Cache NuGet packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('global.json', '.config/dotnet-tools.json', 'backend/**/*.csproj') }}
+          restore-keys: |
+            nuget-${{ runner.os }}-
+
+      - name: Restore backend
+        run: dotnet restore backend/IqcQms.sln
+
+      - name: Build backend
+        run: dotnet build backend/IqcQms.sln --no-restore
+
+      - name: Test backend
+        run: dotnet test backend/IqcQms.sln --no-build --logger trx --results-directory "${{ runner.temp }}/backend-test-results"
+
+      - name: Upload test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/backend-test-results/**/*.trx
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Audit NuGet vulnerabilities
+        shell: bash
+        run: |
+          audit_output="$(dotnet list backend/IqcQms.sln package --vulnerable --include-transitive)"
+          printf '%s\n' "$audit_output"
+          if grep -q "has the following vulnerable packages" <<< "$audit_output"; then
+            echo "::error::NuGet reported one or more vulnerable packages."
+            exit 1
+          fi
+
+      - name: Restore repository tools
+        run: dotnet tool restore
+
+      - name: Verify EF CLI
+        run: dotnet tool run dotnet-ef --version
+
+      - name: List EF DbContexts
+        run: dotnet tool run dotnet-ef dbcontext list --project backend/src/IqcQms.Infrastructure --startup-project backend/src/IqcQms.Api --no-build
+
+      - name: List EF migrations without database access
+        run: dotnet tool run dotnet-ef migrations list --project backend/src/IqcQms.Infrastructure --startup-project backend/src/IqcQms.Api --no-build --no-connect
+
+      - name: Check backend workspace cleanliness
+        shell: bash
+        run: |
+          git diff --check
+          test -z "$(git status --porcelain --untracked-files=all)" || {
+            git status --short
+            echo "::error::Backend validation produced unexpected repository changes."
+            exit 1
+          }
+
+  frontend:
+    name: Frontend (Node 22 LTS)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint frontend
+        run: npm run lint
+
+      - name: Type-check frontend
+        run: npm run typecheck
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Check frontend workspace cleanliness
+        working-directory: .
+        shell: bash
+        run: |
+          git diff --check
+          test -z "$(git status --porcelain --untracked-files=all)" || {
+            git status --short
+            echo "::error::Frontend validation produced unexpected repository changes."
+            exit 1
+          }
