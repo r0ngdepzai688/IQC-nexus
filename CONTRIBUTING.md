@@ -12,6 +12,7 @@ dotnet tool run dotnet-ef migrations list --project backend/src/IqcQms.Infrastru
 npm --prefix frontend run lint
 npm --prefix frontend run typecheck
 npm --prefix frontend run build
+npm --prefix frontend audit --audit-level=moderate
 ```
 
 The backend tests use temporary or in-memory SQLite databases and do not require credentials, external services, or network access after package restore.
@@ -20,4 +21,4 @@ Entity Framework CLI commands use the repository-local .NET 8 tool manifest. Lis
 
 ## Continuous integration
 
-Pull requests and pushes to `main` run the same backend, frontend, NuGet-audit, and read-only EF checks in `.github/workflows/ci.yml`. CI does not deploy or update a database.
+Pull requests and pushes to `main` run the same backend, frontend, dependency-audit, and read-only EF checks in `.github/workflows/ci.yml`. CI does not deploy or update a database.
