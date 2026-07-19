@@ -5,7 +5,7 @@ This document defines the strict data contract for importing R&D Master Plan Exc
 
 ## 2. Source Folder
 Files are manually uploaded or dropped into the following staging directory:
-`D:\Viber_Code\DataHub\NewModels\MasterPlan\ManualUpload\`
+By default, runtime files are stored below `DataHub/NewModels/MasterPlan/` under the API content root. Deployments may override each path through the `DataHub` configuration section; machine-specific absolute paths are not committed.
 
 ## 3. Supported File Types
 - `.xlsx`
@@ -87,8 +87,7 @@ At the file level: **SHA256 File Hash**.
 Files matching an exact hash of a previously imported batch are flagged as `ExactDuplicate` and rejected. 
 
 ## 14. Business Key
-At the row level: **SKU**. 
-The SKU acts as the unique identifier for a project model. If a SKU already exists in the Core `MasterPlans` table, the row is treated as an UPDATE. If it does not exist, it is an INSERT.
+At the row level: **SKU**, compared case-insensitively. Duplicate SKUs within one file are blocking validation errors. An SKU already present in core data requires review and is not overwritten by import. A previously unseen SKU is eligible for insert.
 
 ## 15. Validation Rules
 - **ProjectName**: Cannot be empty.
@@ -114,8 +113,18 @@ The SKU acts as the unique identifier for a project model. If a SKU already exis
 
 ## 20. Error Handling
 - Rows with critical errors (Missing SKU, Missing ProjectName, Invalid Dates) are marked as `RowStatus = "Error"` in `Staging_MasterPlan` and cannot be committed.
-- Rows with warnings (e.g., missing Area or HWPIC) are marked as `RowStatus = "ReviewRequired"` but can be committed to the Review Queue.
-- The UI strictly disables the "Commit" button if `ValidRows == 0`.
+- Rows with warnings (e.g., missing Area or HWPIC) are marked as `RowStatus = "ReviewRequired"` and block commit until resolved.
+- Commit is all-or-nothing: any validation, review, or blocked row prevents persistence to core tables.
+- The UI disables commit when there are no valid rows or when any error/review row remains.
+
+## 23. Current runtime behavior and known blockers
+- Uploads are limited to non-empty `.xlsx`, `.xls`, or `.xlsm` files up to 50 MB. Missing and duplicate canonical headers reject the batch before staging rows are accepted.
+- Row errors identify the source row and field in `ValidationErrors`; warnings remain distinct as review items.
+- Core inserts, milestones, audit records, and batch status are committed in one database transaction. Existing Master Plan rows are never silently overwritten.
+- The archive filesystem and database cannot share one transaction. A failed database operation can leave an unreferenced raw/report file for operational cleanup.
+- Data Hub and committed Master Plan endpoints require the repository JWT bearer authentication. The frontend login now obtains that JWT from the existing `/api/auth/login` endpoint and sends it with Data Hub/Master Plan requests.
+- Header inspection proposes exact/case-insensitive canonical matches. Explicit mappings are validated server-side; duplicate canonical fields, missing required fields, ambiguous suggestions, and unknown canonical fields are rejected.
+- Review summaries expose row, SKU, field, current value, severity, and actionable messages. Existing-SKU rows remain blocked by default; an authenticated user may explicitly skip them or cancel the entire batch. Skip is audited and never overwrites core data.
 
 ## 21. Example Valid Row
 | ProjectName | SKU | PVRTarget | PRATarget | HWPIC | QtyLPR |

@@ -215,7 +215,7 @@ export default function NewModelPage() {
                 <h1 className="text-3xl font-black tracking-tight text-foreground">Kế Hoạch Tổng Thể (Master Plan)</h1>
                 <p className="text-muted-foreground mt-2 font-medium">Theo dõi kế hoạch từ R&D và khởi tạo dự án mới cho IQC.</p>
               </div>
-              <Link href="/new-models/master-plan/import">
+              <Link href="/new-model/import">
                 <Button className="rounded-xl shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90 text-white font-bold h-11 px-6">
                   <Download className="w-4 h-4 mr-2" /> Import Master Plan
                 </Button>

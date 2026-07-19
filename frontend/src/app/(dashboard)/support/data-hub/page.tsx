@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Database, History, AlertTriangle, CheckSquare, Settings2, FileText, Activity } from "lucide-react";
 import { getHistory, getStagingRecords, getBatchPreview, ImportBatch, StagingMasterPlan } from "@/lib/api/dataHubApi";
+import Link from "next/link";
 
 export default function DataHubDashboard() {
   const searchParams = useSearchParams();
@@ -20,14 +21,16 @@ export default function DataHubDashboard() {
   const [selectedBatch, setSelectedBatch] = useState<ImportBatch | null>(null);
   const [stagingRecords, setStagingRecords] = useState<StagingMasterPlan[]>([]);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const fetchHistory = useCallback(async () => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const data = await getHistory();
       setHistory(data);
     } catch (error) {
-      console.error("Failed to fetch history:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to fetch import history.");
     } finally {
       setLoading(false);
     }
@@ -35,6 +38,7 @@ export default function DataHubDashboard() {
 
   const viewBatchDetails = useCallback(async (batchId: string) => {
     setLoading(true);
+    setErrorMessage(null);
     try {
       const batchData = await getBatchPreview(batchId);
       const recordsData = await getStagingRecords(batchId);
@@ -42,7 +46,7 @@ export default function DataHubDashboard() {
       setStagingRecords(recordsData);
       setActiveTab("details");
     } catch (error) {
-      console.error("Failed to fetch batch details:", error);
+      setErrorMessage(error instanceof Error ? error.message : "Failed to fetch batch details.");
     } finally {
       setLoading(false);
     }
@@ -111,6 +115,7 @@ export default function DataHubDashboard() {
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        {errorMessage && <div role="alert" className="mb-4 rounded-xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{errorMessage}</div>}
         <TabsList className="grid grid-cols-5 bg-card/50 backdrop-blur border p-1 rounded-xl w-full max-w-3xl h-12">
           <TabsTrigger value="history" className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
             <History className="w-4 h-4" /> History
@@ -288,8 +293,9 @@ export default function DataHubDashboard() {
               <CardDescription>Logical conflicts requiring human intervention</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                Business review resolution interface will be implemented in Phase 2.
+              <div className="text-center py-12 text-muted-foreground space-y-4">
+                <p>Select a batch from history, then open its row-level review and existing-SKU resolution.</p>
+                {selectedBatch && <Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`}><Button>Review selected batch</Button></Link>}
               </div>
             </CardContent>
           </Card>
@@ -302,8 +308,9 @@ export default function DataHubDashboard() {
               <CardDescription>System aliases and canonical fields</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                Mapping dictionary management will be implemented in Phase 2.
+              <div className="text-center py-12 text-muted-foreground space-y-4">
+                <p>Inspect a workbook and explicitly map detected headers before validation.</p>
+                <Link href="/support/data-hub/mapping-dictionary"><Button>Open header mapping</Button></Link>
               </div>
             </CardContent>
           </Card>
