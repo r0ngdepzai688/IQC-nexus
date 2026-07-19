@@ -183,7 +183,7 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 await RunValidationPipelineAsync(batchId);
 
                 // Update Batch counts
-                batch.ValidRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && (s.RowStatus == "ReadyToInsert" || s.RowStatus == "ReadyToUpdate"));
+                batch.ValidRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ReadyToInsert");
                 batch.ErrorRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ValidationError");
                 batch.ReviewRequiredRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ReviewRequired");
                 
@@ -213,6 +213,9 @@ namespace IqcQms.Infrastructure.Services.DataHub
             catch (Exception ex)
             {
                 await ingestionTransaction.RollbackAsync();
+                TryDeleteUncommittedFile(rawFilePath, batchId);
+                TryDeleteUncommittedFile(metaPath, batchId);
+                TryDeleteUncommittedFile(Path.Combine(_pathConfig.NewModelsMasterPlanReportsPath, $"ValidationResult_{batchId}.json"), batchId);
                 LogError(batchId, $"Parsing failed: {ex.Message}");
                 throw;
             }
@@ -315,8 +318,6 @@ namespace IqcQms.Infrastructure.Services.DataHub
 
                 // C. Core Database Existing Project
                 var existingMp = existingProjects.FirstOrDefault(p => string.Equals(p.Sku, record.Sku, StringComparison.OrdinalIgnoreCase));
-                bool isExisting = existingMp is not null;
-                
                 if (existingMp is not null)
                 {
                     // Check if data is exactly identical
@@ -386,7 +387,7 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 }
                 else
                 {
-                    record.RowStatus = isExisting ? "ReadyToUpdate" : "ReadyToInsert";
+                    record.RowStatus = "ReadyToInsert";
                 }
             }
             
@@ -820,6 +821,18 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 throw new InvalidDataException("Only .xlsx, .xls, and .xlsm files are supported.");
             if (!string.Equals(module, "NewModels", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidDataException("Only the NewModels module is supported by this import contract.");
+        }
+
+        private void TryDeleteUncommittedFile(string path, string batchId)
+        {
+            try
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+            catch (Exception cleanupError)
+            {
+                _logger.LogWarning(cleanupError, "Could not remove uncommitted Data Hub artifact for batch {BatchId}.", batchId);
+            }
         }
     }
 }
