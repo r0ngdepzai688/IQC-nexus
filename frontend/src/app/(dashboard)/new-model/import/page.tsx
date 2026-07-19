@@ -9,11 +9,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { commitBatch, getManualFiles, processManualUpload, uploadMasterPlan } from "@/lib/api/dataHubApi";
+import Link from "next/link";
 
 export default function ManualImportPage() {
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   interface BatchData {
     batchId: string;
     totalRows: number;
@@ -37,16 +40,16 @@ export default function ManualImportPage() {
   // Step 2: Fetch Manual Files
   useEffect(() => {
     if (step === 2) {
-      fetch("http://localhost:5000/api/datahub/manual-files")
-        .then(r => r.json())
+      getManualFiles()
         .then(data => setServerFiles(data))
-        .catch(console.error);
+        .catch((reason: unknown) => setErrorMessage(reason instanceof Error ? reason.message : "Unable to load server files."));
     }
   }, [step]);
 
   // Step 2: Handle Server File Process
   const handleProcessManualFile = async (filename: string) => {
     setIsUploading(true);
+    setErrorMessage(null);
     setUploadProgress(10);
     
     const progressInterval = setInterval(() => {
@@ -54,16 +57,9 @@ export default function ManualImportPage() {
     }, 500);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/datahub/process-manual?fileName=${encodeURIComponent(filename)}`, {
-        method: "POST"
-      });
-      
+      const data = await processManualUpload(filename);
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
-      if (!res.ok) throw new Error("Processing failed");
-      
-      const data = await res.json();
       setBatchData(data);
       
       setTimeout(() => {
@@ -71,10 +67,10 @@ export default function ManualImportPage() {
         setStep(3);
       }, 800);
       
-    } catch {
+    } catch (reason) {
       clearInterval(progressInterval);
       setIsUploading(false);
-      alert("Error processing server file.");
+      setErrorMessage(reason instanceof Error ? reason.message : "Error processing server file.");
     }
   };
   
@@ -82,13 +78,16 @@ export default function ManualImportPage() {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
+    const supported = [".xlsx", ".xls", ".xlsm"].some(extension => selected.name.toLowerCase().endsWith(extension));
+    if (!supported || selected.size === 0 || selected.size > 50 * 1024 * 1024) {
+      setErrorMessage("Select a non-empty .xlsx, .xls, or .xlsm file no larger than 50 MB.");
+      e.target.value = "";
+      return;
+    }
     
     setIsUploading(true);
+    setErrorMessage(null);
     setUploadProgress(10);
-    
-    const formData = new FormData();
-    formData.append("file", selected);
-    formData.append("module", "NewModels");
     
     // Simulate upload progress
     const progressInterval = setInterval(() => {
@@ -96,20 +95,9 @@ export default function ManualImportPage() {
     }, 500);
 
     try {
-      const res = await fetch("http://localhost:5000/api/datahub/upload", {
-        method: "POST",
-        body: formData,
-        // No Auth header for now as requested
-      });
-      
+      const data = await uploadMasterPlan(selected);
       clearInterval(progressInterval);
       setUploadProgress(100);
-      
-      if (!res.ok) {
-        throw new Error("Upload failed");
-      }
-      
-      const data = await res.json();
       setBatchData(data);
       
       setTimeout(() => {
@@ -117,10 +105,10 @@ export default function ManualImportPage() {
         setStep(3);
       }, 800);
       
-    } catch {
+    } catch (reason) {
       clearInterval(progressInterval);
       setIsUploading(false);
-      alert("Error uploading file. Please check backend connection.");
+      setErrorMessage(reason instanceof Error ? reason.message : "Error uploading file.");
     }
   };
 
@@ -130,19 +118,12 @@ export default function ManualImportPage() {
     
     setIsUploading(true);
     try {
-      const res = await fetch(`http://localhost:5000/api/datahub/commit/${batchData.batchId}`, {
-        method: "POST",
-      });
-      
-      if (!res.ok) {
-        throw new Error("Commit failed");
-      }
-      
-      const data = await res.json();
+      setErrorMessage(null);
+      const data = await commitBatch(batchData.batchId);
       setBatchData(data);
       setStep(4);
-    } catch {
-      alert("Error committing batch.");
+    } catch (reason) {
+      setErrorMessage(reason instanceof Error ? reason.message : "Error committing batch.");
     } finally {
       setIsUploading(false);
     }
@@ -199,6 +180,11 @@ export default function ManualImportPage() {
       </div>
 
       <div className="flex-1 overflow-y-auto px-8 pb-12 custom-scrollbar">
+        {errorMessage && (
+          <div role="alert" className="mb-4 max-w-3xl rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">
+            {errorMessage}
+          </div>
+        )}
         <AnimatePresence mode="wait">
           
           {/* STEP 1: SOURCE SELECTION */}
@@ -280,6 +266,7 @@ export default function ManualImportPage() {
                           Select Local File
                         </Button>
                       </div>
+                      <Link href="/support/data-hub/mapping-dictionary" className="mt-4 text-sm font-semibold text-primary hover:underline">Advanced header mapping</Link>
                       <a href="#" className="mt-6 text-sm text-indigo-500 hover:underline font-semibold flex items-center">
                         <Download className="w-4 h-4 mr-1" /> Download Template
                       </a>
@@ -353,11 +340,14 @@ export default function ManualImportPage() {
                 </div>
                 <Button 
                   onClick={handleCommit}
-                  disabled={batchData.validRows === 0 || isUploading}
+                  disabled={batchData.validRows === 0 || batchData.errorRows > 0 || batchData.reviewRequiredRows > 0 || isUploading}
                   className="rounded-xl shadow-lg shadow-emerald-500/20 bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11 px-8"
                 >
                   {isUploading ? "Committing..." : "Confirm & Commit"}
                 </Button>
+                <Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(batchData.batchId)}`}>
+                  <Button variant="outline">Open detailed review</Button>
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -392,7 +382,7 @@ export default function ManualImportPage() {
                   <h4 className="font-bold text-blue-900 dark:text-blue-100">Safe Preview Mode</h4>
                   <p className="text-sm text-blue-700 dark:text-blue-300 font-medium mt-1">
                     Your data is currently in the Staging area. No core database tables have been modified. 
-                    Only rows marked as Valid will be committed. You can resolve errors in the Review Queue after committing.
+                    Commit is atomic and remains disabled until every blocking error and review item is resolved.
                   </p>
                 </div>
               </div>

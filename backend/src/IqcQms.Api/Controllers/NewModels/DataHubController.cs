@@ -5,23 +5,30 @@ using IqcQms.Application.Interfaces.DataHub;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using IqcQms.Infrastructure.Services.DataHub;
 
 namespace IqcQms.Api.Controllers.NewModels
 {
     [ApiController]
     [Route("api/[controller]")]
-    // [Authorize] - Commented out for local testing without token if needed, or keep it depending on frontend config.
+    [Authorize]
     public class DataHubController : ControllerBase
     {
         private readonly IDataHubIngestionService _dataHubService;
+        private readonly ILogger<DataHubController> _logger;
+        private readonly IMasterPlanContractParser _parser;
 
-        public DataHubController(IDataHubIngestionService dataHubService)
+        public DataHubController(IDataHubIngestionService dataHubService, IMasterPlanContractParser parser, ILogger<DataHubController> logger)
         {
             _dataHubService = dataHubService;
+            _logger = logger;
+            _parser = parser;
         }
 
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadMasterPlan(IFormFile file, [FromForm] string module = "NewModels")
+        public async Task<IActionResult> UploadMasterPlan(IFormFile file, [FromForm] string module = "NewModels", [FromForm] string? headerMapping = null)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
@@ -31,12 +38,41 @@ namespace IqcQms.Api.Controllers.NewModels
             try
             {
                 using var stream = file.OpenReadStream();
-                var batch = await _dataHubService.ProcessUploadAsync(stream, file.FileName, uploadedBy, module);
+                IReadOnlyCollection<HeaderMappingDto>? mappings = null;
+                if (!string.IsNullOrWhiteSpace(headerMapping))
+                    mappings = JsonSerializer.Deserialize<List<HeaderMappingDto>>(headerMapping, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                        ?? throw new InvalidDataException("Header mapping is invalid.");
+                var batch = await _dataHubService.ProcessUploadAsync(stream, file.FileName, uploadedBy, module, mappings);
                 return Ok(batch);
+            }
+            catch (InvalidDataException ex)
+            {
+                return BadRequest(new ProblemDetails { Title = "Invalid Master Plan file", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ProblemDetails { Title = "Import conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Master Plan upload failed");
+                return Problem("The import could not be processed. Check server logs using the request trace identifier.");
+            }
+        }
+
+        [HttpPost("inspect-headers")]
+        public async Task<IActionResult> InspectHeaders(IFormFile file)
+        {
+            if (file is null || file.Length == 0) return BadRequest("No file uploaded.");
+            if (file.Length > DataHubIngestionService.MaximumUploadBytes) return BadRequest("File exceeds the 50 MB limit.");
+            try
+            {
+                using var stream = file.OpenReadStream();
+                return Ok(await _parser.InspectHeadersAsync(stream));
+            }
+            catch (Exception ex) when (ex is InvalidDataException or JsonException)
+            {
+                return BadRequest(new ProblemDetails { Title = "Invalid workbook headers", Detail = ex.Message, Status = 400 });
             }
         }
 
@@ -62,9 +98,18 @@ namespace IqcQms.Api.Controllers.NewModels
             {
                 return NotFound(ex.Message);
             }
+            catch (InvalidDataException ex)
+            {
+                return BadRequest(new ProblemDetails { Title = "Invalid Master Plan file", Detail = ex.Message, Status = StatusCodes.Status400BadRequest });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return Conflict(new ProblemDetails { Title = "Import conflict", Detail = ex.Message, Status = StatusCodes.Status409Conflict });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Manual Master Plan import failed for {FileName}", Path.GetFileName(fileName));
+                return Problem("The import could not be processed. Check server logs using the request trace identifier.");
             }
         }
 
@@ -106,19 +151,61 @@ namespace IqcQms.Api.Controllers.NewModels
             }
             catch (Exception ex)
             {
-                return StatusCode(500, $"Internal server error: {ex.Message}");
+                _logger.LogError(ex, "Commit failed for batch {BatchId}", batchId);
+                return Problem("The batch could not be committed. No partial import was retained.");
             }
         }
 
         [HttpPost("resolve-review/{reviewItemId}")]
         public async Task<IActionResult> ResolveReview(int reviewItemId, [FromBody] ResolveReviewDto dto)
         {
+            if (reviewItemId <= 0 || dto == null || !new[] { "Override", "Ignore", "CreateMissing" }.Contains(dto.Action, StringComparer.OrdinalIgnoreCase))
+                return BadRequest("A valid review action is required.");
             string resolvedBy = User.Identity?.Name ?? "SystemAdmin";
             var success = await _dataHubService.ResolveReviewItemAsync(reviewItemId, dto.Action, resolvedBy, dto.Note);
             
             if (!success) return BadRequest("Unable to resolve item.");
             return Ok(new { success = true });
         }
+
+        [HttpGet("review/{batchId}")]
+        public async Task<IActionResult> GetReview(string batchId)
+        {
+            var summary = await _dataHubService.GetReviewSummaryAsync(batchId);
+            return summary is null ? NotFound("Batch not found.") : Ok(summary);
+        }
+
+        [HttpPost("resolve-existing/{batchId}")]
+        public async Task<IActionResult> ResolveExistingSku(string batchId, [FromBody] ExistingSkuResolutionDto dto)
+        {
+            if (dto is null || dto.Resolution is not ("Skip" or "Cancel")) return BadRequest("Resolution must be Skip or Cancel.");
+            try
+            {
+                return Ok(await _dataHubService.ResolveExistingSkuAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser"));
+            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("resolve-warning/{batchId}/{rowNumber:int}")]
+        public async Task<IActionResult> ResolveWarning(string batchId, int rowNumber, [FromBody] WarningResolutionDto dto)
+        {
+            if (dto is null || dto.Resolution is not ("Accept" or "Skip")) return BadRequest("Resolution must be Accept or Skip.");
+            try
+            {
+                var resolved = await _dataHubService.ResolveWarningRowAsync(batchId, rowNumber, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser");
+                return resolved ? Ok(new { success = true }) : NotFound("Review row not found or no longer pending.");
+            }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+    }
+
+    public sealed class ExistingSkuResolutionDto
+    {
+        public string Resolution { get; set; } = "Cancel";
+    }
+    public sealed class WarningResolutionDto
+    {
+        public string Resolution { get; set; } = string.Empty;
     }
 
     public class ResolveReviewDto

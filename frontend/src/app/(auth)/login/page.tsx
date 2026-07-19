@@ -15,10 +15,12 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isBiometric, setIsBiometric] = useState(false);
   const [userCount, setUserCount] = useState(5000);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
+  const apiBase = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
   useEffect(() => {
-    fetch("http://localhost:5000/api/users/count")
+    fetch(`${apiBase}/users/count`)
       .then(res => res.json())
       .then(data => {
         if (data && typeof data.count === 'number') {
@@ -26,40 +28,30 @@ export default function LoginPage() {
         }
       })
       .catch(err => console.error("Error fetching user count", err));
-  }, []);
+  }, [apiBase]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!employeeId || !password) return;
     
     setIsLoading(true);
-    
-    // MOCK LOGIN FOR DEVELOPMENT
-    setTimeout(() => {
-      if (employeeId === "admin" || employeeId === "10545898") {
-        // Save fake token and user info
-        localStorage.setItem("token", "mock-jwt-token-12345");
-        localStorage.setItem("user", JSON.stringify({
-          id: employeeId,
-          name: "Nguyễn Hải Đường",
-          role: employeeId === "admin" ? "admin" : "user",
-          department: "IQC"
-        }));
-        
-        router.push("/");
-      } else {
-        // Any other user can also login for testing
-        localStorage.setItem("token", "mock-jwt-token-test");
-        localStorage.setItem("user", JSON.stringify({
-          id: employeeId,
-          name: employeeId,
-          role: "user",
-          department: "Test"
-        }));
-        router.push("/");
-      }
+    setErrorMessage(null);
+    try {
+      const response = await fetch(`${apiBase}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: employeeId, password }),
+      });
+      const payload = await response.json().catch(() => ({})) as { token?: string; user?: unknown; message?: string };
+      if (!response.ok || !payload.token) throw new Error(payload.message || "Authentication failed.");
+      localStorage.setItem("token", payload.token);
+      localStorage.setItem("user", JSON.stringify(payload.user ?? {}));
+      router.push("/");
+    } catch (reason) {
+      setErrorMessage(reason instanceof Error ? reason.message : "Authentication failed.");
+    } finally {
       setIsLoading(false);
-    }, 1000);
+    }
   };
 
 
@@ -239,6 +231,7 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={handleLogin} className="space-y-5">
+            {errorMessage && <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-sm text-rose-300">{errorMessage}</p>}
             {/* Employee ID Input */}
             <div className="relative group">
               <input

@@ -71,7 +71,16 @@ namespace IqcQms.Api.Controllers
                     Username = user.Username,
                     FullName = user.FullName,
                     Department = user.Department,
-                    KnoxId = user.KnoxId
+                    KnoxId = user.KnoxId,
+                    Position = user.Position,
+                    Scope = user.Scope,
+                    SystemRole = user.SystemRole,
+                    AccountStatus = user.AccountStatus,
+                    Organization = user.Organization,
+                    Part = user.Part,
+                    Email = user.Email,
+                    RoleProfile = user.RoleProfile,
+                    Avatar = user.Avatar
                 }
             });
         }
@@ -90,6 +99,7 @@ namespace IqcQms.Api.Controllers
                 new Claim(JwtRegisteredClaimNames.UniqueName, user.Username),
                 new Claim("FullName", user.FullName ?? ""),
                 new Claim("Department", user.Department ?? ""),
+                new Claim(ClaimTypes.Role, user.SystemRole),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
@@ -164,6 +174,15 @@ namespace IqcQms.Api.Controllers
         public string FullName { get; set; } = string.Empty;
         public string Department { get; set; } = string.Empty;
         public string KnoxId { get; set; } = string.Empty;
+        public string Position { get; set; } = string.Empty;
+        public string Scope { get; set; } = string.Empty;
+        public string SystemRole { get; set; } = "User";
+        public string AccountStatus { get; set; } = "Active";
+        public string Organization { get; set; } = string.Empty;
+        public string Part { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string RoleProfile { get; set; } = string.Empty;
+        public string Avatar { get; set; } = string.Empty;
     }
 
     public class ChangePasswordRequest

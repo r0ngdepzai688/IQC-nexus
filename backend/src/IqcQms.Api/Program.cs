@@ -8,6 +8,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Load custom config.json
 builder.Configuration.AddJsonFile("config.json", optional: false, reloadOnChange: true);
+builder.Configuration.AddEnvironmentVariables();
 
 // Add CORS policy
 builder.Services.AddCors(options =>
@@ -25,6 +26,28 @@ builder.Services.AddCors(options =>
 // Register Configuration
 builder.Services.Configure<IqcQms.Application.Interfaces.DataHub.DataHubPathConfig>(
     builder.Configuration.GetSection("DataHub"));
+builder.Services.PostConfigure<IqcQms.Application.Interfaces.DataHub.DataHubPathConfig>(options =>
+{
+    var basePath = string.IsNullOrWhiteSpace(options.BasePath)
+        ? Path.Combine(builder.Environment.ContentRootPath, "DataHub")
+        : Path.GetFullPath(options.BasePath);
+    var masterPlanPath = string.IsNullOrWhiteSpace(options.NewModelsMasterPlanBasePath)
+        ? Path.Combine(basePath, "NewModels", "MasterPlan")
+        : Path.GetFullPath(options.NewModelsMasterPlanBasePath);
+
+    options.BasePath = basePath;
+    options.NewModelsMasterPlanBasePath = masterPlanPath;
+    options.NewModelsMasterPlanManualUploadPath = ResolvePath(options.NewModelsMasterPlanManualUploadPath, "ManualUpload");
+    options.NewModelsMasterPlanRawPath = ResolvePath(options.NewModelsMasterPlanRawPath, "Raw");
+    options.NewModelsMasterPlanProcessedPath = ResolvePath(options.NewModelsMasterPlanProcessedPath, "Processed");
+    options.NewModelsMasterPlanRejectedPath = ResolvePath(options.NewModelsMasterPlanRejectedPath, "Rejected");
+    options.NewModelsMasterPlanReportsPath = ResolvePath(options.NewModelsMasterPlanReportsPath, "Reports");
+    options.NewModelsMasterPlanTempPath = ResolvePath(options.NewModelsMasterPlanTempPath, "Temp");
+
+    string ResolvePath(string configured, string folder) => string.IsNullOrWhiteSpace(configured)
+        ? Path.Combine(masterPlanPath, folder)
+        : Path.GetFullPath(configured);
+});
 
 // Add services to the container.
 builder.Services.AddControllers();

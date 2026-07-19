@@ -3,11 +3,13 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using IqcQms.Application.Interfaces.NewModels;
 using Microsoft.Extensions.Logging;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IqcQms.Api.Controllers.NewModels
 {
     [ApiController]
     [Route("api/masterplan")]
+    [Authorize]
     public class MasterPlanController : ControllerBase
     {
         private readonly IMasterPlanService _masterPlanService;

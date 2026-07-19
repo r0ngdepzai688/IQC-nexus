@@ -9,7 +9,7 @@ namespace IqcQms.Application.Interfaces.DataHub
         /// <summary>
         /// Phase 1: Uploads the file, creates the batch, and parses it into Staging without writing to Core tables.
         /// </summary>
-        Task<ImportBatch> ProcessUploadAsync(Stream fileStream, string fileName, string uploadedBy, string module = "NewModels");
+        Task<ImportBatch> ProcessUploadAsync(Stream fileStream, string fileName, string uploadedBy, string module = "NewModels", IReadOnlyCollection<HeaderMappingDto>? mappings = null);
 
         /// <summary>
         /// Phase 2: Commits the validated staging records into Core tables.
@@ -20,6 +20,9 @@ namespace IqcQms.Application.Interfaces.DataHub
         /// Resolves a row requiring business review.
         /// </summary>
         Task<bool> ResolveReviewItemAsync(int reviewItemId, string action, string resolvedBy, string? note = null);
+        Task<ImportReviewSummaryDto?> GetReviewSummaryAsync(string batchId);
+        Task<ImportBatch> ResolveExistingSkuAsync(string batchId, string resolution, string resolvedBy);
+        Task<bool> ResolveWarningRowAsync(string batchId, int rowNumber, string resolution, string resolvedBy);
         
         Task<ImportBatch?> GetBatchPreviewAsync(string batchId);
         
@@ -29,6 +32,29 @@ namespace IqcQms.Application.Interfaces.DataHub
         Task<List<ManualFileDto>> GetManualUploadFilesAsync();
 
         Task<ImportBatch> ProcessManualUploadAsync(string fileName, string uploadedBy, string module = "NewModels");
+    }
+
+    public sealed class ImportReviewSummaryDto
+    {
+        public string BatchId { get; init; } = string.Empty;
+        public string FileName { get; init; } = string.Empty;
+        public int ValidRows { get; init; }
+        public int WarningRows { get; init; }
+        public int ErrorRows { get; init; }
+        public int ExistingSkuConflicts { get; init; }
+        public int SkippedRows { get; init; }
+        public List<ImportReviewRowDto> Rows { get; init; } = [];
+    }
+
+    public sealed class ImportReviewRowDto
+    {
+        public int RowNumber { get; init; }
+        public string Sku { get; init; } = string.Empty;
+        public string Field { get; init; } = string.Empty;
+        public string CurrentValue { get; init; } = string.Empty;
+        public string Severity { get; init; } = string.Empty;
+        public string Message { get; init; } = string.Empty;
+        public string Status { get; init; } = string.Empty;
     }
 
     public class ManualFileDto
