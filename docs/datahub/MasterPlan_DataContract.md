@@ -126,6 +126,21 @@ At the row level: **SKU**, compared case-insensitively. Duplicate SKUs within on
 - Header inspection proposes exact/case-insensitive canonical matches. Explicit mappings are validated server-side; duplicate canonical fields, missing required fields, ambiguous suggestions, and unknown canonical fields are rejected.
 - Review summaries expose row, SKU, field, current value, severity, and actionable messages. Existing-SKU rows remain blocked by default; an authenticated user may explicitly skip them or cancel the entire batch. Skip is audited and never overwrites core data.
 
+## 24. Development/Testing authorized smoke
+The API must run as `Development` or `Testing` with `IQC_SYNTHETIC_USER_SEED_PASSWORD` supplied in the process environment. The same environment value must be present when running:
+
+`powershell -NoProfile -ExecutionPolicy Bypass -File scripts/datahub-authorized-smoke.ps1 -BaseUrl http://127.0.0.1:5000`
+
+The script selects an active `SYN-*` record from the canonical fixture, authenticates through the real login endpoint, generates a temporary workbook, inspects/maps/uploads/reviews/commits it, verifies API visibility, and removes its local temporary workbook. It fails before making a request when the environment credential is absent. It never prints the credential or full JWT. The committed smoke row and normal Data Hub archives remain in the explicitly selected Development/Testing database for auditability; run against a disposable smoke database when automatic database cleanup is required.
+
+## 25. Current authorization decision
+- Observed persisted system-role vocabulary: `Administrator` and `User`. The legacy permission engine checks a different `System Admin` spelling, and no Data Hub-specific policy or approved committer role exists.
+- Current Data Hub and Master Plan access therefore remains `[Authorize]` for authenticated users. Role claims are copied only from the persisted `User.SystemRole` value during login.
+- Repository-owner decision required: identify which persisted role/position is allowed to commit. After approval, the minimal change is one named authorization policy registered in `Program.cs`, applied to Data Hub mutation endpoints while authenticated read endpoints remain unchanged.
+
+## 26. JWT configuration
+`JwtSettings:Secret` must come from an environment variable (`JwtSettings__Secret`) or .NET user-secrets. Development/Testing generates an ephemeral per-process signing key only when none is supplied. Other environments fail during startup when the secret is absent. No signing secret is tracked in repository configuration.
+
 ## 21. Example Valid Row
 | ProjectName | SKU | PVRTarget | PRATarget | HWPIC | QtyLPR |
 |-------------|-----|-----------|-----------|-------|--------|

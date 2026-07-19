@@ -3,6 +3,7 @@ using IqcQms.Infrastructure.Data;
 using IqcQms.Api.Hubs;
 using IqcQms.Application.Interfaces.DataHub;
 using IqcQms.Infrastructure.Services.DataHub;
+using System.Security.Cryptography;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -63,6 +64,13 @@ builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
+if (string.IsNullOrWhiteSpace(secretKey))
+{
+    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+        throw new InvalidOperationException("JwtSettings:Secret must be supplied through environment variables or user-secrets outside Development/Testing.");
+    secretKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
+    builder.Configuration["JwtSettings:Secret"] = secretKey;
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -79,7 +87,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey ?? ""))
+        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey))
     };
 });
 builder.Services.AddAuthorization();
