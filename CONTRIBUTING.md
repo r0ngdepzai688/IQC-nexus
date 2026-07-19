@@ -11,9 +11,12 @@ dotnet tool run dotnet-ef dbcontext list --project backend/src/IqcQms.Infrastruc
 dotnet tool run dotnet-ef migrations list --project backend/src/IqcQms.Infrastructure --startup-project backend/src/IqcQms.Api --no-build
 npm --prefix frontend run lint
 npm --prefix frontend run typecheck
+npm --prefix frontend run test:run
 npm --prefix frontend run build
 npm --prefix frontend audit --audit-level=moderate
 ```
+
+Use `npm --prefix frontend test` for frontend test watch mode during local development. Use `test:run` for a single deterministic run and in CI.
 
 The backend tests use temporary or in-memory SQLite databases and do not require credentials, external services, or network access after package restore.
 
