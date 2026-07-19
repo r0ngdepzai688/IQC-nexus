@@ -4,6 +4,8 @@ using IqcQms.Api.Hubs;
 using IqcQms.Application.Interfaces.DataHub;
 using IqcQms.Infrastructure.Services.DataHub;
 using System.Security.Cryptography;
+using Microsoft.OpenApi.Models;
+using IqcQms.Api.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +55,19 @@ builder.Services.PostConfigure<IqcQms.Application.Interfaces.DataHub.DataHubPath
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+    {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "JWT bearer token returned by POST /api/auth/login."
+    });
+    options.OperationFilter<AuthorizeOperationFilter>();
+});
 builder.Services.AddSignalR(); // Add SignalR
 
 // Register Application Services
@@ -102,7 +116,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 {
     app.UseSwagger();
     app.UseSwaggerUI();

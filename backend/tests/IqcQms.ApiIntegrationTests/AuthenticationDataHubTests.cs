@@ -26,6 +26,7 @@ public sealed class AuthenticationDataHubTests(IntegrationTestFactory factory) :
     }
 
     [Fact]
+    [Trait("Category", "Contract")]
     public async Task InvalidSyntheticPasswordReturnsUnauthorized()
     {
         using var response = await factory.Client.PostAsJsonAsync("/api/auth/login", new

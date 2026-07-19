@@ -3,6 +3,7 @@ using IqcQms.Infrastructure.Data;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -48,6 +49,8 @@ public sealed class IntegrationTestFactory : WebApplicationFactory<Program>, IAs
             configuration.AddInMemoryCollection(settings));
         builder.ConfigureServices(services =>
         {
+            services.AddDataProtection()
+                .PersistKeysToFileSystem(new DirectoryInfo(Path.Combine(_runtimeDirectory, "data-protection-keys")));
             services.RemoveAll<AppDbContext>();
             services.RemoveAll<DbContextOptions<AppDbContext>>();
             services.AddDbContext<AppDbContext>(options => options.UseSqlite(settings["DatabaseConfig:ConnectionString"]));
