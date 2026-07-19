@@ -565,6 +565,14 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 }
             }
 
+            var batch = await _context.ImportBatches.FirstOrDefaultAsync(value => value.BatchId == item.BatchId);
+            if (batch is not null)
+            {
+                var batchRows = await _context.StagingMasterPlans.Where(value => value.BatchId == item.BatchId).ToListAsync();
+                batch.ValidRows = batchRows.Count(value => value.RowStatus == "ReadyToInsert");
+                batch.ReviewRequiredRows = batchRows.Count(value => value.RowStatus == "ReviewRequired");
+                batch.SkippedRows = batchRows.Count(value => value.RowStatus == "Skipped");
+            }
             await _context.SaveChangesAsync();
             return true;
         }
@@ -575,6 +583,10 @@ namespace IqcQms.Infrastructure.Services.DataHub
             if (batch is null) return null;
             var staging = await _context.StagingMasterPlans.AsNoTracking().Where(value => value.BatchId == batchId).OrderBy(value => value.RawRowNumber).ToListAsync();
             var errors = await _context.ValidationErrors.AsNoTracking().Where(value => value.BatchId == batchId).ToListAsync();
+            var reviewItems = await _context.BusinessReviewQueues.AsNoTracking().Where(value => value.BatchId == batchId && value.Status == "Pending").ToListAsync();
+            var existingSkus = new HashSet<string>(
+                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
             var rows = new List<ImportReviewRowDto>();
             foreach (var record in staging)
             {
@@ -582,18 +594,23 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 rows.AddRange(rowErrors.Select(error => new ImportReviewRowDto
                 {
                     RowNumber = record.RawRowNumber, Sku = record.Sku, Field = error.FieldName,
-                    CurrentValue = error.RawValue, Severity = "Error", Message = error.ErrorMessage, Status = record.RowStatus
+                    CurrentValue = error.RawValue, Severity = "Error", Message = error.ErrorMessage,
+                    Status = record.RowStatus, ConflictType = "ValidationError"
                 }));
                 if (rowErrors.Count == 0)
                 {
-                    var existing = record.CoreValidationMessage.Contains("SKU already exists", StringComparison.OrdinalIgnoreCase);
+                    var existing = existingSkus.Contains(record.Sku);
+                    var pendingReview = reviewItems.FirstOrDefault(value => value.StagingId == record.Id);
                     rows.Add(new ImportReviewRowDto
                     {
                         RowNumber = record.RawRowNumber, Sku = record.Sku, Field = existing ? "SKU" : "Row",
                         CurrentValue = existing ? record.Sku : record.ProjectName,
                         Severity = record.RowStatus == "ReviewRequired" ? "Warning" : record.RowStatus == "Skipped" ? "Skipped" : "Ready",
                         Message = record.CoreValidationMessage.Length > 0 ? record.CoreValidationMessage : record.ValidationMessage,
-                        Status = record.RowStatus
+                        Status = record.RowStatus,
+                        ConflictType = existing ? "ExistingSku" : pendingReview?.ConflictType ?? string.Empty,
+                        ReviewItemId = pendingReview?.Id,
+                        SupportedActions = pendingReview is null ? [] : ["Override", "Ignore", "CreateMissing"]
                     });
                 }
             }
@@ -603,7 +620,7 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 BatchId = batch.BatchId, FileName = batch.OriginalFileName, ValidRows = batch.ValidRows,
                 WarningRows = staging.Count(value => value.RowStatus == "ReviewRequired"),
                 ErrorRows = staging.Count(value => value.RowStatus is "ValidationError" or "Blocked"),
-                ExistingSkuConflicts = staging.Count(value => value.CoreValidationMessage.Contains("SKU already exists", StringComparison.OrdinalIgnoreCase) && value.RowStatus != "Skipped"),
+                ExistingSkuConflicts = staging.Count(value => existingSkus.Contains(value.Sku) && value.RowStatus != "Skipped"),
                 SkippedRows = staging.Count(value => value.RowStatus == "Skipped"), Rows = rows
             };
         }
@@ -623,9 +640,13 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 return batch;
             }
 
-            var conflicts = await _context.StagingMasterPlans
-                .Where(value => value.BatchId == batchId && value.RowStatus == "ReviewRequired" && value.CoreValidationMessage.Contains("SKU already exists"))
+            var candidates = await _context.StagingMasterPlans
+                .Where(value => value.BatchId == batchId && value.RowStatus == "ReviewRequired")
                 .ToListAsync();
+            var existingSkus = new HashSet<string>(
+                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
+            var conflicts = candidates.Where(value => existingSkus.Contains(value.Sku)).ToList();
             if (conflicts.Count == 0) throw new InvalidOperationException("Batch has no unresolved existing-SKU conflicts.");
             foreach (var record in conflicts)
             {
@@ -646,7 +667,10 @@ namespace IqcQms.Infrastructure.Services.DataHub
             if (batch is null || batch.Status != "Staged") return false;
             var record = await _context.StagingMasterPlans.FirstOrDefaultAsync(value => value.BatchId == batchId && value.RawRowNumber == rowNumber);
             if (record is null || record.RowStatus != "ReviewRequired") return false;
-            if (record.CoreValidationMessage.Contains("SKU already exists", StringComparison.OrdinalIgnoreCase))
+            var existingSkus = new HashSet<string>(
+                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
+                StringComparer.OrdinalIgnoreCase);
+            if (existingSkus.Contains(record.Sku))
                 throw new InvalidOperationException("Existing-SKU conflicts require the explicit batch Skip or Cancel choice.");
             var nextStatus = resolution == "Accept" ? "ReadyToInsert" : "Skipped";
             AddAuditLog(batchId, "Staging_MasterPlan", record.Sku, "RowStatus", record.RowStatus, nextStatus, resolvedBy, "Explicit warning resolution");

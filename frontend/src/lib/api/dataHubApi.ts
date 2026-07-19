@@ -13,10 +13,29 @@ export class DataHubApiError extends Error {
   }
 }
 
-const errorMessage = (data: unknown, fallback: string) => {
+export const parseApiError = (data: unknown, fallback: string) => {
   if (typeof data === 'string' && data.trim()) return data;
-  if (data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string') return data.detail;
+  if (data && typeof data === 'object') {
+    if ('detail' in data && typeof data.detail === 'string' && data.detail.trim()) return data.detail;
+    if ('message' in data && typeof data.message === 'string' && data.message.trim()) return data.message;
+    if ('title' in data && typeof data.title === 'string' && data.title.trim()) return data.title;
+    if ('errors' in data && data.errors && typeof data.errors === 'object') {
+      const messages = Object.values(data.errors).flatMap(value => Array.isArray(value) ? value : []).filter(value => typeof value === 'string');
+      if (messages.length) return messages.join(' ');
+    }
+  }
   return fallback;
+};
+
+const apiCall = async <T>(request: () => Promise<{ data: T }>, fallback: string): Promise<T> => {
+  try {
+    return (await request()).data;
+  } catch (reason) {
+    if (axios.isAxiosError(reason)) {
+      throw new DataHubApiError(parseApiError(reason.response?.data, fallback), reason.response?.status ?? 0);
+    }
+    throw reason;
+  }
 };
 
 export interface ManualFile {
@@ -37,6 +56,9 @@ export interface ImportBatch {
   validRows: number;
   errorRows: number;
   reviewRequiredRows: number;
+  skippedRows: number;
+  createdRecords: number;
+  updatedRecords: number;
   durationMs: number;
 }
 
@@ -64,39 +86,38 @@ export interface StagingMasterPlan {
 export interface HeaderColumn { columnIndex: number; header: string; suggestedCanonical: string | null; ambiguous: boolean }
 export interface HeaderInspection { headerRow: number; columns: HeaderColumn[]; canonicalFields: string[]; requiredFields: string[] }
 export interface HeaderMapping { columnIndex: number; canonicalField: string }
-export interface ImportReviewRow { rowNumber: number; sku: string; field: string; currentValue: string; severity: string; message: string; status: string }
+export type ReviewResolutionAction = 'Override' | 'Ignore' | 'CreateMissing';
+export interface ImportReviewRow { rowNumber: number; sku: string; field: string; currentValue: string; severity: string; message: string; status: string; conflictType: string; reviewItemId: number | null; supportedActions: ReviewResolutionAction[] }
 export interface ImportReviewSummary { batchId: string; fileName: string; validRows: number; warningRows: number; errorRows: number; existingSkuConflicts: number; skippedRows: number; rows: ImportReviewRow[] }
+export type ExistingSkuResolution = 'Skip' | 'Cancel';
+export type WarningResolution = 'Accept' | 'Skip';
+export interface ResolutionResponse { success: boolean }
+export type CommitResponse = ImportBatch;
 
 export const getManualFiles = async (): Promise<ManualFile[]> => {
-  const response = await axios.get(`${API_BASE_URL}/DataHub/manual-files`, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.get(`${API_BASE_URL}/DataHub/manual-files`, { headers: authHeaders() }), 'Unable to load manual files.');
 };
 
 export const processManualUpload = async (fileName: string, module: string = 'NewModels'): Promise<ImportBatch> => {
-  const response = await axios.post(`${API_BASE_URL}/DataHub/process-manual?fileName=${encodeURIComponent(fileName)}&module=${module}`, undefined, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/process-manual?fileName=${encodeURIComponent(fileName)}&module=${module}`, undefined, { headers: authHeaders() }), 'Unable to process the server file.');
 };
 
 export const getHistory = async (module: string = 'NewModels'): Promise<ImportBatch[]> => {
-  const response = await axios.get(`${API_BASE_URL}/DataHub/history?module=${module}`, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.get(`${API_BASE_URL}/DataHub/history?module=${module}`, { headers: authHeaders() }), 'Unable to load import history.');
 };
 
 export const getBatchPreview = async (batchId: string): Promise<ImportBatch> => {
-  const response = await axios.get(`${API_BASE_URL}/DataHub/preview/${batchId}`, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.get(`${API_BASE_URL}/DataHub/preview/${batchId}`, { headers: authHeaders() }), 'Unable to refresh the batch preview.');
 };
 
 export const getStagingRecords = async (batchId: string): Promise<StagingMasterPlan[]> => {
-  const response = await axios.get(`${API_BASE_URL}/DataHub/batch/${batchId}/staging`, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.get(`${API_BASE_URL}/DataHub/batch/${batchId}/staging`, { headers: authHeaders() }), 'Unable to load staging rows.');
 };
 
 export const inspectMasterPlanHeaders = async (file: File): Promise<HeaderInspection> => {
   const form = new FormData();
   form.append('file', file);
-  const response = await axios.post(`${API_BASE_URL}/DataHub/inspect-headers`, form, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/inspect-headers`, form, { headers: authHeaders() }), 'Unable to inspect workbook headers.');
 };
 
 export const uploadMasterPlan = async (file: File, module = 'NewModels', mappings?: HeaderMapping[]): Promise<ImportBatch> => {
@@ -104,35 +125,25 @@ export const uploadMasterPlan = async (file: File, module = 'NewModels', mapping
   form.append('file', file);
   form.append('module', module);
   if (mappings) form.append('headerMapping', JSON.stringify(mappings));
-  try {
-    const response = await axios.post(`${API_BASE_URL}/DataHub/upload`, form, { headers: authHeaders() });
-    return response.data;
-  } catch (reason) {
-    if (axios.isAxiosError(reason)) throw new DataHubApiError(errorMessage(reason.response?.data, 'Upload failed.'), reason.response?.status ?? 0);
-    throw reason;
-  }
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/upload`, form, { headers: authHeaders() }), 'Upload failed.');
 };
 
 export const getReviewSummary = async (batchId: string): Promise<ImportReviewSummary> => {
-  const response = await axios.get(`${API_BASE_URL}/DataHub/review/${encodeURIComponent(batchId)}`, { headers: authHeaders() });
-  return response.data;
+  return apiCall(() => axios.get(`${API_BASE_URL}/DataHub/review/${encodeURIComponent(batchId)}`, { headers: authHeaders() }), 'Unable to load review details.');
 };
 
-export const resolveExistingSku = async (batchId: string, resolution: 'Skip' | 'Cancel'): Promise<ImportBatch> => {
-  const response = await axios.post(`${API_BASE_URL}/DataHub/resolve-existing/${encodeURIComponent(batchId)}`, { resolution }, { headers: authHeaders() });
-  return response.data;
+export const resolveExistingSku = async (batchId: string, resolution: ExistingSkuResolution): Promise<ImportBatch> => {
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/resolve-existing/${encodeURIComponent(batchId)}`, { resolution }, { headers: authHeaders() }), 'Unable to resolve existing SKUs.');
 };
 
-export const resolveWarningRow = async (batchId: string, rowNumber: number, resolution: 'Accept' | 'Skip'): Promise<void> => {
-  await axios.post(`${API_BASE_URL}/DataHub/resolve-warning/${encodeURIComponent(batchId)}/${rowNumber}`, { resolution }, { headers: authHeaders() });
+export const resolveWarningRow = async (batchId: string, rowNumber: number, resolution: WarningResolution): Promise<ResolutionResponse> => {
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/resolve-warning/${encodeURIComponent(batchId)}/${rowNumber}`, { resolution }, { headers: authHeaders() }), 'Unable to resolve the warning row.');
 };
 
-export const commitBatch = async (batchId: string): Promise<ImportBatch> => {
-  try {
-    const response = await axios.post(`${API_BASE_URL}/DataHub/commit/${encodeURIComponent(batchId)}`, undefined, { headers: authHeaders() });
-    return response.data;
-  } catch (reason) {
-    if (axios.isAxiosError(reason)) throw new DataHubApiError(errorMessage(reason.response?.data, 'Commit failed.'), reason.response?.status ?? 0);
-    throw reason;
-  }
+export const resolveReviewItem = async (reviewItemId: number, action: ReviewResolutionAction, note?: string): Promise<ResolutionResponse> => {
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/resolve-review/${reviewItemId}`, { action, note }, { headers: authHeaders() }), 'Unable to resolve the business review item.');
+};
+
+export const commitBatch = async (batchId: string): Promise<CommitResponse> => {
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/commit/${encodeURIComponent(batchId)}`, undefined, { headers: authHeaders() }), 'Commit failed.');
 };

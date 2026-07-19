@@ -280,7 +280,7 @@ export default function DataHubDashboard() {
             <CardContent>
               <div className="text-center py-12 text-muted-foreground space-y-4">
                 <p>Validation errors are presented with row and field details in the consolidated batch review.</p>
-                {selectedBatch && <Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`}><Button>Review selected batch errors</Button></Link>}
+                {selectedBatch && <Button nativeButton={false} render={<Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`} />}>Review selected batch errors</Button>}
               </div>
             </CardContent>
           </Card>
@@ -295,7 +295,7 @@ export default function DataHubDashboard() {
             <CardContent>
               <div className="text-center py-12 text-muted-foreground space-y-4">
                 <p>Select a batch from history, then open its row-level review and existing-SKU resolution.</p>
-                {selectedBatch && <Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`}><Button>Review selected batch</Button></Link>}
+                {selectedBatch && <Button nativeButton={false} render={<Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`} />}>Review selected batch</Button>}
               </div>
             </CardContent>
           </Card>
@@ -310,7 +310,7 @@ export default function DataHubDashboard() {
             <CardContent>
               <div className="text-center py-12 text-muted-foreground space-y-4">
                 <p>Inspect a workbook and explicitly map detected headers before validation.</p>
-                <Link href="/support/data-hub/mapping-dictionary"><Button>Open header mapping</Button></Link>
+                <Button nativeButton={false} render={<Link href="/support/data-hub/mapping-dictionary" />}>Open header mapping</Button>
               </div>
             </CardContent>
           </Card>
