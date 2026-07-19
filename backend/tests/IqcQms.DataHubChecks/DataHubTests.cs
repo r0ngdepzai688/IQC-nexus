@@ -105,6 +105,25 @@ public sealed class DataHubTests
     public async Task ExistingSkuDefaultsBlockedAndExplicitSkipIsReported()
     {
         await using var fixture = await ServiceFixture.Create();
+        fixture.Context.MasterPlans.Add(new MasterPlan
+        {
+            ProjectName = "Existing synthetic model",
+            Basic = "Synthetic",
+            Area = "Synthetic Area",
+            Grade = "A",
+            Sku = "SYN-OLD",
+            QtyLpr = 1,
+            QtyLsr = 1,
+            PvrTargetDate = new DateTime(2026, 8, 1),
+            PraTargetDate = new DateTime(2026, 8, 2),
+            SraTargetDate = new DateTime(2026, 8, 3),
+            HwPic = "SYN-PIC",
+            Status = "Synthetic",
+            ImportedStatus = "Imported",
+            ActionStatus = "Ready",
+            Remark = "Synthetic test fixture",
+            LastImportBatchId = "SYNTHETIC-BASELINE"
+        });
         fixture.Context.ImportBatches.Add(new ImportBatch { BatchId = "SKIP", Status = "Staged", ValidRows = 1, ReviewRequiredRows = 1 });
         fixture.Context.StagingMasterPlans.AddRange(
             Ready("SKIP", 2, "SYN-NEW"),
