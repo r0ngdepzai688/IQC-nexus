@@ -26,9 +26,13 @@ export interface ActivateProjectResponse {
 
 const API_BASE = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}/masterplan`;
 
-export const fetchMasterPlanRecords = async (): Promise<MasterPlanDisplayDto[]> => {
+const authHeaders = (): Record<string, string> => {
   const token = typeof window === 'undefined' ? null : window.localStorage.getItem('token');
-  const response = await fetch(`${API_BASE}/records`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
+export const fetchMasterPlanRecords = async (): Promise<MasterPlanDisplayDto[]> => {
+  const response = await fetch(`${API_BASE}/records`, { headers: authHeaders() });
   if (!response.ok) {
     throw new Error(`Failed to fetch Master Plan records (${response.status})`);
   }
@@ -38,6 +42,7 @@ export const fetchMasterPlanRecords = async (): Promise<MasterPlanDisplayDto[]> 
 export const activateProject = async (recordId: number): Promise<ActivateProjectResponse> => {
   const response = await fetch(`${API_BASE}/activate/${recordId}`, {
     method: 'POST',
+    headers: authHeaders(),
   });
   if (!response.ok) {
     const text = await response.text();

@@ -174,6 +174,46 @@ public sealed class ApiContractTests(IntegrationTestFactory factory) : IClassFix
         Assert.False(paths.GetProperty("/api/Auth/login").GetProperty("post").TryGetProperty("security", out _), "Anonymous login must not require Bearer authentication.");
     }
 
+    [Fact]
+    public async Task OpenApiDeclaresCriticalMasterPlanImportContracts()
+    {
+        using var response = await factory.Client.GetAsync("/swagger/v1/swagger.json");
+        using var document = await ReadJsonAsync(response);
+        var root = document.RootElement;
+
+        var inspect = GetOpenApiOperation(root, "/api/DataHub/inspect-headers", "post");
+        AssertResponseReference(inspect, "200", "#/components/schemas/HeaderInspectionDto", "POST /api/DataHub/inspect-headers");
+        AssertResponseCodes(inspect, "POST /api/DataHub/inspect-headers", "400", "401");
+
+        var upload = GetOpenApiOperation(root, "/api/DataHub/upload", "post");
+        AssertResponseReference(upload, "200", "#/components/schemas/ImportBatch", "POST /api/DataHub/upload");
+        AssertResponseCodes(upload, "POST /api/DataHub/upload", "400", "401", "409", "500");
+
+        var review = GetOpenApiOperation(root, "/api/DataHub/review/{batchId}", "get");
+        AssertResponseReference(review, "200", "#/components/schemas/ImportReviewSummaryDto", "GET /api/DataHub/review/{batchId}");
+        AssertResponseCodes(review, "GET /api/DataHub/review/{batchId}", "401", "404");
+
+        var commit = GetOpenApiOperation(root, "/api/DataHub/commit/{batchId}", "post");
+        AssertResponseReference(commit, "200", "#/components/schemas/ImportBatch", "POST /api/DataHub/commit/{batchId}");
+        AssertResponseCodes(commit, "POST /api/DataHub/commit/{batchId}", "400", "401", "500");
+
+        foreach (var (operation, endpoint) in new[]
+        {
+            (inspect, "POST /api/DataHub/inspect-headers"),
+            (upload, "POST /api/DataHub/upload"),
+            (review, "GET /api/DataHub/review/{batchId}"),
+            (commit, "POST /api/DataHub/commit/{batchId}"),
+        })
+        {
+            var requirement = Assert.Single(operation.GetProperty("security").EnumerateArray());
+            Assert.True(requirement.TryGetProperty("Bearer", out _), $"{endpoint} is missing its Bearer security requirement.");
+        }
+
+        var schemas = root.GetProperty("components").GetProperty("schemas");
+        foreach (var schema in new[] { "HeaderInspectionDto", "ImportBatch", "ImportReviewSummaryDto", "ExistingSkuResolutionDto", "WarningResolutionDto", "ResolveReviewDto", "ResolutionResponseDto" })
+            Assert.True(schemas.TryGetProperty(schema, out _), $"OpenAPI components are missing {schema}.");
+    }
+
     private async Task<HttpRequestMessage> AuthorizedRequestAsync(HttpMethod method, string path)
     {
         using var loginResponse = await factory.Client.PostAsJsonAsync("/api/auth/login", new
@@ -229,6 +269,20 @@ public sealed class ApiContractTests(IntegrationTestFactory factory) : IClassFix
         Assert.True(
             string.Equals(expectedReference, actualReference, StringComparison.Ordinal),
             $"{endpoint} {location} expected schema reference '{expectedReference}', but found '{actualReference ?? "<missing>"}'.");
+    }
+
+    private static void AssertResponseReference(JsonElement operation, string statusCode, string expectedReference, string endpoint)
+    {
+        var responses = AssertRequiredObject(operation, "responses", $"{endpoint} operation");
+        var response = GetOpenApiResponse(responses, statusCode, endpoint);
+        var schema = GetApplicationJsonSchema(response, endpoint, $"{statusCode} response");
+        AssertLocalSchemaReference(schema, expectedReference, endpoint, $"{statusCode} response");
+    }
+
+    private static void AssertResponseCodes(JsonElement operation, string endpoint, params string[] statusCodes)
+    {
+        var responses = AssertRequiredObject(operation, "responses", $"{endpoint} operation");
+        foreach (var statusCode in statusCodes) _ = GetOpenApiResponse(responses, statusCode, endpoint);
     }
 
     private static void AssertRequiredString(JsonElement parent, string propertyName, string contract)

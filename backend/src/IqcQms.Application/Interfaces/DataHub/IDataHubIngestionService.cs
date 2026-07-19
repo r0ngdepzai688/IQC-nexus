@@ -55,6 +55,9 @@ namespace IqcQms.Application.Interfaces.DataHub
         public string Severity { get; init; } = string.Empty;
         public string Message { get; init; } = string.Empty;
         public string Status { get; init; } = string.Empty;
+        public string ConflictType { get; init; } = string.Empty;
+        public int? ReviewItemId { get; init; }
+        public List<string> SupportedActions { get; init; } = [];
     }
 
     public class ManualFileDto

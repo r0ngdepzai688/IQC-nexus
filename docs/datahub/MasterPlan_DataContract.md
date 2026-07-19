@@ -1,7 +1,7 @@
 # Master Plan Data Contract
 
 ## 1. Purpose
-This document defines the strict data contract for importing R&D Master Plan Excel files into the IQC Nexus platform. It establishes the rules for column discovery, data type mapping, validation, cleaning, and upsert logic to ensure data integrity before modifying the core database.
+This document defines the strict data contract for importing R&D Master Plan Excel files into the IQC Nexus platform. It establishes the rules for column discovery, data type mapping, validation, cleaning, and insert-only persistence to ensure data integrity before modifying the core database.
 
 ## 2. Source Folder
 Files are manually uploaded or dropped into the following staging directory:
@@ -107,9 +107,9 @@ At the row level: **SKU**, compared case-insensitively. Duplicate SKUs within on
 - Verify that `Grade` matches known values (e.g., A, B, S, D+).
 - The `HWPIC` must be resolvable to a real employee ID or flagged for manual review if unknown.
 
-## 19. Upsert Rules
-- **INSERT**: If SKU is not found in `MasterPlans`, create a new record. Status defaults to "Active", ActionStatus defaults to "Future".
-- **UPDATE**: If SKU exists, update QtyLPR, QtyLSR, Target Dates, and HWPIC. Do NOT overwrite existing ActionStatus unless explicitly triggered by business rules.
+## 19. Insert-only Rules
+- **INSERT**: If SKU is not found in `MasterPlans`, create a new record. The current import sets `ActionStatus` to `Ready`.
+- **EXISTING SKU**: If SKU already exists, keep the row blocked for explicit review. The only supported batch choices are `Skip` (leave the existing record unchanged and omit that row from insertion) or `Cancel` (cancel the batch with no core mutation). Import never updates or overwrites an existing Master Plan record.
 
 ## 20. Error Handling
 - Rows with critical errors (Missing SKU, Missing ProjectName, Invalid Dates) are marked as `RowStatus = "Error"` in `Staging_MasterPlan` and cannot be committed.

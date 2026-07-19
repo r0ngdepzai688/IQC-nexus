@@ -29,6 +29,11 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("upload")]
+        [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> UploadMasterPlan(IFormFile file, [FromForm] string module = "NewModels", [FromForm] string? headerMapping = null)
         {
             if (file == null || file.Length == 0)
@@ -62,6 +67,9 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("inspect-headers")]
+        [ProducesResponseType(typeof(HeaderInspectionDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> InspectHeaders(IFormFile file)
         {
             if (file is null || file.Length == 0) return BadRequest("No file uploaded.");
@@ -115,6 +123,9 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("preview/{batchId}")]
+        [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetPreview(string batchId)
         {
             var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
@@ -133,6 +144,8 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("batch/{batchId}/staging")]
+        [ProducesResponseType(typeof(List<StagingMasterPlan>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetStagingRecords(string batchId)
         {
             var records = await _dataHubService.GetStagingRecordsAsync(batchId);
@@ -140,6 +153,10 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("commit/{batchId}")]
+        [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> CommitBatch(string batchId)
         {
             string committedBy = User.Identity?.Name ?? "SystemAdmin";
@@ -160,6 +177,9 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("resolve-review/{reviewItemId}")]
+        [ProducesResponseType(typeof(ResolutionResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResolveReview(int reviewItemId, [FromBody] ResolveReviewDto dto)
         {
             if (reviewItemId <= 0 || dto == null || !new[] { "Override", "Ignore", "CreateMissing" }.Contains(dto.Action, StringComparer.OrdinalIgnoreCase))
@@ -168,10 +188,13 @@ namespace IqcQms.Api.Controllers.NewModels
             var success = await _dataHubService.ResolveReviewItemAsync(reviewItemId, dto.Action, resolvedBy, dto.Note);
             
             if (!success) return BadRequest("Unable to resolve item.");
-            return Ok(new { success = true });
+            return Ok(new ResolutionResponseDto(true));
         }
 
         [HttpGet("review/{batchId}")]
+        [ProducesResponseType(typeof(ImportReviewSummaryDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetReview(string batchId)
         {
             var summary = await _dataHubService.GetReviewSummaryAsync(batchId);
@@ -179,6 +202,9 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("resolve-existing/{batchId}")]
+        [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResolveExistingSku(string batchId, [FromBody] ExistingSkuResolutionDto dto)
         {
             if (dto is null || dto.Resolution is not ("Skip" or "Cancel")) return BadRequest("Resolution must be Skip or Cancel.");
@@ -190,13 +216,17 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("resolve-warning/{batchId}/{rowNumber:int}")]
+        [ProducesResponseType(typeof(ResolutionResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> ResolveWarning(string batchId, int rowNumber, [FromBody] WarningResolutionDto dto)
         {
             if (dto is null || dto.Resolution is not ("Accept" or "Skip")) return BadRequest("Resolution must be Accept or Skip.");
             try
             {
                 var resolved = await _dataHubService.ResolveWarningRowAsync(batchId, rowNumber, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser");
-                return resolved ? Ok(new { success = true }) : NotFound("Review row not found or no longer pending.");
+                return resolved ? Ok(new ResolutionResponseDto(true)) : NotFound("Review row not found or no longer pending.");
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
@@ -210,6 +240,7 @@ namespace IqcQms.Api.Controllers.NewModels
     {
         public string Resolution { get; set; } = string.Empty;
     }
+    public sealed record ResolutionResponseDto(bool Success);
 
     public class ResolveReviewDto
     {
