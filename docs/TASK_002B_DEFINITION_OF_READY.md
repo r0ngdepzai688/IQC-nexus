@@ -3,8 +3,8 @@
 ## Task
 
 - Roadmap: Task 002 / E01-T02
-- Slice: 002B â€” Replace PII-dependent fixtures with synthetic fixtures
-- Status: READY FOR APPROVAL
+- Slice: 002B — Replace PII-dependent fixtures with synthetic fixtures
+- Status: NOT READY
 
 ## Objective
 
@@ -54,11 +54,19 @@ The branch also contains pre-existing compilation fixes in Auth/RBAC typing, The
 - [x] Runtime `users.json` dependency removed.
 - [x] Data inventory updated.
 - [x] Task 002C has not been started.
-- [ ] Frontend build passes on the final branch.
-- [ ] Backend build passes when a backend build script is available.
-- [ ] Browser smoke test completed.
+- [x] Frontend build passes on the final branch.
+- [x] Backend build passes when a backend build script is available.
+- [x] Browser smoke test completed.
 - [ ] Data Owner or Security approver confirmation recorded.
+
+## Repository-local implementation status
+
+- A repository-level UTF-8 fixture is validated independently and by frontend/backend adapters.
+- Backend startup validates the fixture before migration; validation failure prevents startup.
+- Missing `IQC_SYNTHETIC_USER_SEED_PASSWORD` permits migration after validation but skips personnel mutation.
+- No API contract, database schema, committed credential, real-artifact content or Git history was changed.
+- Repository-owner, Data Owner and Security decisions in `TASK_002B_APPROVAL_CHECKLIST.md` remain unresolved.
 
 ## Readiness decision
 
-READY FOR APPROVAL. Technical remediation is complete when the automated build and repository checks pass. Merge remains blocked until the required human approval and browser smoke test are recorded.
+NOT READY. Repository-local technical validation does not resolve the approval, secure-store, retention, access/encryption or Git-history gates. Browser smoke testing and required human approvals remain outstanding.

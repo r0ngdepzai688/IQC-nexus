@@ -11,12 +11,12 @@
 | Task | Mục tiêu | Trạng thái |
 |---|---|---|
 | Task 001 / E01-T01 — Đưa source Data Hub vào version control | Clone sạch chứa đủ entities, interfaces, services và tài liệu contract Data Hub để backend build được. | **Completed** — commit `d2b1de162cba8a844bfeca3412817ee1dcf13f4d`; chưa push. |
-| Task 002 / E01-T02 — 002A Contain tracked root data | Remove tracking bốn root personnel artifacts, giữ file local và ghi inventory metadata-only. | **002A Completed** — Task 002 tổng thể vẫn in progress; 002B/002C chưa bắt đầu. |
+| Task 002 / E01-T02 — Personnel data safety | Contain root artifacts và thay runtime personnel dependency bằng fixture synthetic. | **002A Completed; 002B technical implementation provisional** — Task vẫn **NOT READY** do governance/security gates; 002C chưa bắt đầu. |
 | Task 003 / E01-T04 — Làm xanh TypeScript và ESLint | Thiết lập frontend compile/lint/build baseline trước các refactor tiếp theo. | **Completed** — PR #2 merged tại `d19fee785744dbb275359449f398e3f2efc40fb5`. |
 
 Task 004 **chưa được phép bắt đầu** vì `EXECUTION_ORDER.md` yêu cầu Task 002 hoàn thành trước.
 
-Không tự động bắt đầu 002B, 002C hoặc task khác khi chưa có yêu cầu mới và Definition of Ready tương ứng.
+Không bắt đầu 002C hoặc task khác khi Task 002 chưa hoàn thành và chưa có yêu cầu mới cùng Definition of Ready tương ứng.
 
 ## 3. Task đang active
 
@@ -50,7 +50,7 @@ Hiện **không có implementation task active**.
 
 ## 4. Bước tiếp theo được phép thực hiện
 
-Bước tiếp theo hợp lệ là **Definition of Ready cho Task 002B**, không phải Task 004.
+Bước tiếp theo hợp lệ là hoàn tất approval checklist và governance/security gates cho **Task 002B**, không phải Task 004 hoặc 002C.
 
 Definition of Ready tối thiểu:
 
@@ -98,8 +98,8 @@ Task 001 chỉ hoàn thành khi tất cả điều kiện sau có bằng chứng
 
 - [x] 002A: bốn root personnel artifacts không còn được track tại HEAD.
 - [x] 002A: file local được giữ nguyên và inventory metadata-only được ghi nhận.
-- [ ] Canonical synthetic personnel fixture được xác định.
-- [ ] Frontend/backend test-dev consumers không còn phụ thuộc PII thật.
+- [x] Canonical synthetic personnel fixture được triển khai ở mức repository-local.
+- [x] Frontend/backend runtime fixture path không còn phụ thuộc PII thật; backend mutation mặc định bị khóa khi thiếu credential inject ngoài Git.
 - [ ] Secure store, access, encryption và retention owner được chốt.
 - [ ] Git-history disposition được phê duyệt.
 - [ ] Data Owner và Security sign-off hoàn tất.
