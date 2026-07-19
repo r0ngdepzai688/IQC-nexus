@@ -6,6 +6,7 @@ The repository root `global.json` selects a compatible .NET 8 SDK. Run backend c
 dotnet restore backend/IqcQms.sln
 dotnet build backend/IqcQms.sln --no-restore
 dotnet test backend/IqcQms.sln --no-build
+dotnet test backend/tests/IqcQms.ApiIntegrationTests --filter Category=Integration
 dotnet tool restore
 dotnet tool run dotnet-ef dbcontext list --project backend/src/IqcQms.Infrastructure --startup-project backend/src/IqcQms.Api --no-build
 dotnet tool run dotnet-ef migrations list --project backend/src/IqcQms.Infrastructure --startup-project backend/src/IqcQms.Api --no-build
@@ -18,10 +19,12 @@ npm --prefix frontend audit --audit-level=moderate
 
 Use `npm --prefix frontend test` for frontend test watch mode during local development. Use `test:run` for a single deterministic run and in CI.
 
-The backend tests use temporary or in-memory SQLite databases and do not require credentials, external services, or network access after package restore.
+For the Chromium E2E smoke suite, restore the backend with the command above, install the browser once with `npm --prefix frontend exec playwright install chromium`, then run `npm --prefix frontend run test:e2e`. Playwright starts the frontend and an isolated SQLite-backed backend, generates process-only synthetic credentials, and recreates `frontend/.playwright-runtime` without using the normal developer database. Retry traces and reports are written beneath `frontend/test-results` and `frontend/playwright-report`; CI uploads them only after failure.
+
+The backend integration tests use a unique migrated SQLite database and generated process-local credentials under the operating-system temporary directory. Each factory removes its database and Data Hub files on disposal; tests never use the developer `localstorage.db`. Use the filtered command above to run only integration tests.
 
 Entity Framework CLI commands use the repository-local .NET 8 tool manifest. Listing commands are read-only; migration creation and database updates must be run deliberately and are not part of the standard checks.
 
 ## Continuous integration
 
-Pull requests and pushes to `main` run the same backend, frontend, dependency-audit, and read-only EF checks in `.github/workflows/ci.yml`. CI does not deploy or update a database.
+Pull requests and pushes to `main` run the same backend, frontend, dependency-audit, read-only EF, and isolated Chromium smoke checks in `.github/workflows/ci.yml`. CI does not deploy or update a developer database.
