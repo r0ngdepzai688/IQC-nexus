@@ -2,6 +2,38 @@
 
 Changelog này ghi bằng chứng theo task. Chỉ ghi **Completed** khi Definition of Done đã đạt. Các công việc quản trị ngoài Task 001–053 phải dùng ID `ADMIN-*` và không thay đổi trạng thái roadmap.
 
+## ADMIN-DOC-002 — Đồng bộ handoff sau Task 003
+
+- **Ngày thực hiện:** 2026-07-19.
+- **Trạng thái:** Completed (docs-only, ngoài roadmap Task 001–053).
+- **Tóm tắt thay đổi:** cập nhật trạng thái dự án sau khi Task 003 được merge; không thay đổi source, schema, migration hoặc API contract.
+- **File đã thay đổi:**
+  - `docs/PROJECT_STATUS.md`
+  - `docs/CURRENT_SPRINT.md`
+  - `docs/CHANGELOG_INTERNAL.md`
+  - `docs/NEXT_SESSION.md`
+- **Migration được tạo:** không.
+- **Build/test:** không chạy lại vì đây là thay đổi docs-only; sử dụng bằng chứng validation đã xác nhận của Task 003.
+- **Kết quả:** Task 001 và Task 003 đã hoàn thành; Task 002 vẫn in progress; bước tiếp theo là refinement/Definition of Ready cho 002B.
+- **Rollback procedure:** revert commit tài liệu độc lập; không tác động source hoặc dữ liệu.
+
+## Task 003 / E01-T04 — Làm xanh TypeScript và ESLint
+
+- **Ngày hoàn thành:** 2026-07-19.
+- **Trạng thái:** Completed.
+- **Pull Request:** #2 — `fix(task-003): resolve TypeScript and ESLint issues`.
+- **Merge commit:** `d19fee785744dbb275359449f398e3f2efc40fb5`.
+- **Tóm tắt thay đổi:** xử lý lỗi TypeScript, ESLint, React hooks, unused symbols và type safety trong frontend; xóa baseline artifacts tạm.
+- **Migration được tạo:** không.
+- **Validation:**
+  - `npm run lint`: 0 errors, 0 warnings.
+  - `npx tsc --noEmit --incremental false`: thành công.
+  - `npm run build`: thành công.
+  - `npm test --if-present`: không báo lỗi.
+- **Kết quả:** frontend có compile/lint/build baseline xanh.
+- **Rủi ro còn lại:** frontend chưa có test script bắt buộc; Task 005 sẽ thiết lập test pyramid tối thiểu.
+- **Rollback procedure:** revert merge commit bằng commit đảo riêng nếu cần; không reset hoặc rewrite shared history.
+
 ## ADMIN-DOC-001 — Thiết lập bộ nhớ và tiến độ dài hạn
 
 - **Ngày thực hiện:** 2026-07-18.
