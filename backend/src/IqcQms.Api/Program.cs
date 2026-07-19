@@ -131,9 +131,10 @@ using (var scope = app.Services.CreateScope())
         var context = services.GetRequiredService<AppDbContext>();
         var logger = services.GetRequiredService<ILogger<Program>>();
         var env = services.GetRequiredService<IWebHostEnvironment>();
+        var configuration = services.GetRequiredService<IConfiguration>();
         var fixturePath = Path.Combine(AppContext.BaseDirectory, "fixtures", "personnel.synthetic.json");
         var seedPassword = env.IsDevelopment() || env.IsEnvironment("Testing")
-            ? Environment.GetEnvironmentVariable("IQC_SYNTHETIC_USER_SEED_PASSWORD")
+            ? configuration["IQC_SYNTHETIC_USER_SEED_PASSWORD"]
             : null;
 
         await IqcQms.Infrastructure.Data.Seeders.UserSeeder.ValidateMigrateAndSyncAsync(
@@ -152,3 +153,5 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.Run();
+
+public partial class Program { }
