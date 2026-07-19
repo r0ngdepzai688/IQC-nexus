@@ -17,3 +17,7 @@ npm --prefix frontend run build
 The backend tests use temporary or in-memory SQLite databases and do not require credentials, external services, or network access after package restore.
 
 Entity Framework CLI commands use the repository-local .NET 8 tool manifest. Listing commands are read-only; migration creation and database updates must be run deliberately and are not part of the standard checks.
+
+## Continuous integration
+
+Pull requests and pushes to `main` run the same backend, frontend, NuGet-audit, and read-only EF checks in `.github/workflows/ci.yml`. CI does not deploy or update a database.
