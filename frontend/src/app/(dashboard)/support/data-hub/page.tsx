@@ -87,7 +87,6 @@ export default function DataHubDashboard() {
   const getRowStatusBadge = (status: string) => {
     switch (status) {
       case "ReadyToInsert":
-      case "ReadyToUpdate":
         return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border-none">{status}</Badge>;
       case "SkipNoChange":
         return <Badge variant="outline" className="text-muted-foreground">{status}</Badge>;
@@ -279,8 +278,9 @@ export default function DataHubDashboard() {
               <CardDescription>System-level rejection details</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="text-center py-12 text-muted-foreground">
-                Detailed validation error queue interface will be implemented in Phase 2.
+              <div className="text-center py-12 text-muted-foreground space-y-4">
+                <p>Validation errors are presented with row and field details in the consolidated batch review.</p>
+                {selectedBatch && <Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`}><Button>Review selected batch errors</Button></Link>}
               </div>
             </CardContent>
           </Card>
