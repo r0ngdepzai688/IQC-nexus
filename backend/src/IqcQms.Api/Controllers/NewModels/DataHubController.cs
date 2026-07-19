@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using IqcQms.Infrastructure.Services.DataHub;
+using IqcQms.Domain.Entities.DataHub;
 
 namespace IqcQms.Api.Controllers.NewModels
 {
@@ -123,6 +124,8 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("history")]
+        [ProducesResponseType(typeof(List<ImportBatch>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetHistory([FromQuery] string module = "NewModels")
         {
             var history = await _dataHubService.GetHistoryAsync(module);

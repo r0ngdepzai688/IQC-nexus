@@ -13,6 +13,7 @@ namespace IqcQms.ApiIntegrationTests;
 public sealed class StartupDatabaseTests(IntegrationTestFactory factory) : IClassFixture<IntegrationTestFactory>
 {
     [Fact]
+    [Trait("Category", "Contract")]
     public async Task FreshHostReturnsSerializedHealthResponse()
     {
         using var response = await factory.Client.GetAsync("/api/health");
