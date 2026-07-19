@@ -28,17 +28,17 @@ interface AuthContextProps {
 }
 
 const defaultUser: AuthState = {
-  employeeId: 'SYN-ADMIN-001',
-  name: 'Synthetic Administrator',
-  position: 'Group Leader',
-  scope: 'All',
-  systemRole: 'Administrator',
+  employeeId: '',
+  name: 'Authenticated User',
+  position: 'Staff',
+  scope: '',
+  systemRole: 'User',
   accountStatus: 'Active',
   avatar: '',
-  organization: 'IQC Group',
-  part: 'All',
-  email: 'admin@example.invalid',
-  roleProfile: 'Admin'
+  organization: '',
+  part: '',
+  email: '',
+  roleProfile: ''
 };
 
 const AuthContext = createContext<AuthContextProps>({
