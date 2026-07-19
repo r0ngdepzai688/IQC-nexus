@@ -21,4 +21,11 @@
     <ProjectReference Include="..\IqcQms.Infrastructure\IqcQms.Infrastructure.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\..\fixtures\personnel.synthetic.json"
+             Link="fixtures\personnel.synthetic.json"
+             CopyToOutputDirectory="PreserveNewest"
+             CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

@@ -98,33 +98,25 @@ using (var scope = app.Services.CreateScope())
     try
     {
         var context = services.GetRequiredService<AppDbContext>();
-        context.Database.Migrate();
-
         var logger = services.GetRequiredService<ILogger<Program>>();
         var env = services.GetRequiredService<IWebHostEnvironment>();
-        
-        // Find User_DB.xlsx in the root of the project (3 levels up from Api/bin/Debug/net8.0 usually, or explicitly provided)
-        // A safer way is to navigate up to find the file or provide its path in configuration.
-        // Let's assume it's at the solution root level.
-        var solutionRoot = Directory.GetParent(env.ContentRootPath)?.Parent?.Parent?.FullName;
-        var excelPath = solutionRoot != null ? Path.Combine(solutionRoot, "User_DB.xlsx") : "User_DB.xlsx";
-        
-        if (!File.Exists(excelPath))
-        {
-            // fallback for when running from solution root directly
-            excelPath = Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "..", "User_DB.xlsx");
-            if (!File.Exists(excelPath))
-            {
-                 excelPath = Path.Combine(Directory.GetCurrentDirectory(), "User_DB.xlsx"); // if running directly from Portal root
-            }
-        }
-        
-        await IqcQms.Infrastructure.Data.Seeders.UserSeeder.SyncUsersFromExcelAsync(context, excelPath, logger);
+        var fixturePath = Path.Combine(AppContext.BaseDirectory, "fixtures", "personnel.synthetic.json");
+        var seedPassword = env.IsDevelopment() || env.IsEnvironment("Testing")
+            ? Environment.GetEnvironmentVariable("IQC_SYNTHETIC_USER_SEED_PASSWORD")
+            : null;
+
+        await IqcQms.Infrastructure.Data.Seeders.UserSeeder.ValidateMigrateAndSyncAsync(
+            context,
+            fixturePath,
+            seedPassword,
+            logger,
+            () => context.Database.MigrateAsync());
     }
     catch (Exception ex)
     {
         var logger = services.GetRequiredService<ILogger<Program>>();
-        logger.LogError(ex, "An error occurred during database migration or seeding.");
+        logger.LogCritical(ex, "Synthetic personnel validation, database migration, or seeding failed. Startup is aborted.");
+        throw;
     }
 }
 

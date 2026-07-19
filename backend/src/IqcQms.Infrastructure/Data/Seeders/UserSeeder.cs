@@ -1,134 +1,276 @@
-using System;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-using ExcelDataReader;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
+using IqcQms.Domain.Entities.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using IqcQms.Domain.Entities.Auth;
-using IqcQms.Infrastructure.Data;
 
 namespace IqcQms.Infrastructure.Data.Seeders
 {
-    public static class UserSeeder
+    public static partial class UserSeeder
     {
-        public static async Task SyncUsersFromExcelAsync(AppDbContext context, string excelFilePath, ILogger logger)
+        private const string FixtureActor = "synthetic-fixture";
+        private static readonly HashSet<string> AccountStatuses = new(StringComparer.Ordinal)
         {
-            if (!File.Exists(excelFilePath))
+            "Active", "Inactive", "Pending", "Locked"
+        };
+
+        public static async Task SyncUsersFromSyntheticFixtureAsync(
+            AppDbContext context,
+            string fixturePath,
+            string? seedPassword,
+            ILogger logger)
+        {
+            var records = await LoadAndValidateFixtureAsync(fixturePath);
+            await SyncValidatedUsersAsync(context, records, seedPassword, logger);
+        }
+
+        public static async Task ValidateMigrateAndSyncAsync(
+            AppDbContext context,
+            string fixturePath,
+            string? seedPassword,
+            ILogger logger,
+            Func<Task> migrateAsync)
+        {
+            var records = await LoadAndValidateFixtureAsync(fixturePath);
+            await migrateAsync();
+            await SyncValidatedUsersAsync(context, records, seedPassword, logger);
+        }
+
+        public static async Task SyncValidatedUsersAsync(
+            AppDbContext context,
+            IReadOnlyList<SyntheticPersonnelRecord> records,
+            string? seedPassword,
+            ILogger logger)
+        {
+            if (string.IsNullOrWhiteSpace(seedPassword))
             {
-                logger.LogWarning($"User Database file not found at {excelFilePath}. Skipping user sync.");
+                logger.LogWarning(
+                    "Validated {Count} synthetic personnel records, but user seeding is disabled because no external seed credential was provided.",
+                    records.Count);
                 return;
             }
 
+            await using var transaction = await context.Database.BeginTransactionAsync();
             try
             {
-                // Ensure ExcelDataReader is configured for .NET Core
-                System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+                var existingUsers = (await context.Users.ToListAsync())
+                    .ToDictionary(user => user.Username, StringComparer.Ordinal);
+                var defaultRoleId = await context.Roles
+                    .Where(role => role.RoleName == "User")
+                    .Select(role => (int?)role.Id)
+                    .FirstOrDefaultAsync();
+                var now = DateTime.UtcNow;
+                var addedCount = 0;
+                var updatedCount = 0;
 
-                using var stream = File.Open(excelFilePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-                using var reader = ExcelReaderFactory.CreateReader(stream);
-                
-                var result = reader.AsDataSet(new ExcelDataSetConfiguration()
+                foreach (var record in records)
                 {
-                    ConfigureDataTable = (_) => new ExcelDataTableConfiguration()
+                    if (existingUsers.TryGetValue(record.EmployeeId, out var user))
                     {
-                        UseHeaderRow = false // We will use indices directly
-                    }
-                });
-
-                if (result.Tables.Count == 0)
-                {
-                    logger.LogWarning("No data tables found in Excel file.");
-                    return;
-                }
-
-                var dataTable = result.Tables[0];
-                int addedCount = 0;
-                int updatedCount = 0;
-
-                var existingUsers = await context.Users.ToDictionaryAsync(u => u.Username);
-                var defaultRole = await context.Roles.FirstOrDefaultAsync(r => r.RoleName == "User");
-                int? defaultRoleId = defaultRole?.Id;
-
-                // Track processed users to avoid duplicates from the Excel file itself
-                var processedUsernames = new HashSet<string>();
-
-                // Skip header row
-                for (int i = 1; i < dataTable.Rows.Count; i++)
-                {
-                    var row = dataTable.Rows[i];
-                    var maNhanVien = row[1]?.ToString()?.Trim(); // Column 1: Mã nhân viên
-                    if (string.IsNullOrEmpty(maNhanVien) || maNhanVien == "Mã nhân viên") continue;
-
-                    // Prevent processing the same employee ID multiple times
-                    if (processedUsernames.Contains(maNhanVien)) continue;
-                    processedUsernames.Add(maNhanVien);
-
-                    var ten = row[2]?.ToString()?.Trim() ?? string.Empty; // Column 2: Tên
-                    var boPhan = row[3]?.ToString()?.Trim() ?? string.Empty; // Column 3: Bộ phận
-                    var toChuc = row[4]?.ToString()?.Trim() ?? string.Empty; // Column 4: Tổ chức
-                    var clName = row[5]?.ToString()?.Trim() ?? string.Empty; // Column 5: CL Name
-                    var knoxId = row[6]?.ToString()?.Trim() ?? string.Empty; // Column 6: Knox ID
-                    var position = row[7]?.ToString()?.Trim() ?? string.Empty; // Column 7: Chức vụ
-                    var scope = row[8]?.ToString()?.Trim() ?? string.Empty; // Column 8: Scope
-
-                    // Remove trailing semicolons in Knox ID if present
-                    if (knoxId.EndsWith(";"))
-                    {
-                        knoxId = knoxId.TrimEnd(';');
+                        ApplyRecord(user, record);
+                        user.UpdatedBy = FixtureActor;
+                        user.UpdatedDate = now;
+                        updatedCount++;
+                        continue;
                     }
 
-                    var systemRole = maNhanVien == "10545998" ? "Administrator" : "User";
-                    var dashboardProfile = "Auto";
-
-                    if (existingUsers.TryGetValue(maNhanVien, out var user))
+                    user = new User
                     {
-                        // Update existing user
-                        bool isUpdated = false;
-                        if (user.FullName != ten) { user.FullName = ten; isUpdated = true; }
-                        if (user.Department != boPhan) { user.Department = boPhan; isUpdated = true; }
-                        if (user.Organization != toChuc) { user.Organization = toChuc; isUpdated = true; }
-                        if (user.ClName != clName) { user.ClName = clName; isUpdated = true; }
-                        if (user.KnoxId != knoxId) { user.KnoxId = knoxId; isUpdated = true; }
-                        if (user.Position != position) { user.Position = position; isUpdated = true; }
-                        if (user.Scope != scope) { user.Scope = scope; isUpdated = true; }
-                        if (user.SystemRole != systemRole) { user.SystemRole = systemRole; isUpdated = true; }
-                        if (user.DashboardProfile != dashboardProfile) { user.DashboardProfile = dashboardProfile; isUpdated = true; }
-                        
-                        if (isUpdated) updatedCount++;
-                    }
-                    else
-                    {
-                        // Add new user
-                        var newUser = new User
-                        {
-                            Username = maNhanVien,
-                            PasswordHash = BCrypt.Net.BCrypt.HashPassword("Welcome@123"), // Default password
-                            FullName = ten,
-                            Department = boPhan,
-                            Organization = toChuc,
-                            ClName = clName,
-                            KnoxId = knoxId,
-                            Position = position,
-                            Scope = scope,
-                            SystemRole = systemRole,
-                            DashboardProfile = dashboardProfile,
-                            IsActive = true,
-                            CreatedAt = DateTime.UtcNow,
-                            RoleId = defaultRoleId
-                        };
-                        context.Users.Add(newUser);
-                        addedCount++;
-                    }
+                        Username = record.EmployeeId,
+                        PasswordHash = BCrypt.Net.BCrypt.HashPassword(seedPassword),
+                        CreatedAt = now,
+                        CreatedBy = FixtureActor,
+                        RoleId = defaultRoleId
+                    };
+                    ApplyRecord(user, record);
+                    context.Users.Add(user);
+                    existingUsers.Add(record.EmployeeId, user);
+                    addedCount++;
                 }
 
                 await context.SaveChangesAsync();
-                logger.LogInformation($"User sync completed successfully. Added: {addedCount}, Updated: {updatedCount}.");
+                await transaction.CommitAsync();
+                logger.LogInformation(
+                    "Synthetic user sync completed atomically. Added: {AddedCount}, Updated: {UpdatedCount}.",
+                    addedCount,
+                    updatedCount);
             }
-            catch (Exception ex)
+            catch
             {
-                logger.LogError(ex, "An error occurred while syncing users from Excel.");
+                await transaction.RollbackAsync();
+                throw;
             }
         }
+
+        public static async Task<IReadOnlyList<SyntheticPersonnelRecord>> LoadAndValidateFixtureAsync(
+            string fixturePath)
+        {
+            if (!File.Exists(fixturePath))
+            {
+                throw new FileNotFoundException("Synthetic personnel fixture was not found.", fixturePath);
+            }
+
+            await using var stream = File.OpenRead(fixturePath);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                PropertyNameCaseInsensitive = false,
+                UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow
+            };
+            var records = await JsonSerializer.DeserializeAsync<List<SyntheticPersonnelRecord>>(stream, options)
+                ?? throw new InvalidDataException("Synthetic personnel fixture must be a JSON array.");
+
+            ValidateRecords(records);
+            return records;
+        }
+
+        private static void ValidateRecords(IReadOnlyList<SyntheticPersonnelRecord> records)
+        {
+            if (records.Count == 0)
+            {
+                throw new InvalidDataException("Synthetic personnel fixture must not be empty.");
+            }
+
+            var employeeIds = new HashSet<string>(StringComparer.Ordinal);
+            var knoxIds = new HashSet<string>(StringComparer.Ordinal);
+
+            for (var index = 0; index < records.Count; index++)
+            {
+                var record = records[index];
+                RequireString(record.EmployeeId, nameof(record.EmployeeId), index);
+                RequireString(record.FullName, nameof(record.FullName), index);
+                RequireString(record.Department, nameof(record.Department), index);
+                RequireString(record.Organization, nameof(record.Organization), index);
+                RequireString(record.ClName, nameof(record.ClName), index);
+                RequireString(record.Position, nameof(record.Position), index);
+                RequireString(record.Scope, nameof(record.Scope), index);
+                RequireString(record.SystemRole, nameof(record.SystemRole), index);
+                RequireString(record.DashboardProfile, nameof(record.DashboardProfile), index);
+                RequireString(record.AccountStatus, nameof(record.AccountStatus), index);
+                ValidateOptional(record.PreferredName, nameof(record.PreferredName), index);
+                ValidateOptional(record.KnoxId, nameof(record.KnoxId), index);
+                ValidateOptional(record.Email, nameof(record.Email), index);
+                ValidateOptional(record.RoleProfile, nameof(record.RoleProfile), index);
+                ValidateOptional(record.Part, nameof(record.Part), index);
+                ValidateOptional(record.Avatar, nameof(record.Avatar), index);
+                ValidateOptional(record.Notes, nameof(record.Notes), index);
+
+                if (!SyntheticIdRegex().IsMatch(record.EmployeeId))
+                {
+                    Invalid(index, nameof(record.EmployeeId), "must match ^SYN-[A-Z0-9-]+$");
+                }
+                if (!employeeIds.Add(record.EmployeeId))
+                {
+                    Invalid(index, nameof(record.EmployeeId), "must be unique using ordinal case-sensitive comparison");
+                }
+                if (record.KnoxId is not null && !knoxIds.Add(record.KnoxId))
+                {
+                    Invalid(index, nameof(record.KnoxId), "must be unique when present");
+                }
+                if (record.Email is not null && !SyntheticEmailRegex().IsMatch(record.Email))
+                {
+                    Invalid(index, nameof(record.Email), "must use the example.invalid domain");
+                }
+                if (record.SystemRole is not ("Administrator" or "User"))
+                {
+                    Invalid(index, nameof(record.SystemRole), "must be Administrator or User");
+                }
+                if (!AccountStatuses.Contains(record.AccountStatus))
+                {
+                    Invalid(index, nameof(record.AccountStatus), "has an unsupported value");
+                }
+                if (record.IsActive != (record.AccountStatus == "Active"))
+                {
+                    Invalid(index, nameof(record.IsActive), "must be true only when accountStatus is Active");
+                }
+                if (record.SystemRole != "User")
+                {
+                    Invalid(index, nameof(record.SystemRole), "canonical synthetic records must default to User");
+                }
+            }
+        }
+
+        private static void ApplyRecord(User user, SyntheticPersonnelRecord record)
+        {
+            user.FullName = record.FullName;
+            user.Department = record.Department;
+            user.Organization = record.Organization;
+            user.ClName = record.ClName;
+            user.KnoxId = record.KnoxId ?? string.Empty;
+            user.Email = record.Email ?? string.Empty;
+            user.Position = record.Position;
+            user.Scope = record.Scope;
+            user.SystemRole = record.SystemRole;
+            user.DashboardProfile = record.DashboardProfile;
+            user.AccountStatus = record.AccountStatus;
+            user.IsActive = record.IsActive;
+            user.RoleProfile = record.RoleProfile ?? string.Empty;
+            user.Part = record.Part ?? string.Empty;
+            user.Avatar = record.Avatar ?? string.Empty;
+            user.Notes = record.Notes ?? string.Empty;
+        }
+
+        private static void RequireString(string value, string field, int index)
+        {
+            if (string.IsNullOrWhiteSpace(value) || value != value.Trim())
+            {
+                Invalid(index, field, "must be a non-empty trimmed string");
+            }
+            ValidateUnicode(value, field, index);
+        }
+
+        private static void ValidateOptional(string? value, string field, int index)
+        {
+            if (value is null)
+            {
+                return;
+            }
+            if (value.Length == 0 || value != value.Trim())
+            {
+                Invalid(index, field, "must be null or a non-empty trimmed string");
+            }
+            ValidateUnicode(value, field, index);
+        }
+
+        private static void ValidateUnicode(string value, string field, int index)
+        {
+            if (!value.IsNormalized(NormalizationForm.FormC) || value.Any(char.IsControl))
+            {
+                Invalid(index, field, "must be NFC Unicode without control characters");
+            }
+        }
+
+        private static void Invalid(int index, string field, string message) =>
+            throw new InvalidDataException($"Synthetic personnel record {index + 1}, field {field}: {message}.");
+
+        [GeneratedRegex("^SYN-[A-Z0-9-]+$", RegexOptions.CultureInvariant)]
+        private static partial Regex SyntheticIdRegex();
+
+        [GeneratedRegex("^[^\\s@]+@example\\.invalid$", RegexOptions.CultureInvariant)]
+        private static partial Regex SyntheticEmailRegex();
+    }
+
+    public sealed class SyntheticPersonnelRecord
+    {
+        public string EmployeeId { get; init; } = string.Empty;
+        public string FullName { get; init; } = string.Empty;
+        public string? PreferredName { get; init; }
+        public string Department { get; init; } = string.Empty;
+        public string Organization { get; init; } = string.Empty;
+        public string ClName { get; init; } = string.Empty;
+        public string? KnoxId { get; init; }
+        public string? Email { get; init; }
+        public string Position { get; init; } = string.Empty;
+        public string Scope { get; init; } = string.Empty;
+        public string SystemRole { get; init; } = string.Empty;
+        public string DashboardProfile { get; init; } = string.Empty;
+        public string AccountStatus { get; init; } = string.Empty;
+        public bool IsActive { get; init; }
+        public string? RoleProfile { get; init; }
+        public string? Part { get; init; }
+        public string? Avatar { get; init; }
+        public string? Notes { get; init; }
     }
 }
