@@ -47,12 +47,12 @@ test("an authenticated synthetic user can load the empty Data Hub history", asyn
 
 test("an authenticated user can inspect, review, and commit a new Master Plan workbook", async ({ page }) => {
   await loginAsSyntheticUser(page);
-  const sku = `SYN-E2E-${Date.now()}`;
+  const basic = `SYN-E2E-${Date.now()}`;
   await page.goto("/new-model/import");
   await page.getByLabel("Master Plan workbook").setInputFiles({
     name: "synthetic-master-plan.xlsx",
     mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    buffer: createWorkbook(sku),
+    buffer: createWorkbook(basic),
   });
 
   await expect(page.getByRole("heading", { name: "Header mapping" })).toBeVisible();
@@ -79,22 +79,21 @@ test("an authenticated user can inspect, review, and commit a new Master Plan wo
     }
     break;
   }
-  const commit = page.getByRole("button", { name: "Confirm atomic insert" });
+  const commit = page.getByRole("button", { name: "Confirm atomic upsert" });
   await expect(commit).toBeEnabled();
   await commit.click();
   await expect(page.getByRole("heading", { name: "Commit successful" })).toBeVisible();
-  await expect(page.getByText(/new Master Plan record\(s\) were created/)).toBeVisible();
-  await expect(page.getByText(/updated/i)).toHaveCount(0);
+  await expect(page.getByText("1 record(s) inserted, 0 updated. 0 rows were skipped with no change.")).toBeVisible();
 
   const token = await page.evaluate(() => window.localStorage.getItem("token"));
   const response = await page.request.get("http://localhost:5000/api/masterplan/records", {
     headers: { Authorization: `Bearer ${token}` },
   });
   expect(response.ok()).toBe(true);
-  expect(await response.json()).toEqual(expect.arrayContaining([expect.objectContaining({ sku })]));
+  expect(await response.json()).toEqual(expect.arrayContaining([expect.objectContaining({ basic, cat: "LPR" })]));
 });
 
-function createWorkbook(sku: string): Buffer {
+function createWorkbook(basic: string): Buffer {
   const escape = (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const cells = (values: string[], row: number) => values.map((value, index) => `<c r="${String.fromCharCode(65 + index)}${row}" t="inlineStr"><is><t>${escape(value)}</t></is></c>`).join("");
   const entries: Array<[string, string]> = [
@@ -102,7 +101,7 @@ function createWorkbook(sku: string): Buffer {
     ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
     ["xl/workbook.xml", '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="MasterPlan" sheetId="1" r:id="rId1"/></sheets></workbook>'],
     ["xl/_rels/workbook.xml.rels", '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>'],
-    ["xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${cells(["Project Name", "SKU", "PVR Target", "Area", "Grade", "PIC"], 1)}</row><row r="2">${cells(["Synthetic E2E Model", sku, "2026-08-01", "Synthetic Area", "A", "Synthetic PIC"], 2)}</row></sheetData></worksheet>`],
+    ["xl/worksheets/sheet1.xml", `<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1">${cells(["Project Name", "Basic", "Grade", "Cat", "PVR Target", "Area", "PIC"], 1)}</row><row r="2">${cells(["Synthetic E2E Model", basic, "B", "LPR", "2026-08-01", "Synthetic Area", "Synthetic PIC"], 2)}</row></sheetData></worksheet>`],
   ];
   return createStoredZip(entries);
 }

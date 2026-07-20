@@ -13,12 +13,16 @@ namespace IqcQms.Application.Interfaces.NewModels
         public string Basic { get; set; } = string.Empty;
         public string Area { get; set; } = string.Empty;
         public string Grade { get; set; } = string.Empty;
+        public string Cat { get; set; } = string.Empty;
         public string Sku { get; set; } = string.Empty;
         public int QtyLpr { get; set; }
+        public int QtyLprLqv { get => QtyLpr; set => QtyLpr = value; }
         public int QtyLsr { get; set; }
         public DateTime? PvrTargetDate { get; set; }
         public DateTime? PraTargetDate { get; set; }
         public DateTime? SraTargetDate { get; set; }
+        public DateTime? MainLprLqvDate { get; set; }
+        public DateTime? MainLsrDate { get; set; }
         public string HwPic { get; set; } = string.Empty;
         public string DisplayStatus { get; set; } = string.Empty;
         public string DisplayAction { get; set; } = string.Empty;

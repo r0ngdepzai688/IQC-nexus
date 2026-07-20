@@ -21,6 +21,8 @@ namespace IqcQms.Application.Interfaces.DataHub
         /// </summary>
         Task<bool> ResolveReviewItemAsync(int reviewItemId, string action, string resolvedBy, string? note = null);
         Task<ImportReviewSummaryDto?> GetReviewSummaryAsync(string batchId);
+        Task<ImportBatch> ResolveExistingBusinessKeyAsync(string batchId, string resolution, string resolvedBy, int? rowNumber = null);
+        [Obsolete("Use ResolveExistingBusinessKeyAsync.")]
         Task<ImportBatch> ResolveExistingSkuAsync(string batchId, string resolution, string resolvedBy);
         Task<bool> ResolveWarningRowAsync(string batchId, int rowNumber, string resolution, string resolvedBy);
         
@@ -42,6 +44,9 @@ namespace IqcQms.Application.Interfaces.DataHub
         public int WarningRows { get; init; }
         public int ErrorRows { get; init; }
         public int ExistingSkuConflicts { get; init; }
+        public int ExistingBusinessKeyConflicts { get; init; }
+        public int ReadyToUpdateRows { get; init; }
+        public int NoChangeRows { get; init; }
         public int SkippedRows { get; init; }
         public List<ImportReviewRowDto> Rows { get; init; } = [];
     }
@@ -50,12 +55,16 @@ namespace IqcQms.Application.Interfaces.DataHub
     {
         public int RowNumber { get; init; }
         public string Sku { get; init; } = string.Empty;
+        public string Basic { get; init; } = string.Empty;
+        public string Cat { get; init; } = string.Empty;
         public string Field { get; init; } = string.Empty;
         public string CurrentValue { get; init; } = string.Empty;
         public string Severity { get; init; } = string.Empty;
         public string Message { get; init; } = string.Empty;
         public string Status { get; init; } = string.Empty;
         public string ConflictType { get; init; } = string.Empty;
+        public string OldValue { get; init; } = string.Empty;
+        public string NewValue { get; init; } = string.Empty;
         public int? ReviewItemId { get; init; }
         public List<string> SupportedActions { get; init; } = [];
     }

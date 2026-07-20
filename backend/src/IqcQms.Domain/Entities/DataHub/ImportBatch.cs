@@ -23,6 +23,7 @@ namespace IqcQms.Domain.Entities.DataHub
         public int SkippedRows { get; set; }
         public int CreatedRecords { get; set; }
         public int UpdatedRecords { get; set; }
+        public int NoChangeRecords { get; set; }
         public long DurationMs { get; set; }
     }
 }

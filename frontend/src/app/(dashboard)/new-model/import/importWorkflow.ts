@@ -12,10 +12,13 @@ export function validateMasterPlanFile(file: Pick<File, "name" | "size">): strin
   return null;
 }
 
-export function buildHeaderMappings(selections: Record<number, string>): HeaderMapping[] {
+export function buildHeaderMappings(selections: Record<number, string>, inspection?: HeaderInspection): HeaderMapping[] {
   return Object.entries(selections)
     .filter(([, canonicalField]) => canonicalField.length > 0)
-    .map(([columnIndex, canonicalField]) => ({ columnIndex: Number(columnIndex), canonicalField }));
+    .map(([columnIndex, canonicalField]) => {
+      const column = inspection?.columns.find(value => value.columnIndex === Number(columnIndex));
+      return { columnIndex: Number(columnIndex), canonicalField, normalizedHeaderPath: column?.effectiveHeaderPath, confirmLearning: Boolean(inspection), workbookFingerprint: inspection?.workbookFingerprint, detectedDataType: column?.detectedDataType };
+    });
 }
 
 export function getMappingIssues(inspection: HeaderInspection, selections: Record<number, string>): string[] {
@@ -35,13 +38,13 @@ export function getMappingIssues(inspection: HeaderInspection, selections: Recor
 
 export function canCommitImport(batch: ImportBatch | null, review: ImportReviewSummary | null, requestRunning: boolean): boolean {
   return Boolean(
-    batch && review && !requestRunning && batch.status === "Staged" && batch.validRows > 0 &&
+    batch && review && !requestRunning && batch.status === "Staged" && (batch.validRows > 0 || review.noChangeRows > 0) &&
     batch.errorRows === 0 && batch.reviewRequiredRows === 0 &&
-    review.errorRows === 0 && review.warningRows === 0 && review.existingSkuConflicts === 0,
+    review.errorRows === 0 && review.warningRows === 0 && review.existingBusinessKeyConflicts === 0,
   );
 }
 
 export function commitResultMessage(batch: ImportBatch): string {
   const skipped = batch.skippedRows === 1 ? "1 row was skipped with no change" : `${batch.skippedRows} rows were skipped with no change`;
-  return `${batch.createdRecords} new Master Plan record(s) were created. ${skipped}.`;
+  return `${batch.createdRecords} record(s) inserted, ${batch.updatedRecords} updated. ${skipped}.`;
 }

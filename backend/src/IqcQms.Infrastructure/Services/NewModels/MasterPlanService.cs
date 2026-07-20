@@ -22,7 +22,13 @@ namespace IqcQms.Infrastructure.Services.NewModels
 
         public async Task<IEnumerable<MasterPlanDisplayDto>> GetLatestMasterPlanRecordsAsync()
         {
-            var masterPlans = await _context.MasterPlans.ToListAsync();
+            var masterPlans = await _context.MasterPlans
+                .Where(value => EF.Functions.Like(value.Grade.ToUpper(), "%B%") && (value.Cat.ToUpper() == "LPR" || value.Cat.ToUpper() == "LQV"))
+                .OrderBy(value => value.PvrTargetDate == null)
+                .ThenBy(value => value.PvrTargetDate)
+                .ThenBy(value => value.BasicKey)
+                .ThenBy(value => value.CatKey)
+                .ToListAsync();
             var dtos = new List<MasterPlanDisplayDto>();
 
             var now = DateTime.UtcNow;
@@ -36,12 +42,15 @@ namespace IqcQms.Infrastructure.Services.NewModels
                     Basic = mp.Basic,
                     Area = mp.Area,
                     Grade = mp.Grade,
+                    Cat = mp.Cat,
                     Sku = mp.Sku,
                     QtyLpr = mp.QtyLpr,
                     QtyLsr = mp.QtyLsr,
                     PvrTargetDate = mp.PvrTargetDate,
                     PraTargetDate = mp.PraTargetDate,
                     SraTargetDate = mp.SraTargetDate,
+                    MainLprLqvDate = mp.MainLprLqvDate,
+                    MainLsrDate = mp.MainLsrDate,
                     HwPic = mp.HwPic,
                     LinkedProjectId = mp.LinkedProjectId
                 };
