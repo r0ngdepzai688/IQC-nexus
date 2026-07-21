@@ -209,6 +209,34 @@ public sealed class DataHubTests
     }
 
     [Fact]
+    public async Task CanonicalTypeIsStableWithoutSampleValues()
+    {
+        using var stream = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "Q'ty LSR", "PRA Target"],
+            ["Model", "Base", "B", "LPR", "", ""]);
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+
+        Assert.Equal("Integer", inspection.Columns.Single(column => column.SuggestedCanonical == "QtyLsr").DetectedDataType);
+        Assert.Equal("Date", inspection.Columns.Single(column => column.SuggestedCanonical == "PraTarget").DetectedDataType);
+    }
+
+    [Fact]
+    public async Task AmbiguousColumnUsesUnmappedTypeDetection()
+    {
+        using var stream = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "Main LSR Qty"],
+            ["Model", "Base", "B", "LPR", "2026-08-01"]);
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+        var ambiguous = inspection.Columns.Single(column => column.EffectiveHeaderPath == "Main LSR Qty");
+
+        Assert.True(ambiguous.Ambiguous);
+        Assert.Null(ambiguous.SuggestedCanonical);
+        Assert.Equal("Date", ambiguous.DetectedDataType);
+    }
+
+    [Fact]
     public async Task TwoLevelMergedHeadersComposeCanonicalPaths()
     {
         using var stream = AdaptiveWorkbook([

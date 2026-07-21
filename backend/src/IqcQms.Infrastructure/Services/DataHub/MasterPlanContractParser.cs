@@ -129,8 +129,9 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
                 .Skip(dataStart).Take(20).Where(cell => !string.IsNullOrWhiteSpace(cell.Value)).Take(5).ToList();
             var samples = sampledCells.Select(cell => cell.Value).ToList();
             var dateFormattedSamples = sampledCells.Count(cell => workbook.DateFormattedCells.Contains((cell.RowIndex, index)));
-            var detected = DetectType(samples, suggestion.Canonical, dateFormattedSamples);
-            return new HeaderColumnDto(index, hp.DisplayPath, suggestion.Ambiguous ? null : suggestion.Canonical, suggestion.Ambiguous,
+            var effectiveCanonical = suggestion.Ambiguous ? null : suggestion.Canonical;
+            var detected = DetectType(samples, effectiveCanonical, dateFormattedSamples);
+            return new HeaderColumnDto(index, hp.DisplayPath, effectiveCanonical, suggestion.Ambiguous,
                 best.Depth > 1 ? HeaderValue(workbook, best.Start, index) : "",
                 best.Depth > 1 ? HeaderValue(workbook, best.Start + best.Depth - 1, index) : hp.DisplayPath,
                 hp.DisplayPath, samples, detected, suggestion.Confidence, suggestion.Reason, suggestion.Learned);
@@ -334,9 +335,9 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
     private static DateTime? GetDate(object?[] row, IReadOnlyDictionary<string, int> map, string field) { var value = GetValue(row, map, field); if (value is DateTime date) return date; if (value is double serial && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); var text = Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim(); if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out serial) && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date) ? date : null; }
     private static string DetectType(List<string> samples, string? canonicalField, int dateFormattedSamples)
     {
-        if (samples.Count == 0) return "Empty";
         if (canonicalField is not null && IntegerFields.Contains(canonicalField)) return "Integer";
         if (canonicalField is not null && DateFields.Contains(canonicalField)) return "Date";
+        if (samples.Count == 0) return "Empty";
 
         var integerCount = samples.Count(value => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _));
         if (integerCount >= samples.Count * .8)
