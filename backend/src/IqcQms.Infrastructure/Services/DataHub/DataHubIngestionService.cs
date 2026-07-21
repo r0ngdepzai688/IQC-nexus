@@ -294,7 +294,22 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 {
                     var userExists = users.Any(u => string.Equals(u.FullName, record.HwPic, StringComparison.OrdinalIgnoreCase) 
                                                  || string.Equals(u.Username, record.HwPic, StringComparison.OrdinalIgnoreCase));
-                    if (!userExists) { warnings.Add("Unknown PIC"); needsReview = true; }
+                    if (!userExists)
+                    {
+                        var message = $"Unknown PIC '{record.HwPic}'.";
+                        warnings.Add(message);
+                        if (!_context.BusinessReviewQueues.Local.Any(value => value.StagingId == record.Id && value.ConflictType == "PIC"))
+                        {
+                            _context.BusinessReviewQueues.Add(new BusinessReviewQueue
+                            {
+                                BatchId = batchId,
+                                StagingId = record.Id,
+                                ConflictType = "PIC",
+                                ConflictMessage = message
+                            });
+                        }
+                        needsReview = true;
+                    }
                 }
                 var existingMp = existingProjects.FirstOrDefault(value => value.BasicKey == basicKey && value.CatKey == catKey);
                 if (existingMp is not null)
@@ -354,7 +369,9 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 BatchId = batchId,
                 StagingId = stagingId,
                 ConflictType = type,
-                ConflictMessage = $"{conflictMsg}: '{rawValue}' not found in dictionary."
+                ConflictMessage = type == "PIC"
+                    ? $"Unknown PIC '{rawValue}'."
+                    : $"{conflictMsg}: '{rawValue}' not found in dictionary."
             });
             
             needsReview = true;
@@ -588,10 +605,10 @@ namespace IqcQms.Infrastructure.Services.DataHub
                     }
                     rows.Add(new ImportReviewRowDto
                     {
-                        RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = "Row",
-                        CurrentValue = record.ProjectName,
+                        RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = ReviewField(pendingReview),
+                        CurrentValue = ReviewCurrentValue(record, pendingReview),
                         Severity = record.RowStatus == "ReviewRequired" ? "Warning" : record.RowStatus is "Skipped" or "SkipNoChange" ? "Skipped" : "Ready",
-                        Message = record.CoreValidationMessage.Length > 0 ? record.CoreValidationMessage : record.ValidationMessage,
+                        Message = ReviewMessage(record, pendingReview),
                         Status = record.RowStatus,
                         ConflictType = record.RowStatus == "SkipNoChange" ? "NoChange" : pendingReview?.ConflictType ?? string.Empty,
                         ReviewItemId = pendingReview?.Id,
@@ -610,6 +627,36 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 ReadyToUpdateRows = staging.Count(value => value.RowStatus == "ReadyToUpdate"),
                 NoChangeRows = staging.Count(value => value.RowStatus == "SkipNoChange"),
                 SkippedRows = staging.Count(value => value.RowStatus == "Skipped"), Rows = rows
+            };
+        }
+
+        private static string ReviewField(BusinessReviewQueue? review) => review?.ConflictType switch
+        {
+            "PIC" => "HwPic",
+            "Area" => "Area",
+            _ => "Row"
+        };
+
+        private static string ReviewCurrentValue(StagingMasterPlan record, BusinessReviewQueue? review) => review?.ConflictType switch
+        {
+            "PIC" => record.HwPic,
+            "Area" => record.Area,
+            _ => record.ProjectName
+        };
+
+        private static string ReviewMessage(StagingMasterPlan record, BusinessReviewQueue? review)
+        {
+            if (!string.IsNullOrWhiteSpace(review?.ConflictMessage)) return review.ConflictMessage;
+            if (!string.IsNullOrWhiteSpace(record.CoreValidationMessage)) return record.CoreValidationMessage;
+            if (!string.IsNullOrWhiteSpace(record.ValidationMessage)) return record.ValidationMessage;
+            return record.RowStatus switch
+            {
+                "SkipNoChange" => "No changes detected for this Basic + Cat.",
+                "Skipped" => "Row was skipped.",
+                "ReadyToInsert" => "Ready to insert.",
+                "ReadyToUpdate" => "Ready to update.",
+                "ReviewRequired" => "Row requires business review.",
+                _ => $"Import row status: {record.RowStatus}."
             };
         }
 

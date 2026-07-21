@@ -444,6 +444,25 @@ public sealed class DataHubTests
         Assert.False(await fixture.Context.MasterPlans.AnyAsync());
     }
 
+    [Fact]
+    public async Task UnknownPicReviewUsesContextualFieldAndMessage()
+    {
+        await using var fixture = await ServiceFixture.Create(useRealParser: true);
+        using var workbook = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "HW PIC"],
+            ["Synthetic Model", "SYN-PIC", "B", "LPR", "Alex Kim"]);
+
+        var batch = await fixture.Service.ProcessUploadAsync(workbook, "unknown-pic.xlsx", "synthetic-test");
+        var summary = await fixture.Service.GetReviewSummaryAsync(batch.BatchId);
+
+        var warning = Assert.Single(Assert.IsType<ImportReviewSummaryDto>(summary).Rows, row => row.Severity == "Warning");
+        Assert.Equal("HwPic", warning.Field);
+        Assert.Equal("Alex Kim", warning.CurrentValue);
+        Assert.Equal("Unknown PIC 'Alex Kim'.", warning.Message);
+        Assert.Equal(["Override", "Ignore", "CreateMissing"], warning.SupportedActions);
+        Assert.DoesNotContain(summary.Rows, row => string.IsNullOrWhiteSpace(row.Message));
+    }
+
     private static StagingMasterPlan Ready(string batchId, int row, string basic) => new()
     {
         BatchId = batchId,
@@ -548,7 +567,7 @@ public sealed class DataHubTests
         public AppDbContext Context { get; }
         public DataHubIngestionService Service { get; }
 
-        private ServiceFixture(string root, AppDbContext context)
+        private ServiceFixture(string root, AppDbContext context, bool useRealParser)
         {
             _root = root;
             Context = context;
@@ -564,17 +583,18 @@ public sealed class DataHubTests
                 NewModelsMasterPlanReportsPath = Path.Combine(masterPlan, "Reports"),
                 NewModelsMasterPlanTempPath = Path.Combine(masterPlan, "Temp")
             };
-            Service = new DataHubIngestionService(context, new EmptyParser(), NullLogger<DataHubIngestionService>.Instance, Options.Create(paths));
+            IMasterPlanContractParser parser = useRealParser ? new MasterPlanContractParser(context) : new EmptyParser();
+            Service = new DataHubIngestionService(context, parser, NullLogger<DataHubIngestionService>.Instance, Options.Create(paths));
         }
 
-        public static async Task<ServiceFixture> Create()
+        public static async Task<ServiceFixture> Create(bool useRealParser = false)
         {
             var root = Path.Combine(Path.GetTempPath(), $"iqc-datahub-{Guid.NewGuid():N}");
             Directory.CreateDirectory(root);
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseSqlite($"Data Source={Path.Combine(root, "test.db")}")
                 .Options;
-            var fixture = new ServiceFixture(root, new AppDbContext(options));
+            var fixture = new ServiceFixture(root, new AppDbContext(options), useRealParser);
             await fixture.Context.Database.EnsureCreatedAsync();
             return fixture;
         }
