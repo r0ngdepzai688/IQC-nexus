@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
+using IqcQms.Application;
 using IqcQms.Application.Interfaces.DataHub;
 using IqcQms.Domain.Entities.DataHub;
 using IqcQms.Domain.Entities.NewModels;
@@ -182,10 +183,26 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 // 6 & 7 & 8: Validate, Clean, Core Validate
                 await RunValidationPipelineAsync(batchId);
 
+                foreach (var confirmed in mappings?.Where(value => value.ConfirmLearning && value.NormalizedHeaderPath.Length > 0) ?? [])
+                {
+                    var normalizedPath = System.Text.RegularExpressions.Regex.Replace(
+                        confirmed.NormalizedHeaderPath.Normalize(System.Text.NormalizationForm.FormKC).ToLowerInvariant().Replace("q'ty", "qty").Replace('/', ' '),
+                        @"[^\p{L}\p{N}]+", " ").Trim();
+                    var rejectedProfiles = await _context.HeaderMappingProfiles.Where(value => value.NormalizedHeaderPath == normalizedPath && value.WorkbookFingerprint == confirmed.WorkbookFingerprint && value.CanonicalField != confirmed.CanonicalField && value.IsApproved).ToListAsync();
+                    foreach (var rejected in rejectedProfiles) rejected.RejectionCount++;
+                    var profile = await _context.HeaderMappingProfiles.FirstOrDefaultAsync(value => value.NormalizedHeaderPath == normalizedPath && value.CanonicalField == confirmed.CanonicalField && value.WorkbookFingerprint == confirmed.WorkbookFingerprint);
+                    if (profile is null)
+                    {
+                        _context.HeaderMappingProfiles.Add(new HeaderMappingProfile { NormalizedHeaderPath = normalizedPath, CanonicalField = confirmed.CanonicalField, DetectedDataType = confirmed.DetectedDataType, WorkbookFingerprint = confirmed.WorkbookFingerprint, ConfirmationCount = 1, Confidence = 1, IsApproved = true, CreatedBy = uploadedBy, LastUsedAt = DateTime.UtcNow });
+                    }
+                    else { profile.ConfirmationCount++; profile.IsApproved = true; profile.LastUsedAt = DateTime.UtcNow; }
+                }
+
                 // Update Batch counts
-                batch.ValidRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ReadyToInsert");
+                batch.ValidRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && (s.RowStatus == "ReadyToInsert" || s.RowStatus == "ReadyToUpdate"));
                 batch.ErrorRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ValidationError");
                 batch.ReviewRequiredRows = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "ReviewRequired");
+                batch.NoChangeRecords = await _context.StagingMasterPlans.CountAsync(s => s.BatchId == batchId && s.RowStatus == "SkipNoChange");
                 
                 batch.Status = "Staged";
                 watch.Stop();
@@ -201,7 +218,7 @@ namespace IqcQms.Infrastructure.Services.DataHub
                     ValidRows = batch.ValidRows,
                     ErrorRows = batch.ErrorRows,
                     ReviewRequiredRows = batch.ReviewRequiredRows,
-                    Rows = reportRecords.Select(r => new { r.RawRowNumber, r.ProjectName, r.Sku, r.RowStatus, r.ValidationMessage, r.CoreValidationMessage })
+                    Rows = reportRecords.Select(r => new { r.RawRowNumber, r.ProjectName, r.Basic, r.Cat, r.RowStatus, r.ValidationMessage, r.CoreValidationMessage })
                 };
                 string reportPath = Path.Combine(_pathConfig.NewModelsMasterPlanReportsPath, $"ValidationResult_{batchId}.json");
                 await File.WriteAllTextAsync(reportPath, JsonSerializer.Serialize(summary, new JsonSerializerOptions { WriteIndented = true }));
@@ -227,16 +244,11 @@ namespace IqcQms.Infrastructure.Services.DataHub
         {
             var records = await _context.StagingMasterPlans.Where(s => s.BatchId == batchId).ToListAsync();
             var mappings = await _context.MappingDictionaries.Where(m => m.IsActive).ToListAsync();
-            
-            // 1. Fetch Core DB context
             var existingProjects = await _context.MasterPlans.ToListAsync();
-            var existingWorkspaces = await _context.ProjectWorkspaces.ToListAsync();
             var users = await _context.Users.Where(u => u.IsActive).ToListAsync();
-
-            // 2. Intra-batch duplicates
             var duplicatesInBatch = records
-                .Where(r => !string.IsNullOrWhiteSpace(r.Sku))
-                .GroupBy(r => r.Sku, StringComparer.OrdinalIgnoreCase)
+                .Where(r => MasterPlanBusinessKey.TryCreate(r.Basic, r.Cat, out _, out _, out _))
+                .GroupBy(r => { MasterPlanBusinessKey.TryCreate(r.Basic, r.Cat, out _, out _, out var key); return key; }, StringComparer.Ordinal)
                 .Where(g => g.Count() > 1)
                 .SelectMany(g => g)
                 .Select(r => r.Id)
@@ -244,155 +256,87 @@ namespace IqcQms.Infrastructure.Services.DataHub
 
             foreach (var record in records)
             {
-                bool hasError = false;
-                bool needsReview = false;
-                List<string> errorMsgs = new List<string>();
-                List<string> reviewMsgs = new List<string>();
-                bool isBlocked = false;
-                bool skipNoChange = false;
-
-                // Step 6: Basic Validation
-                if (string.IsNullOrWhiteSpace(record.ProjectName))
+                var errors = new List<string>();
+                var warnings = new List<string>();
+                var needsReview = false;
+                void RequiredValue(string field, string value)
                 {
-                    errorMsgs.Add("Project Name is missing");
-                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, record.Sku, "ProjectName", "Required", "Project Name is missing", record.ProjectName);
-                    hasError = true;
+                    if (!string.IsNullOrWhiteSpace(value)) return;
+                    var message = $"{field} is missing";
+                    errors.Add(message);
+                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, string.Empty, field, "Required", message, value);
                 }
-                if (string.IsNullOrWhiteSpace(record.Sku))
+                RequiredValue("ProjectName", record.ProjectName);
+                RequiredValue("Basic", record.Basic);
+                RequiredValue("Grade", record.Grade);
+                RequiredValue("Cat", record.Cat);
+                MasterPlanBusinessKey.TryCreate(record.Basic, record.Cat, out var basicKey, out var catKey, out _);
+                record.BasicKey = basicKey;
+                record.CatKey = catKey;
+                if (duplicatesInBatch.Contains(record.Id))
                 {
-                    errorMsgs.Add("SKU is missing");
-                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, record.Sku, "SKU", "Required", "SKU is missing", record.Sku);
-                    hasError = true;
+                    errors.Add("Duplicate normalized Basic + Cat in current batch");
+                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, string.Empty, "Basic+Cat", "DuplicateBusinessKey", "Duplicate normalized Basic + Cat in current batch", $"{record.Basic} + {record.Cat}");
                 }
-                if (!record.PvrTargetDate.HasValue)
-                {
-                    errorMsgs.Add("PVR Target is missing or invalid");
-                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, record.Sku, "PVRTarget", "RequiredOrInvalid", "PVR Target is missing or invalid", string.Empty);
-                    hasError = true;
-                }
-                
-                if (string.IsNullOrWhiteSpace(record.Area)) reviewMsgs.Add("Area is missing");
-                if (string.IsNullOrWhiteSpace(record.Grade)) reviewMsgs.Add("Grade is missing");
-                if (string.IsNullOrWhiteSpace(record.HwPic)) reviewMsgs.Add("HWPIC is missing");
-                if (!record.PraTargetDate.HasValue) reviewMsgs.Add("PRA Target is missing");
-                if (!record.SraTargetDate.HasValue) reviewMsgs.Add("SRA Target is missing");
-                
                 if (record.PvrTargetDate.HasValue && record.PraTargetDate.HasValue && record.PvrTargetDate > record.PraTargetDate)
                 {
-                    reviewMsgs.Add("PVRTarget is after PRATarget");
+                    warnings.Add("PVRTarget is after PRATarget");
                     needsReview = true;
                 }
                 if (record.PraTargetDate.HasValue && record.SraTargetDate.HasValue && record.PraTargetDate > record.SraTargetDate)
                 {
-                    reviewMsgs.Add("PRATarget is after SRATarget");
+                    warnings.Add("PRATarget is after SRATarget");
                     needsReview = true;
                 }
-                
-                // Step 7: Mapping & Cleaning
                 record.HwPic = ApplyMapping(mappings, "PIC", record.HwPic, ref needsReview, batchId, record.Id, "PIC Mapping Issue");
                 record.Area = ApplyMapping(mappings, "Area", record.Area, ref needsReview, batchId, record.Id, "Area Mapping Issue");
-                record.Grade = ApplyMapping(mappings, "Grade", record.Grade, ref needsReview, batchId, record.Id, "Grade Mapping Issue");
-                record.RawStatus = ApplyMapping(mappings, "Status", record.RawStatus, ref needsReview, batchId, record.Id, "Status Mapping Issue");
-
-                // Step 8: Core Business Validation
-                
-                // A. Check Intra-batch duplicate
-                if (duplicatesInBatch.Contains(record.Id))
-                {
-                    errorMsgs.Add("Duplicate SKU in current batch");
-                    AddValidationError(batchId, record.Id, record.RawRowNumber, record.ProjectName, record.Sku, "SKU", "DuplicateBusinessKey", "Duplicate SKU in current batch", record.Sku);
-                    hasError = true;
-                }
-
-                // B. User validation
                 if (!string.IsNullOrWhiteSpace(record.HwPic))
                 {
                     var userExists = users.Any(u => string.Equals(u.FullName, record.HwPic, StringComparison.OrdinalIgnoreCase) 
                                                  || string.Equals(u.Username, record.HwPic, StringComparison.OrdinalIgnoreCase));
-                    if (!userExists)
-                    {
-                        reviewMsgs.Add("Unknown PIC");
-                        needsReview = true;
-                    }
+                    if (!userExists) { warnings.Add("Unknown PIC"); needsReview = true; }
                 }
-
-                // C. Core Database Existing Project
-                var existingMp = existingProjects.FirstOrDefault(p => string.Equals(p.Sku, record.Sku, StringComparison.OrdinalIgnoreCase));
+                var existingMp = existingProjects.FirstOrDefault(value => value.BasicKey == basicKey && value.CatKey == catKey);
                 if (existingMp is not null)
                 {
-                    // Check if data is exactly identical
-                    bool identical = existingMp.QtyLpr == record.QtyLpr && 
-                                     existingMp.QtyLsr == record.QtyLsr && 
-                                     existingMp.PvrTargetDate == record.PvrTargetDate &&
-                                     existingMp.PraTargetDate == record.PraTargetDate &&
-                                     existingMp.SraTargetDate == record.SraTargetDate &&
-                                     existingMp.HwPic == record.HwPic &&
-                                     existingMp.Area == record.Area &&
-                                     existingMp.Grade == record.Grade;
-                    
-                    if (identical)
+                    record.TargetMasterPlanId = existingMp.Id;
+                    record.TargetVersion = existingMp.Version;
+                    var differences = Differences(existingMp, record);
+                    if (differences.Count == 0) record.RowStatus = needsReview || warnings.Count > 0 ? "ReviewRequired" : "SkipNoChange";
+                    else if (errors.Count == 0)
                     {
-                        skipNoChange = true;
-                    }
-                    else
-                    {
-                        reviewMsgs.Add("SKU already exists; imports do not overwrite existing Master Plan records");
-                        needsReview = true;
-                    }
-                    if (existingMp.PvrTargetDate.HasValue && record.PvrTargetDate.HasValue)
-                    {
-                        if (record.PvrTargetDate > existingMp.PvrTargetDate)
-                        {
-                            reviewMsgs.Add("Newer Plan Version");
-                        }
-                        else if (record.PvrTargetDate < existingMp.PvrTargetDate)
-                        {
-                            reviewMsgs.Add("Older Plan Version");
-                            needsReview = true; // Older plan might be a mistake
-                        }
+                        record.RowStatus = "ReviewRequired";
+                        record.CoreValidationMessage = $"Existing Basic + Cat requires review: {string.Join(", ", differences.Select(value => value.Field))}";
+                        _context.BusinessReviewQueues.Add(new BusinessReviewQueue { BatchId = batchId, StagingId = record.Id, ConflictType = "ExistingBusinessKey", ConflictMessage = JsonSerializer.Serialize(differences) });
                     }
                 }
-
-                // D. Project Workspace Status
-                var workspace = existingWorkspaces.FirstOrDefault(w => string.Equals(w.ProjectName, record.ProjectName, StringComparison.OrdinalIgnoreCase)
-                                                                    && string.Equals(w.Sku, record.Sku, StringComparison.OrdinalIgnoreCase));
-                if (workspace != null)
-                {
-                    if (workspace.Status == "Closed" || workspace.Status == "Completed")
-                    {
-                        isBlocked = true;
-                        reviewMsgs.Add("Closed Project");
-                    }
-                }
-
-                // Assign Final Status
-                if (hasError)
+                if (errors.Count > 0)
                 {
                     record.RowStatus = "ValidationError";
-                    record.ValidationMessage = string.Join("; ", errorMsgs);
+                    record.ValidationMessage = string.Join("; ", errors);
                 }
-                else if (isBlocked)
-                {
-                    record.RowStatus = "Blocked";
-                    record.CoreValidationMessage = string.Join("; ", reviewMsgs);
-                }
-                else if (needsReview || reviewMsgs.Any())
+                else if (existingMp is null && (needsReview || warnings.Count > 0))
                 {
                     record.RowStatus = "ReviewRequired";
-                    record.CoreValidationMessage = string.Join("; ", reviewMsgs);
+                    record.CoreValidationMessage = string.Join("; ", warnings);
                 }
-                else if (skipNoChange)
-                {
-                    record.RowStatus = "SkipNoChange";
-                }
-                else
-                {
-                    record.RowStatus = "ReadyToInsert";
-                }
+                else if (existingMp is null) record.RowStatus = "ReadyToInsert";
             }
-            
             await _context.SaveChangesAsync();
         }
+
+        private static List<FieldDifference> Differences(MasterPlan existing, StagingMasterPlan incoming)
+        {
+            var result = new List<FieldDifference>();
+            void Compare(string field, object? oldValue, object? newValue) { if (!Equals(oldValue, newValue)) result.Add(new(field, Convert.ToString(oldValue) ?? string.Empty, Convert.ToString(newValue) ?? string.Empty)); }
+            Compare("ProjectName", existing.ProjectName, incoming.ProjectName); Compare("Area", existing.Area, incoming.Area); Compare("Grade", existing.Grade, incoming.Grade);
+            Compare("QtyLprLqv", existing.QtyLpr, incoming.QtyLpr ?? 0); Compare("QtyLsr", existing.QtyLsr, incoming.QtyLsr ?? 0);
+            Compare("PvrTarget", existing.PvrTargetDate, incoming.PvrTargetDate); Compare("PraTarget", existing.PraTargetDate, incoming.PraTargetDate); Compare("SraTarget", existing.SraTargetDate, incoming.SraTargetDate);
+            Compare("HwPic", existing.HwPic, incoming.HwPic); Compare("MainLprLqvDate", existing.MainLprLqvDate, incoming.MainLprLqvDate); Compare("MainLsrDate", existing.MainLsrDate, incoming.MainLsrDate);
+            return result;
+        }
+
+        private sealed record FieldDifference(string Field, string OldValue, string NewValue);
 
         private string ApplyMapping(List<MappingDictionary> mappings, string type, string rawValue, ref bool needsReview, string batchId, int stagingId, string conflictMsg)
         {
@@ -442,9 +386,9 @@ namespace IqcQms.Infrastructure.Services.DataHub
             if (allRecords.Any(s => s.RowStatus is "ValidationError" or "ReviewRequired" or "Blocked"))
                 throw new InvalidOperationException("Batch contains blocking validation or review items. Resolve every item before committing; partial import is not supported.");
 
-            var readyRecords = allRecords.Where(s => s.RowStatus == "ReadyToInsert").ToList();
-            if (readyRecords.Count == 0)
-                throw new InvalidOperationException("Batch contains no records ready to insert.");
+            var readyRecords = allRecords.Where(s => s.RowStatus is "ReadyToInsert" or "ReadyToUpdate").ToList();
+            if (readyRecords.Count == 0 && !allRecords.Any(value => value.RowStatus == "SkipNoChange"))
+                throw new InvalidOperationException("Batch contains no records ready to insert or update.");
             
             int created = 0;
             int updated = 0;
@@ -454,24 +398,29 @@ namespace IqcQms.Infrastructure.Services.DataHub
             {
                 foreach (var record in readyRecords)
                 {
-                    var existing = await _context.MasterPlans.FirstOrDefaultAsync(m => m.Sku.ToUpper() == record.Sku.ToUpper());
+                    if (!MasterPlanBusinessKey.TryCreate(record.Basic, record.Cat, out var basicKey, out var catKey, out var businessKey))
+                        throw new InvalidOperationException($"Row {record.RawRowNumber} has an invalid Basic + Cat business key.");
+                    var existing = await _context.MasterPlans.FirstOrDefaultAsync(value => value.BasicKey == basicKey && value.CatKey == catKey);
                     int masterPlanId;
 
-                    if (existing == null)
+                    if (record.RowStatus == "ReadyToInsert" && existing == null)
                     {
-                        // Create new
                         var newMp = new MasterPlan
                         {
                             ProjectName = record.ProjectName,
                             Basic = record.Basic,
+                            BasicKey = basicKey,
                             Area = record.Area,
                             Grade = record.Grade,
-                            Sku = record.Sku,
+                            Cat = record.Cat,
+                            CatKey = catKey,
                             QtyLpr = record.QtyLpr ?? 0,
                             QtyLsr = record.QtyLsr ?? 0,
                             PvrTargetDate = record.PvrTargetDate,
                             PraTargetDate = record.PraTargetDate,
                             SraTargetDate = record.SraTargetDate,
+                            MainLprLqvDate = record.MainLprLqvDate,
+                            MainLsrDate = record.MainLsrDate,
                             HwPic = record.HwPic,
                             ImportedStatus = record.RawStatus,
                             Remark = record.Remark,
@@ -481,16 +430,25 @@ namespace IqcQms.Infrastructure.Services.DataHub
                             UpdatedAt = DateTime.UtcNow
                         };
                         _context.MasterPlans.Add(newMp);
-                        await _context.SaveChangesAsync(); // Save to get ID
+                        await _context.SaveChangesAsync();
                         masterPlanId = newMp.Id;
                         created++;
                         
-                        AddAuditLog(batchId, "MasterPlans", record.Sku, "All", "", "Created", committedBy, "Master Plan Manual Import");
+                        AddAuditLog(batchId, "MasterPlans", businessKey, "All", "", "Created", committedBy, "Master Plan Import");
                     }
-                    else
+                    else if (record.RowStatus == "ReadyToUpdate" && existing is not null)
                     {
-                        throw new InvalidOperationException($"SKU '{record.Sku}' already exists. Existing records are never overwritten by import.");
+                        if (record.TargetMasterPlanId != existing.Id || record.TargetVersion != existing.Version)
+                            throw new DbUpdateConcurrencyException($"Master Plan '{record.Basic} + {record.Cat}' changed after review. Review the batch again.");
+                        foreach (var difference in Differences(existing, record)) AddAuditLog(batchId, "MasterPlans", businessKey, difference.Field, difference.OldValue, difference.NewValue, committedBy, "Master Plan Import");
+                        ApplyMutableFields(existing, record);
+                        existing.LastImportBatchId = batchId;
+                        existing.UpdatedAt = DateTime.UtcNow;
+                        existing.Version++;
+                        masterPlanId = existing.Id;
+                        updated++;
                     }
+                    else throw new InvalidOperationException($"Business-key conflict for '{record.Basic} + {record.Cat}'. Refresh and review before committing.");
 
                     // Upsert Milestones
                     await UpsertMilestoneAsync(masterPlanId, record.ProjectName, "PVR", record.PvrTargetDate, batchId);
@@ -502,6 +460,7 @@ namespace IqcQms.Infrastructure.Services.DataHub
 
                 batch.CreatedRecords = created;
                 batch.UpdatedRecords = updated;
+                batch.NoChangeRecords = allRecords.Count(value => value.RowStatus == "SkipNoChange");
                 
                 // Determine batch status
                 batch.Status = "Committed";
@@ -510,6 +469,18 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 await transaction.CommitAsync();
 
                 LogInfo(batchId, $"Batch {batchId} committed by {committedBy}. Status: {batch.Status}. Created: {created}, Updated: {updated}.");
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                await transaction.RollbackAsync();
+                _context.ChangeTracker.Clear();
+                throw new InvalidOperationException("A reviewed Master Plan record changed before commit. Refresh and review the batch again; no rows were committed.", ex);
+            }
+            catch (DbUpdateException ex)
+            {
+                await transaction.RollbackAsync();
+                _context.ChangeTracker.Clear();
+                throw new InvalidOperationException("A normalized Basic + Cat conflict was detected during commit. Refresh and review the batch again; no rows were committed.", ex);
             }
             catch (Exception ex)
             {
@@ -544,6 +515,14 @@ namespace IqcQms.Infrastructure.Services.DataHub
             return batch;
         }
 
+        private static void ApplyMutableFields(MasterPlan target, StagingMasterPlan source)
+        {
+            target.ProjectName = source.ProjectName; target.Area = source.Area; target.Grade = source.Grade;
+            target.QtyLpr = source.QtyLpr ?? 0; target.QtyLsr = source.QtyLsr ?? 0;
+            target.PvrTargetDate = source.PvrTargetDate; target.PraTargetDate = source.PraTargetDate; target.SraTargetDate = source.SraTargetDate;
+            target.HwPic = source.HwPic; target.MainLprLqvDate = source.MainLprLqvDate; target.MainLsrDate = source.MainLsrDate;
+        }
+
         public async Task<bool> ResolveReviewItemAsync(int reviewItemId, string action, string resolvedBy, string? note = null)
         {
             var item = await _context.BusinessReviewQueues.FindAsync(reviewItemId);
@@ -557,19 +536,15 @@ namespace IqcQms.Infrastructure.Services.DataHub
             var staging = await _context.StagingMasterPlans.FindAsync(item.StagingId);
             if (staging != null)
             {
-                // Re-evaluate staging row status
-                bool hasMorePending = await _context.BusinessReviewQueues.AnyAsync(q => q.StagingId == staging.Id && q.Id != reviewItemId && q.Status == "Pending");
-                if (!hasMorePending && staging.RowStatus == "ReviewRequired")
-                {
-                    staging.RowStatus = action == "Ignore" ? "Skipped" : "ReadyToInsert";
-                }
+                if (item.ConflictType == "ExistingBusinessKey" && action is not ("Update" or "Skip")) return false;
+                staging.RowStatus = await CalculateResolvedRowStatusAsync(staging, action is "Ignore" or "Skip");
             }
 
             var batch = await _context.ImportBatches.FirstOrDefaultAsync(value => value.BatchId == item.BatchId);
             if (batch is not null)
             {
                 var batchRows = await _context.StagingMasterPlans.Where(value => value.BatchId == item.BatchId).ToListAsync();
-                batch.ValidRows = batchRows.Count(value => value.RowStatus == "ReadyToInsert");
+                batch.ValidRows = batchRows.Count(value => value.RowStatus is "ReadyToInsert" or "ReadyToUpdate");
                 batch.ReviewRequiredRows = batchRows.Count(value => value.RowStatus == "ReviewRequired");
                 batch.SkippedRows = batchRows.Count(value => value.RowStatus == "Skipped");
             }
@@ -584,31 +559,41 @@ namespace IqcQms.Infrastructure.Services.DataHub
             var staging = await _context.StagingMasterPlans.AsNoTracking().Where(value => value.BatchId == batchId).OrderBy(value => value.RawRowNumber).ToListAsync();
             var errors = await _context.ValidationErrors.AsNoTracking().Where(value => value.BatchId == batchId).ToListAsync();
             var reviewItems = await _context.BusinessReviewQueues.AsNoTracking().Where(value => value.BatchId == batchId && value.Status == "Pending").ToListAsync();
-            var existingSkus = new HashSet<string>(
-                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
-                StringComparer.OrdinalIgnoreCase);
             var rows = new List<ImportReviewRowDto>();
             foreach (var record in staging)
             {
                 var rowErrors = errors.Where(value => value.StagingId == record.Id).ToList();
                 rows.AddRange(rowErrors.Select(error => new ImportReviewRowDto
                 {
-                    RowNumber = record.RawRowNumber, Sku = record.Sku, Field = error.FieldName,
+                    RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = error.FieldName,
                     CurrentValue = error.RawValue, Severity = "Error", Message = error.ErrorMessage,
                     Status = record.RowStatus, ConflictType = "ValidationError"
                 }));
                 if (rowErrors.Count == 0)
                 {
-                    var existing = existingSkus.Contains(record.Sku);
-                    var pendingReview = reviewItems.FirstOrDefault(value => value.StagingId == record.Id);
+                    var pendingReview = reviewItems.Where(value => value.StagingId == record.Id)
+                        .OrderBy(value => value.ConflictType == "ExistingBusinessKey" ? 0 : 1)
+                        .FirstOrDefault();
+                    if (pendingReview?.ConflictType == "ExistingBusinessKey")
+                    {
+                        var differences = JsonSerializer.Deserialize<List<FieldDifference>>(pendingReview.ConflictMessage) ?? [];
+                        rows.AddRange(differences.Select(difference => new ImportReviewRowDto
+                        {
+                            RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = difference.Field,
+                            CurrentValue = difference.NewValue, OldValue = difference.OldValue, NewValue = difference.NewValue,
+                            Severity = "Warning", Message = "Existing Basic + Cat has a changed value.", Status = record.RowStatus,
+                            ConflictType = "ExistingBusinessKey", ReviewItemId = pendingReview.Id, SupportedActions = ["Update", "Skip"]
+                        }));
+                        continue;
+                    }
                     rows.Add(new ImportReviewRowDto
                     {
-                        RowNumber = record.RawRowNumber, Sku = record.Sku, Field = existing ? "SKU" : "Row",
-                        CurrentValue = existing ? record.Sku : record.ProjectName,
-                        Severity = record.RowStatus == "ReviewRequired" ? "Warning" : record.RowStatus == "Skipped" ? "Skipped" : "Ready",
+                        RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = "Row",
+                        CurrentValue = record.ProjectName,
+                        Severity = record.RowStatus == "ReviewRequired" ? "Warning" : record.RowStatus is "Skipped" or "SkipNoChange" ? "Skipped" : "Ready",
                         Message = record.CoreValidationMessage.Length > 0 ? record.CoreValidationMessage : record.ValidationMessage,
                         Status = record.RowStatus,
-                        ConflictType = existing ? "ExistingSku" : pendingReview?.ConflictType ?? string.Empty,
+                        ConflictType = record.RowStatus == "SkipNoChange" ? "NoChange" : pendingReview?.ConflictType ?? string.Empty,
                         ReviewItemId = pendingReview?.Id,
                         SupportedActions = pendingReview is null ? [] : ["Override", "Ignore", "CreateMissing"]
                     });
@@ -620,15 +605,21 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 BatchId = batch.BatchId, FileName = batch.OriginalFileName, ValidRows = batch.ValidRows,
                 WarningRows = staging.Count(value => value.RowStatus == "ReviewRequired"),
                 ErrorRows = staging.Count(value => value.RowStatus is "ValidationError" or "Blocked"),
-                ExistingSkuConflicts = staging.Count(value => existingSkus.Contains(value.Sku) && value.RowStatus != "Skipped"),
+                ExistingSkuConflicts = reviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
+                ExistingBusinessKeyConflicts = reviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
+                ReadyToUpdateRows = staging.Count(value => value.RowStatus == "ReadyToUpdate"),
+                NoChangeRows = staging.Count(value => value.RowStatus == "SkipNoChange"),
                 SkippedRows = staging.Count(value => value.RowStatus == "Skipped"), Rows = rows
             };
         }
 
         public async Task<ImportBatch> ResolveExistingSkuAsync(string batchId, string resolution, string resolvedBy)
+            => await ResolveExistingBusinessKeyAsync(batchId, resolution, resolvedBy);
+
+        public async Task<ImportBatch> ResolveExistingBusinessKeyAsync(string batchId, string resolution, string resolvedBy, int? rowNumber = null)
         {
-            if (resolution is not ("Skip" or "Cancel"))
-                throw new InvalidOperationException("Resolution must be Skip or Cancel.");
+            if (resolution is not ("Update" or "Skip" or "Cancel"))
+                throw new InvalidOperationException("Resolution must be Update, Skip, or Cancel.");
             var batch = await _context.ImportBatches.FirstOrDefaultAsync(value => value.BatchId == batchId)
                 ?? throw new InvalidOperationException("Batch not found.");
             if (batch.Status != "Staged") throw new InvalidOperationException("Only staged batches can be resolved.");
@@ -640,22 +631,21 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 return batch;
             }
 
-            var candidates = await _context.StagingMasterPlans
-                .Where(value => value.BatchId == batchId && value.RowStatus == "ReviewRequired")
-                .ToListAsync();
-            var existingSkus = new HashSet<string>(
-                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
-                StringComparer.OrdinalIgnoreCase);
-            var conflicts = candidates.Where(value => existingSkus.Contains(value.Sku)).ToList();
-            if (conflicts.Count == 0) throw new InvalidOperationException("Batch has no unresolved existing-SKU conflicts.");
+            var pending = await _context.BusinessReviewQueues.Where(value => value.BatchId == batchId && value.Status == "Pending" && value.ConflictType == "ExistingBusinessKey").ToListAsync();
+            var stagingIds = pending.Select(value => value.StagingId).ToHashSet();
+            var conflicts = await _context.StagingMasterPlans.Where(value => value.BatchId == batchId && stagingIds.Contains(value.Id) && (!rowNumber.HasValue || value.RawRowNumber == rowNumber)).ToListAsync();
+            if (conflicts.Count == 0) throw new InvalidOperationException("Batch has no unresolved existing-business-key conflicts.");
             foreach (var record in conflicts)
             {
-                record.RowStatus = "Skipped";
-                AddAuditLog(batchId, "Staging_MasterPlan", record.Sku, "RowStatus", "ReviewRequired", "Skipped", resolvedBy, "Explicit existing-SKU resolution");
+                foreach (var item in pending.Where(value => value.StagingId == record.Id)) { item.Status = "Resolved"; item.ResolutionAction = resolution; item.ResolvedBy = resolvedBy; item.ResolvedAt = DateTime.UtcNow; }
+                record.RowStatus = await CalculateResolvedRowStatusAsync(record, resolution == "Skip");
+                AddAuditLog(batchId, "Staging_MasterPlan", $"{record.BasicKey}+{record.CatKey}", "RowStatus", "ReviewRequired", record.RowStatus, resolvedBy, "Explicit existing-business-key resolution");
             }
-            batch.SkippedRows = await _context.StagingMasterPlans.CountAsync(value => value.BatchId == batchId && value.RowStatus == "Skipped") + conflicts.Count;
-            batch.ReviewRequiredRows = await _context.StagingMasterPlans.CountAsync(value => value.BatchId == batchId && value.RowStatus == "ReviewRequired" && !conflicts.Select(c => c.Id).Contains(value.Id));
-            LogInfo(batchId, $"{conflicts.Count} existing-SKU row(s) explicitly skipped by {resolvedBy}.");
+            var batchRows = await _context.StagingMasterPlans.Where(value => value.BatchId == batchId).ToListAsync();
+            batch.SkippedRows = batchRows.Count(value => value.RowStatus == "Skipped");
+            batch.ValidRows = batchRows.Count(value => value.RowStatus is "ReadyToInsert" or "ReadyToUpdate");
+            batch.ReviewRequiredRows = batchRows.Count(value => value.RowStatus == "ReviewRequired");
+            LogInfo(batchId, $"{conflicts.Count} existing-business-key row(s) resolved as {resolution} by {resolvedBy}.");
             await _context.SaveChangesAsync();
             return batch;
         }
@@ -667,19 +657,60 @@ namespace IqcQms.Infrastructure.Services.DataHub
             if (batch is null || batch.Status != "Staged") return false;
             var record = await _context.StagingMasterPlans.FirstOrDefaultAsync(value => value.BatchId == batchId && value.RawRowNumber == rowNumber);
             if (record is null || record.RowStatus != "ReviewRequired") return false;
-            var existingSkus = new HashSet<string>(
-                await _context.MasterPlans.AsNoTracking().Select(value => value.Sku).ToListAsync(),
-                StringComparer.OrdinalIgnoreCase);
-            if (existingSkus.Contains(record.Sku))
-                throw new InvalidOperationException("Existing-SKU conflicts require the explicit batch Skip or Cancel choice.");
-            var nextStatus = resolution == "Accept" ? "ReadyToInsert" : "Skipped";
-            AddAuditLog(batchId, "Staging_MasterPlan", record.Sku, "RowStatus", record.RowStatus, nextStatus, resolvedBy, "Explicit warning resolution");
+            if (await _context.BusinessReviewQueues.AnyAsync(value => value.StagingId == record.Id && value.Status == "Pending" && value.ConflictType == "ExistingBusinessKey"))
+                throw new InvalidOperationException("Existing-business-key conflicts require the explicit Update, Skip, or Cancel choice.");
+            var warningItems = await _context.BusinessReviewQueues
+                .Where(value => value.StagingId == record.Id && value.Status == "Pending" && value.ConflictType != "ExistingBusinessKey")
+                .ToListAsync();
+            foreach (var warningItem in warningItems)
+            {
+                warningItem.Status = "Resolved";
+                warningItem.ResolutionAction = resolution;
+                warningItem.ResolvedBy = resolvedBy;
+                warningItem.ResolvedAt = DateTime.UtcNow;
+            }
+            var nextStatus = await CalculateResolvedRowStatusAsync(record, resolution == "Skip");
+            AddAuditLog(batchId, "Staging_MasterPlan", $"{record.BasicKey}+{record.CatKey}", "RowStatus", record.RowStatus, nextStatus, resolvedBy, "Explicit warning resolution");
             record.RowStatus = nextStatus;
-            batch.ReviewRequiredRows = Math.Max(0, batch.ReviewRequiredRows - 1);
-            if (nextStatus == "Skipped") batch.SkippedRows++;
-            else batch.ValidRows++;
+            var batchRows = await _context.StagingMasterPlans.Where(value => value.BatchId == batchId).ToListAsync();
+            batch.ValidRows = batchRows.Count(value => value.RowStatus is "ReadyToInsert" or "ReadyToUpdate");
+            batch.ReviewRequiredRows = batchRows.Count(value => value.RowStatus == "ReviewRequired");
+            batch.SkippedRows = batchRows.Count(value => value.RowStatus == "Skipped");
+            batch.NoChangeRecords = batchRows.Count(value => value.RowStatus == "SkipNoChange");
             await _context.SaveChangesAsync();
             return true;
+        }
+
+        private async Task<string> CalculateResolvedRowStatusAsync(StagingMasterPlan record, bool skipRequested = false)
+        {
+            if (skipRequested) return "Skipped";
+
+            var reviewItems = await _context.BusinessReviewQueues
+                .Where(value => value.StagingId == record.Id)
+                .ToListAsync();
+            if (reviewItems.Any(value => value.Status == "Pending")) return "ReviewRequired";
+            if (!record.TargetMasterPlanId.HasValue) return "ReadyToInsert";
+
+            var keyResolution = reviewItems
+                .LastOrDefault(value => value.ConflictType == "ExistingBusinessKey" && value.Status == "Resolved");
+            if (keyResolution?.ResolutionAction == "Skip") return "Skipped";
+            if (keyResolution?.ResolutionAction == "Update")
+                return HasFieldDifferences(keyResolution.ConflictMessage) ? "ReadyToUpdate" : "SkipNoChange";
+
+            return "SkipNoChange";
+        }
+
+        private static bool HasFieldDifferences(string serializedDifferences)
+        {
+            if (string.IsNullOrWhiteSpace(serializedDifferences)) return false;
+            try
+            {
+                return (JsonSerializer.Deserialize<List<FieldDifference>>(serializedDifferences) ?? []).Count > 0;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
 
         public async Task<ImportBatch?> GetBatchPreviewAsync(string batchId)

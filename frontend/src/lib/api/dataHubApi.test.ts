@@ -1,7 +1,7 @@
 import axios from "axios";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { commitBatch, DataHubApiError, inspectMasterPlanHeaders, parseApiError, resolveReviewItem, uploadMasterPlan } from "./dataHubApi";
+import { commitBatch, DataHubApiError, inspectMasterPlanHeaders, parseApiError, resolveExistingBusinessKey, resolveReviewItem, uploadMasterPlan } from "./dataHubApi";
 
 vi.mock("axios", () => ({
   default: {
@@ -23,26 +23,26 @@ describe("uploadMasterPlan", () => {
     mockedAxios.post.mockResolvedValueOnce({ data: { batchId: "batch-1" } });
     const file = new File(["content"], "master-plan.xlsx");
 
-    await uploadMasterPlan(file, "NewModels", [{ columnIndex: 1, canonicalField: "sku" }]);
+    await uploadMasterPlan(file, "NewModels", [{ columnIndex: 1, canonicalField: "Basic" }]);
 
     const [url, form, config] = mockedAxios.post.mock.calls[0];
     expect(url).toBe("http://localhost:5000/api/DataHub/upload");
     expect(form).toBeInstanceOf(FormData);
     expect((form as FormData).get("file")).toBe(file);
     expect((form as FormData).get("module")).toBe("NewModels");
-    expect((form as FormData).get("headerMapping")).toBe('[{"columnIndex":1,"canonicalField":"sku"}]');
+    expect((form as FormData).get("headerMapping")).toBe('[{"columnIndex":1,"canonicalField":"Basic"}]');
     expect(config).toEqual({ headers: { Authorization: "Bearer synthetic-token" } });
   });
 
   it("surfaces actionable API details without leaking transport internals", async () => {
-    const transportError = { response: { status: 422, data: { detail: "Required SKU column is missing." } } };
+    const transportError = { response: { status: 422, data: { detail: "Required Basic column is missing." } } };
     mockedAxios.post.mockRejectedValueOnce(transportError);
     mockedAxios.isAxiosError.mockReturnValueOnce(true);
 
     const result = uploadMasterPlan(new File(["content"], "invalid.xlsx"));
 
     await expect(result).rejects.toEqual(
-      new DataHubApiError("Required SKU column is missing.", 422),
+      new DataHubApiError("Required Basic column is missing.", 422),
     );
   });
 
@@ -81,6 +81,17 @@ describe("uploadMasterPlan", () => {
     expect(mockedAxios.post).toHaveBeenCalledWith(
       "http://localhost:5000/api/DataHub/resolve-review/42",
       { action: "Override", note: undefined },
+      { headers: { Authorization: "Bearer synthetic-token" } },
+    );
+  });
+
+  it("sends explicit existing-business-key update resolution", async () => {
+    window.localStorage.setItem("token", "synthetic-token");
+    mockedAxios.post.mockResolvedValueOnce({ data: { batchId: "batch-1" } });
+    await resolveExistingBusinessKey("batch-1", "Update", 7);
+    expect(mockedAxios.post).toHaveBeenCalledWith(
+      "http://localhost:5000/api/DataHub/resolve-existing-business-key/batch-1",
+      { resolution: "Update", rowNumber: 7 },
       { headers: { Authorization: "Bearer synthetic-token" } },
     );
   });

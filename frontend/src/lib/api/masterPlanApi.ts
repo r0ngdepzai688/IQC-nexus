@@ -4,12 +4,16 @@ export interface MasterPlanDisplayDto {
   basic: string;
   area: string;
   grade: string;
+  cat: string;
   sku: string;
   qtyLpr: number;
+  qtyLprLqv: number;
   qtyLsr: number;
   pvrTargetDate: string | null;
   praTargetDate: string | null;
   sraTargetDate: string | null;
+  mainLprLqvDate: string | null;
+  mainLsrDate: string | null;
   hwPic: string;
   displayStatus: string;
   displayAction: string;

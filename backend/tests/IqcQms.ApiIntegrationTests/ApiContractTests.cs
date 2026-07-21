@@ -197,12 +197,17 @@ public sealed class ApiContractTests(IntegrationTestFactory factory) : IClassFix
         AssertResponseReference(commit, "200", "#/components/schemas/ImportBatch", "POST /api/DataHub/commit/{batchId}");
         AssertResponseCodes(commit, "POST /api/DataHub/commit/{batchId}", "400", "401", "500");
 
+        var resolveBusinessKey = GetOpenApiOperation(root, "/api/DataHub/resolve-existing-business-key/{batchId}", "post");
+        AssertResponseReference(resolveBusinessKey, "200", "#/components/schemas/ImportBatch", "POST /api/DataHub/resolve-existing-business-key/{batchId}");
+        AssertResponseCodes(resolveBusinessKey, "POST /api/DataHub/resolve-existing-business-key/{batchId}", "400", "401");
+
         foreach (var (operation, endpoint) in new[]
         {
             (inspect, "POST /api/DataHub/inspect-headers"),
             (upload, "POST /api/DataHub/upload"),
             (review, "GET /api/DataHub/review/{batchId}"),
             (commit, "POST /api/DataHub/commit/{batchId}"),
+            (resolveBusinessKey, "POST /api/DataHub/resolve-existing-business-key/{batchId}"),
         })
         {
             var requirement = Assert.Single(operation.GetProperty("security").EnumerateArray());
@@ -210,7 +215,7 @@ public sealed class ApiContractTests(IntegrationTestFactory factory) : IClassFix
         }
 
         var schemas = root.GetProperty("components").GetProperty("schemas");
-        foreach (var schema in new[] { "HeaderInspectionDto", "ImportBatch", "ImportReviewSummaryDto", "ExistingSkuResolutionDto", "WarningResolutionDto", "ResolveReviewDto", "ResolutionResponseDto" })
+        foreach (var schema in new[] { "HeaderInspectionDto", "ImportBatch", "ImportReviewSummaryDto", "ExistingSkuResolutionDto", "ExistingBusinessKeyResolutionDto", "WarningResolutionDto", "ResolveReviewDto", "ResolutionResponseDto" })
             Assert.True(schemas.TryGetProperty(schema, out _), $"OpenAPI components are missing {schema}.");
     }
 

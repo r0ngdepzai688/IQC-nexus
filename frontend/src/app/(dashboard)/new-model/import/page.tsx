@@ -13,7 +13,7 @@ import {
   getReviewSummary,
   inspectMasterPlanHeaders,
   processManualUpload,
-  resolveExistingSku,
+  resolveExistingBusinessKey,
   resolveReviewItem,
   resolveWarningRow,
   uploadMasterPlan,
@@ -118,7 +118,7 @@ export default function ManualImportPage() {
   const handleUpload = () => {
     if (!selectedFile || !inspection || mappingIssues.length || requestRunning) return;
     void runRequest(async () => {
-      const uploaded = await uploadMasterPlan(selectedFile, "NewModels", buildHeaderMappings(mappingSelections));
+      const uploaded = await uploadMasterPlan(selectedFile, "NewModels", buildHeaderMappings(mappingSelections, inspection));
       await enterReview(uploaded);
     });
   };
@@ -129,10 +129,10 @@ export default function ManualImportPage() {
     });
   };
 
-  const handleExistingResolution = (resolution: "Skip" | "Cancel") => {
+  const handleExistingResolution = (resolution: "Update" | "Skip" | "Cancel") => {
     if (!batch) return;
     void runRequest(async () => {
-      await resolveExistingSku(batch.batchId, resolution);
+      await resolveExistingBusinessKey(batch.batchId, resolution);
       await refreshBatch(batch.batchId);
     });
   };
@@ -145,7 +145,7 @@ export default function ManualImportPage() {
     });
   };
 
-  const handleReviewResolution = (reviewItemId: number, action: "Override" | "Ignore" | "CreateMissing") => {
+  const handleReviewResolution = (reviewItemId: number, action: "Override" | "Ignore" | "CreateMissing" | "Update" | "Skip") => {
     if (!batch) return;
     void runRequest(async () => {
       await resolveReviewItem(reviewItemId, action);
@@ -181,7 +181,7 @@ export default function ManualImportPage() {
         </div>
         <h1 className="text-4xl font-black tracking-tight">Import New Models Master Plan</h1>
         <p className="mt-2 max-w-3xl text-muted-foreground">
-          Inspect and map workbook headers, review every staged row, then atomically insert only new SKUs.
+          Inspect and map workbook headers, review Basic + Cat matches, then atomically insert and update approved rows.
         </p>
 
         <ol className="my-8 grid grid-cols-2 gap-3 md:grid-cols-4" aria-label="Import progress">
@@ -240,7 +240,7 @@ export default function ManualImportPage() {
               <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
                 <div>
                   <h2 className="text-2xl font-bold">Header mapping</h2>
-                  <p className="text-sm text-muted-foreground">{selectedFile.name} · detected header row {inspection.headerRow}</p>
+                  <p className="text-sm text-muted-foreground">{selectedFile.name} · header rows {inspection.headerRow}–{inspection.headerRow + (inspection.headerDepth ?? 1) - 1} · data starts at {inspection.dataStartRow ?? inspection.headerRow + 1}</p>
                 </div>
                 <Button onClick={handleUpload} disabled={requestRunning || mappingIssues.length > 0}>
                   {requestRunning ? "Uploading…" : "Upload and stage"}
@@ -253,18 +253,19 @@ export default function ManualImportPage() {
               {mappingIssues.length > 0 && <div role="alert" className="mb-5 rounded-xl bg-amber-50 p-4 text-sm text-amber-900">{mappingIssues.map(issue => <div key={issue}>• {issue}</div>)}</div>}
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead><tr className="border-b"><th className="p-3">Column</th><th className="p-3">Detected header</th><th className="p-3">Canonical field</th><th className="p-3">Detection</th></tr></thead>
+                  <thead><tr className="border-b"><th className="p-3">Column</th><th className="p-3">Header path</th><th className="p-3">Samples / type</th><th className="p-3">Canonical field</th><th className="p-3">Evidence</th></tr></thead>
                   <tbody>{inspection.columns.map(column => (
                     <tr key={column.columnIndex} className="border-b">
                       <td className="p-3">{column.columnIndex + 1}</td>
-                      <td className="p-3 font-medium">{column.header || "(empty)"}</td>
+                      <td className="p-3"><div>{column.parentHeader || "—"} / {column.childHeader || "—"}</div><div className="font-medium">{column.effectiveHeaderPath || "(empty)"}</div></td>
+                      <td className="p-3"><div>{column.sampleValues?.join(", ") || "—"}</div><Badge variant="outline">{column.detectedDataType ?? "Unknown"}</Badge></td>
                       <td className="p-3">
                         <select aria-label={`Map ${column.header || `column ${column.columnIndex + 1}`}`} className="w-full rounded-lg border bg-background p-2" value={mappingSelections[column.columnIndex] ?? ""} onChange={event => setMappingSelections(current => ({ ...current, [column.columnIndex]: event.target.value }))}>
                           <option value="">Ignore / unresolved</option>
                           {inspection.canonicalFields.map(field => <option key={field} value={field}>{field}{inspection.requiredFields.includes(field) ? " (required)" : ""}</option>)}
                         </select>
                       </td>
-                      <td className="p-3">{column.ambiguous ? <Badge variant="destructive">Ambiguous</Badge> : column.suggestedCanonical ? <Badge variant="outline">Suggested</Badge> : <Badge variant="outline">Unknown</Badge>}</td>
+                      <td className="p-3"><div>{column.reason}</div><div>{Math.round((column.confidence ?? 0) * 100)}% {column.learnedSuggestion ? "confirmed mapping" : "suggestion"}</div><div className="text-xs text-muted-foreground">Selection will be learned after confirmation.</div></td>
                     </tr>
                   ))}</tbody>
                 </table>
@@ -277,42 +278,43 @@ export default function ManualImportPage() {
           <div>
             <div className="mb-5 flex flex-wrap items-end justify-between gap-4">
               <div><h2 className="text-2xl font-bold">Validation and review</h2><p className="text-sm text-muted-foreground">Batch {batch.batchId} · {review.fileName}</p></div>
-              <Button onClick={handleCommit} disabled={!commitEnabled}>{requestRunning ? "Working…" : "Confirm atomic insert"}</Button>
+              <Button onClick={handleCommit} disabled={!commitEnabled}>{requestRunning ? "Working…" : "Confirm atomic upsert"}</Button>
             </div>
             <div className="mb-6 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-              {[['Ready', batch.validRows], ['Warnings', review.warningRows], ['Errors', review.errorRows], ['Existing SKU', review.existingSkuConflicts], ['Skipped', review.skippedRows], ['Total', batch.totalRows]].map(([label, value]) => (
+              {[['Ready', batch.validRows], ['Updates', review.readyToUpdateRows], ['Errors', review.errorRows], ['Existing key', review.existingBusinessKeyConflicts], ['No change', review.noChangeRows], ['Total', batch.totalRows]].map(([label, value]) => (
                 <Card key={String(label)} className="p-4"><div className="text-xs uppercase text-muted-foreground">{label}</div><div className="text-2xl font-black">{value}</div></Card>
               ))}
             </div>
             <div className="mb-5 rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-              <ShieldCheck className="mr-2 inline h-4 w-4" /> Insert-only policy: existing SKUs are never overwritten. Default is no mutation; explicitly Skip those rows or Cancel the entire batch.
+              <ShieldCheck className="mr-2 inline h-4 w-4" /> Existing Basic + Cat rows require explicit Update or Skip confirmation. Identity fields are never altered by updates.
             </div>
-            {review.existingSkuConflicts > 0 && (
+            {review.existingBusinessKeyConflicts > 0 && (
               <div className="mb-5 flex flex-wrap gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                <Button disabled={requestRunning} onClick={() => handleExistingResolution("Skip")}>Skip all existing-SKU rows</Button>
+                <Button disabled={requestRunning} onClick={() => handleExistingResolution("Update")}>Update all existing rows</Button>
+                <Button disabled={requestRunning} variant="outline" onClick={() => handleExistingResolution("Skip")}>Skip all existing rows</Button>
                 <Button disabled={requestRunning} variant="destructive" onClick={() => handleExistingResolution("Cancel")}>Cancel entire import</Button>
               </div>
             )}
             <Card className="overflow-hidden rounded-3xl">
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
-                  <thead><tr className="border-b bg-muted/40"><th className="p-3">Row</th><th className="p-3">SKU</th><th className="p-3">Field</th><th className="p-3">Current value</th><th className="p-3">Severity</th><th className="p-3">Message</th><th className="p-3">Action</th></tr></thead>
+                  <thead><tr className="border-b bg-muted/40"><th className="p-3">Row</th><th className="p-3">Basic</th><th className="p-3">Cat</th><th className="p-3">Field</th><th className="p-3">Old</th><th className="p-3">New</th><th className="p-3">Severity</th><th className="p-3">Message</th><th className="p-3">Action</th></tr></thead>
                   <tbody>{review.rows.map((row, index) => {
-                    const existingSku = row.conflictType === "ExistingSku";
-                    const resolvableWarning = row.severity === "Warning" && !existingSku && row.reviewItemId == null;
+                    const existingBusinessKey = row.conflictType === "ExistingBusinessKey";
+                    const resolvableWarning = row.severity === "Warning" && !existingBusinessKey && row.reviewItemId == null;
                     return (
                       <tr key={`${row.rowNumber}-${row.field}-${index}`} className="border-b align-top">
-                        <td className="p-3">{row.rowNumber}</td><td className="p-3 font-mono">{row.sku || "—"}</td><td className="p-3">{row.field}</td><td className="max-w-48 break-words p-3">{row.currentValue || "—"}</td>
+                        <td className="p-3">{row.rowNumber}</td><td className="p-3">{row.basic || "—"}</td><td className="p-3">{row.cat || "—"}</td><td className="p-3">{row.field}</td><td className="max-w-48 break-words p-3">{row.oldValue || "—"}</td><td className="max-w-48 break-words p-3">{row.newValue || row.currentValue || "—"}</td>
                         <td className="p-3"><Badge variant={row.severity === "Error" ? "destructive" : "outline"}>{row.severity}</Badge></td>
                         <td className="max-w-md p-3">{row.message || (row.severity === "Ready" ? "Ready to insert." : "No message supplied.")}</td>
-                        <td className="p-3">{row.reviewItemId != null ? <div className="flex flex-wrap gap-2">{row.supportedActions.map(action => <Button key={action} size="sm" variant={action === "Override" ? "default" : "outline"} disabled={requestRunning} onClick={() => handleReviewResolution(row.reviewItemId!, action)}>{action}</Button>)}</div> : resolvableWarning ? <div className="flex gap-2"><Button size="sm" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Accept")}>Accept</Button><Button size="sm" variant="outline" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Skip")}>Skip</Button></div> : existingSku ? "Use batch choice above" : "—"}</td>
+                        <td className="p-3">{row.reviewItemId != null ? <div className="flex flex-wrap gap-2">{row.supportedActions.map(action => <Button key={action} size="sm" variant={action === "Update" || action === "Override" ? "default" : "outline"} disabled={requestRunning} onClick={() => handleReviewResolution(row.reviewItemId!, action)}>{action}</Button>)}</div> : resolvableWarning ? <div className="flex gap-2"><Button size="sm" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Accept")}>Accept</Button><Button size="sm" variant="outline" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Skip")}>Skip</Button></div> : existingBusinessKey ? "Use batch choice above" : "—"}</td>
                       </tr>
                     );
                   })}</tbody>
                 </table>
               </div>
             </Card>
-            {!commitEnabled && batch.status === "Staged" && <p className="mt-4 flex items-center gap-2 text-sm font-semibold text-amber-700"><AlertTriangle className="h-4 w-4" />Commit remains disabled until at least one row is ready and every blocking error, review, warning, and existing-SKU conflict is resolved.</p>}
+            {!commitEnabled && batch.status === "Staged" && <p className="mt-4 flex items-center gap-2 text-sm font-semibold text-amber-700"><AlertTriangle className="h-4 w-4" />Commit remains disabled until at least one insert/update is ready and every blocking error, warning, and existing-business-key review is resolved.</p>}
             {batch.status === "Cancelled" && <p className="mt-4 font-semibold text-rose-700">This batch was cancelled. No Master Plan records were changed.</p>}
           </div>
         )}

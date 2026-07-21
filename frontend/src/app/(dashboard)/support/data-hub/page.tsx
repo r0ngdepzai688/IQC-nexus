@@ -87,6 +87,7 @@ export default function DataHubDashboard() {
   const getRowStatusBadge = (status: string) => {
     switch (status) {
       case "ReadyToInsert":
+      case "ReadyToUpdate":
         return <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-500 border-none">{status}</Badge>;
       case "SkipNoChange":
         return <Badge variant="outline" className="text-muted-foreground">{status}</Badge>;
@@ -240,7 +241,8 @@ export default function DataHubDashboard() {
                         <TableRow>
                           <TableHead className="w-16">Row</TableHead>
                           <TableHead>Project Name</TableHead>
-                          <TableHead>SKU</TableHead>
+                          <TableHead>Basic</TableHead>
+                          <TableHead>Cat</TableHead>
                           <TableHead>PVR Target</TableHead>
                           <TableHead>PIC</TableHead>
                           <TableHead>Status</TableHead>
@@ -252,7 +254,8 @@ export default function DataHubDashboard() {
                           <TableRow key={record.id} className="hover:bg-muted/50">
                             <TableCell className="font-mono text-muted-foreground">{record.rawRowNumber}</TableCell>
                             <TableCell className="font-medium">{record.projectName}</TableCell>
-                            <TableCell>{record.sku}</TableCell>
+                            <TableCell>{record.basic}</TableCell>
+                            <TableCell>{record.cat}</TableCell>
                             <TableCell>{record.pvrTargetDate ? new Date(record.pvrTargetDate).toLocaleDateString() : "-"}</TableCell>
                             <TableCell>{record.hwPic}</TableCell>
                             <TableCell>{getRowStatusBadge(record.rowStatus)}</TableCell>
@@ -294,7 +297,7 @@ export default function DataHubDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-center py-12 text-muted-foreground space-y-4">
-                <p>Select a batch from history, then open its row-level review and existing-SKU resolution.</p>
+                <p>Select a batch from history, then open its row-level review and existing Basic + Cat resolution.</p>
                 {selectedBatch && <Button nativeButton={false} render={<Link href={`/support/data-hub/review-queue?batchId=${encodeURIComponent(selectedBatch.batchId)}`} />}>Review selected batch</Button>}
               </div>
             </CardContent>

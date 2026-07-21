@@ -182,7 +182,7 @@ namespace IqcQms.Api.Controllers.NewModels
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResolveReview(int reviewItemId, [FromBody] ResolveReviewDto dto)
         {
-            if (reviewItemId <= 0 || dto == null || !new[] { "Override", "Ignore", "CreateMissing" }.Contains(dto.Action, StringComparer.OrdinalIgnoreCase))
+            if (reviewItemId <= 0 || dto == null || !new[] { "Override", "Ignore", "CreateMissing", "Update", "Skip" }.Contains(dto.Action, StringComparer.OrdinalIgnoreCase))
                 return BadRequest("A valid review action is required.");
             string resolvedBy = User.Identity?.Name ?? "SystemAdmin";
             var success = await _dataHubService.ResolveReviewItemAsync(reviewItemId, dto.Action, resolvedBy, dto.Note);
@@ -210,8 +210,19 @@ namespace IqcQms.Api.Controllers.NewModels
             if (dto is null || dto.Resolution is not ("Skip" or "Cancel")) return BadRequest("Resolution must be Skip or Cancel.");
             try
             {
-                return Ok(await _dataHubService.ResolveExistingSkuAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser"));
+                return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser"));
             }
+            catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
+        }
+
+        [HttpPost("resolve-existing-business-key/{batchId}")]
+        [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> ResolveExistingBusinessKey(string batchId, [FromBody] ExistingBusinessKeyResolutionDto dto)
+        {
+            if (dto is null || dto.Resolution is not ("Update" or "Skip" or "Cancel")) return BadRequest("Resolution must be Update, Skip, or Cancel.");
+            try { return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser", dto.RowNumber)); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
@@ -235,6 +246,11 @@ namespace IqcQms.Api.Controllers.NewModels
     public sealed class ExistingSkuResolutionDto
     {
         public string Resolution { get; set; } = "Cancel";
+    }
+    public sealed class ExistingBusinessKeyResolutionDto
+    {
+        public string Resolution { get; set; } = "Cancel";
+        public int? RowNumber { get; set; }
     }
     public sealed class WarningResolutionDto
     {

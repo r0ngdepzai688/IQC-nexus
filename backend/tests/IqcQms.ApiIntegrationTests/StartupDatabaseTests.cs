@@ -2,7 +2,10 @@ using System.Net;
 using System.Text.Json;
 using IqcQms.Infrastructure.Data;
 using IqcQms.Infrastructure.Data.Seeders;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Xunit;
@@ -35,6 +38,28 @@ public sealed class StartupDatabaseTests(IntegrationTestFactory factory) : IClas
 
         Assert.NotEmpty(defined);
         Assert.Equal(defined, applied);
+    }
+
+    [Fact]
+    public async Task AdaptiveUpsertMigrationBlocksLegacyRowsWithoutApprovedCatClassification()
+    {
+        await using var connection = new SqliteConnection("Data Source=:memory:");
+        await connection.OpenAsync();
+        var options = new DbContextOptionsBuilder<AppDbContext>().UseSqlite(connection).Options;
+        await using var context = new AppDbContext(options);
+        var migrator = context.GetService<IMigrator>();
+        await migrator.MigrateAsync("20260713154829_UpdateMasterPlanAndMilestones");
+        await context.Database.ExecuteSqlRawAsync("""
+            INSERT INTO "MasterPlans"
+                ("ProjectName", "Basic", "Area", "Grade", "Sku", "QtyLpr", "QtyLsr", "HwPic", "Status", "ActionStatus", "CreatedAt", "UpdatedAt", "ImportedStatus", "LastImportBatchId", "Remark")
+            VALUES
+                ('Synthetic legacy', 'LEGACY-BASIC', '', 'B', 'SYN-LEGACY', 0, 0, '', '', '', '2026-01-01', '2026-01-01', '', '', '')
+            """);
+
+        var error = await Assert.ThrowsAnyAsync<Exception>(() => migrator.MigrateAsync());
+
+        Assert.Contains("CHECK constraint failed", error.ToString(), StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("20260719212323_AddAdaptiveMasterPlanUpsert", await context.Database.GetAppliedMigrationsAsync());
     }
 
     [Fact]

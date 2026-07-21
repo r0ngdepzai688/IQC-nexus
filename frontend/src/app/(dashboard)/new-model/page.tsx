@@ -229,13 +229,15 @@ export default function NewModelPage() {
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Basic</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Area</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Grade</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SKU</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q&apos;ty (LPR)</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Cat</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">LPR/LQV Q&apos;ty</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Q&apos;ty (LSR)</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PVR Target</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">PRA Target</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">SRA Target</th>
-                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">IQC PIC</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">HW PIC</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">LPR/LQV Main Date</th>
+                      <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">LSR Main Date</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Status</th>
                       <th className="px-6 py-4 font-semibold text-gray-500 dark:text-gray-400">Action</th>
                     </tr>
@@ -243,7 +245,7 @@ export default function NewModelPage() {
                   <tbody className="divide-y divide-gray-100 dark:divide-white/10">
                     {isLoadingMasterPlans ? (
                       <tr>
-                        <td colSpan={13} className="px-6 py-8 text-center text-gray-500">
+                        <td colSpan={15} className="px-6 py-8 text-center text-gray-500">
                           <div className="flex items-center justify-center">
                             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
                           </div>
@@ -251,7 +253,7 @@ export default function NewModelPage() {
                       </tr>
                     ) : masterPlans.length === 0 ? (
                       <tr>
-                        <td colSpan={13} className="px-6 py-12 text-center text-gray-500">
+                        <td colSpan={15} className="px-6 py-12 text-center text-gray-500">
                           Chưa có dữ liệu Master Plan. Vui lòng Import.
                         </td>
                       </tr>
@@ -261,8 +263,8 @@ export default function NewModelPage() {
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.basic}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.area}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.grade}</td>
-                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.sku}</td>
-                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.qtyLpr}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.cat}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.qtyLprLqv}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.qtyLsr}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.pvrTargetDate ? new Date(mp.pvrTargetDate).toLocaleDateString('vi-VN') : '-'}</td>
                         <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.praTargetDate ? new Date(mp.praTargetDate).toLocaleDateString('vi-VN') : '-'}</td>
@@ -270,6 +272,8 @@ export default function NewModelPage() {
                         <td className="px-6 py-4">
                           <UserBadge name={mp.hwPic} size="sm" />
                         </td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.mainLprLqvDate ? new Date(mp.mainLprLqvDate).toLocaleDateString('vi-VN') : '-'}</td>
+                        <td className="px-6 py-4 text-gray-500 dark:text-gray-400">{mp.mainLsrDate ? new Date(mp.mainLsrDate).toLocaleDateString('vi-VN') : '-'}</td>
                         <td className="px-6 py-4">
                           {mp.displayStatus === 'Created' && (
                             <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 hover:bg-emerald-100 border-0 rounded-full px-3 py-1 whitespace-nowrap">

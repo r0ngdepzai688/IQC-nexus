@@ -59,6 +59,7 @@ export interface ImportBatch {
   skippedRows: number;
   createdRecords: number;
   updatedRecords: number;
+  noChangeRecords: number;
   durationMs: number;
 }
 
@@ -70,6 +71,9 @@ export interface StagingMasterPlan {
   basic: string;
   area: string;
   grade: string;
+  cat: string;
+  basicKey: string;
+  catKey: string;
   sku: string;
   qtyLpr: number | null;
   qtyLsr: number | null;
@@ -83,13 +87,14 @@ export interface StagingMasterPlan {
   validationMessage: string;
   coreValidationMessage: string;
 }
-export interface HeaderColumn { columnIndex: number; header: string; suggestedCanonical: string | null; ambiguous: boolean }
-export interface HeaderInspection { headerRow: number; columns: HeaderColumn[]; canonicalFields: string[]; requiredFields: string[] }
-export interface HeaderMapping { columnIndex: number; canonicalField: string }
-export type ReviewResolutionAction = 'Override' | 'Ignore' | 'CreateMissing';
-export interface ImportReviewRow { rowNumber: number; sku: string; field: string; currentValue: string; severity: string; message: string; status: string; conflictType: string; reviewItemId: number | null; supportedActions: ReviewResolutionAction[] }
-export interface ImportReviewSummary { batchId: string; fileName: string; validRows: number; warningRows: number; errorRows: number; existingSkuConflicts: number; skippedRows: number; rows: ImportReviewRow[] }
+export interface HeaderColumn { columnIndex: number; header: string; suggestedCanonical: string | null; ambiguous: boolean; parentHeader?: string; childHeader?: string; effectiveHeaderPath?: string; sampleValues?: string[]; detectedDataType?: string; confidence?: number; reason?: string; learnedSuggestion?: boolean }
+export interface HeaderInspection { headerRow: number; headerDepth?: number; dataStartRow?: number; workbookFingerprint?: string; columns: HeaderColumn[]; canonicalFields: string[]; requiredFields: string[] }
+export interface HeaderMapping { columnIndex: number; canonicalField: string; normalizedHeaderPath?: string; confirmLearning?: boolean; workbookFingerprint?: string; detectedDataType?: string }
+export type ReviewResolutionAction = 'Override' | 'Ignore' | 'CreateMissing' | 'Update' | 'Skip';
+export interface ImportReviewRow { rowNumber: number; sku: string; basic: string; cat: string; field: string; currentValue: string; oldValue: string; newValue: string; severity: string; message: string; status: string; conflictType: string; reviewItemId: number | null; supportedActions: ReviewResolutionAction[] }
+export interface ImportReviewSummary { batchId: string; fileName: string; validRows: number; warningRows: number; errorRows: number; existingSkuConflicts: number; existingBusinessKeyConflicts: number; readyToUpdateRows: number; noChangeRows: number; skippedRows: number; rows: ImportReviewRow[] }
 export type ExistingSkuResolution = 'Skip' | 'Cancel';
+export type ExistingBusinessKeyResolution = 'Update' | 'Skip' | 'Cancel';
 export type WarningResolution = 'Accept' | 'Skip';
 export interface ResolutionResponse { success: boolean }
 export type CommitResponse = ImportBatch;
@@ -134,6 +139,10 @@ export const getReviewSummary = async (batchId: string): Promise<ImportReviewSum
 
 export const resolveExistingSku = async (batchId: string, resolution: ExistingSkuResolution): Promise<ImportBatch> => {
   return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/resolve-existing/${encodeURIComponent(batchId)}`, { resolution }, { headers: authHeaders() }), 'Unable to resolve existing SKUs.');
+};
+
+export const resolveExistingBusinessKey = async (batchId: string, resolution: ExistingBusinessKeyResolution, rowNumber?: number): Promise<ImportBatch> => {
+  return apiCall(() => axios.post(`${API_BASE_URL}/DataHub/resolve-existing-business-key/${encodeURIComponent(batchId)}`, { resolution, rowNumber }, { headers: authHeaders() }), 'Unable to resolve existing business keys.');
 };
 
 export const resolveWarningRow = async (batchId: string, rowNumber: number, resolution: WarningResolution): Promise<ResolutionResponse> => {

@@ -59,6 +59,7 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<MappingDictionary> MappingDictionaries { get; set; }
         public DbSet<ImportLog> ImportLogs { get; set; }
         public DbSet<DataHubAuditLog> DataHubAuditLogs { get; set; }
+        public DbSet<HeaderMappingProfile> HeaderMappingProfiles { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -135,6 +136,15 @@ namespace IqcQms.Infrastructure.Data
                 .WithMany(t => t.DependentOn)
                 .HasForeignKey(td => td.TaskId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<MasterPlan>()
+                .HasIndex(value => new { value.BasicKey, value.CatKey })
+                .IsUnique();
+            modelBuilder.Entity<MasterPlan>()
+                .Property(value => value.Version)
+                .IsConcurrencyToken();
+            modelBuilder.Entity<HeaderMappingProfile>()
+                .HasIndex(value => new { value.NormalizedHeaderPath, value.CanonicalField, value.WorkbookFingerprint });
 
             modelBuilder.Entity<TaskDependency>()
                 .HasOne(td => td.PrerequisiteTask)
