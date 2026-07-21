@@ -126,24 +126,19 @@ namespace IqcQms.Infrastructure.Migrations
                     table.PrimaryKey("PK_HeaderMappingProfiles", x => x.Id);
                 });
 
-            // The legacy schema has no trustworthy Cat source. Deliberately block this migration
-            // when legacy rows exist instead of inferring Cat from SKU or leaving rows unkeyed.
-            // Owners must classify/remove those rows in a reviewed preparatory data migration,
-            // then rerun this schema migration. A clean database uses only the shared C#
-            // MasterPlanBusinessKey normalizer for every persisted key.
-            migrationBuilder.Sql("""
-                CREATE TEMP TABLE "__MasterPlanLegacyClassificationCheck"
-                (
-                    "UnclassifiedCount" INTEGER NOT NULL
-                        CONSTRAINT "Legacy MasterPlan rows require approved Cat classification before adaptive upsert migration"
-                        CHECK ("UnclassifiedCount" = 0)
-                );
-
-                INSERT INTO "__MasterPlanLegacyClassificationCheck" ("UnclassifiedCount")
-                SELECT COUNT(*) FROM "MasterPlans" WHERE "Cat" = '';
-
-                DROP TABLE "__MasterPlanLegacyClassificationCheck";
-                """);
+            // This migration has not been deployed. Its only legacy mapping is the explicit,
+            // business-owner-approved classification below. ExpectedBasic prevents an ID from
+            // being silently reused for different data. Keys are the exact outputs of
+            // MasterPlanBusinessKey for (SM-A566B, LPR); SQLite cannot reproduce .NET NFKC
+            // normalization safely. Any other legacy row, changed Basic, blank key, or collision
+            // fails the transaction before the unique index is created.
+            migrationBuilder.Sql(LegacyMasterPlanMigrationSql.Build(
+                new ApprovedLegacyMasterPlanMapping(
+                    MasterPlanId: 1,
+                    ExpectedBasic: "SM-A566B",
+                    ApprovedCat: "LPR",
+                    BasicKey: "SM-A566B",
+                    CatKey: "LPR")));
 
             migrationBuilder.CreateIndex(
                 name: "IX_MasterPlans_BasicKey_CatKey",
