@@ -89,88 +89,159 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
         Candidate? best = null;
         var maxRow = Math.Min(ScanRows, workbook.Rows.Count);
         for (var start = 0; start < maxRow; start++)
-        for (var depth = 1; depth <= 3 && start + depth <= maxRow; depth++)
         {
-            if (depth > 1 && Enumerable.Range(start + 1, depth - 1).Any(row =>
-                    Enumerable.Range(0, Math.Min(ScanColumns, workbook.Rows[row].Length))
-                        .Count(column => IsExactHeaderToken(HeaderValue(workbook, row, column))) < 2))
-                continue;
-            var paths = ComposePaths(workbook, start, depth);
-            var score = paths.Sum(path => Score(path, learned).Score);
-            var requiredHits = paths.Select(path => Score(path, learned).Canonical).Where(value => value is not null).Intersect(Required, StringComparer.OrdinalIgnoreCase).Count();
-            score += requiredHits * 5;
-            score += depth * .5;
-            if (best is null || score > best.Score) best = new(start, depth, score, paths);
+            if (IsBlank(workbook.Rows[start])) continue;
+            for (var depth = 1; depth <= 3 && start + depth <= maxRow; depth++)
+            {
+                if (IsBlank(workbook.Rows[start + depth - 1])) continue;
+
+                var headerPaths = ComposeHeaderPaths(workbook, start, depth);
+                if (headerPaths.All(p => string.IsNullOrWhiteSpace(p.DisplayPath))) continue;
+
+                var dataStartTemp = DetectDataStart(workbook, workbook.Rows, start + depth, headerPaths);
+                if (dataStartTemp < start + depth || dataStartTemp >= workbook.Rows.Count) continue;
+
+                var nonAmbiguous = headerPaths.Select(path => Score(path.NormalizedPath, learned)).Where(s => s.Canonical is not null && !s.Ambiguous).ToList();
+                var aliasScore = nonAmbiguous.Sum(s => s.Score);
+                var requiredHits = nonAmbiguous.Select(s => s.Canonical!).Intersect(Required, StringComparer.OrdinalIgnoreCase).Distinct().Count();
+
+                var distinctDisplayPaths = headerPaths.Select(p => p.DisplayPath).Where(p => p.Length > 0).Distinct().Count();
+                var hasMerges = Enumerable.Range(start, depth).Any(r => workbook.Merges.Any(m => r >= m.FromRow && r <= m.ToRow));
+                var structuralScore = distinctDisplayPaths * 0.2 + (hasMerges ? 1.0 : 0.0);
+
+                var totalScore = aliasScore + requiredHits * 5.0 + depth * 0.5 + structuralScore;
+
+                if (best is null || totalScore > best.Score)
+                {
+                    best = new(start, depth, totalScore, headerPaths);
+                }
+            }
         }
         if (best is null || best.Score <= 0) throw new InvalidDataException("Could not identify a Master Plan header region in the first 50 rows.");
-        var dataStart = DetectDataStart(workbook.Rows, best.Start + best.Depth, best.Paths);
-        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", best.Paths.Select(Normalize))))).ToLowerInvariant();
-        var columns = best.Paths.Select((path, index) =>
+        var dataStart = DetectDataStart(workbook, workbook.Rows, best.Start + best.Depth, best.HeaderPaths);
+        var fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(string.Join("|", best.HeaderPaths.Select(hp => hp.NormalizedPath))))).ToLowerInvariant();
+        var columns = best.HeaderPaths.Select((hp, index) =>
         {
-            var suggestion = Score(path, learned, fingerprint);
+            var suggestion = Score(hp.NormalizedPath, learned, fingerprint);
             var samples = workbook.Rows.Skip(dataStart).Take(20).Select(row => ValueAt(row, index)).Where(value => !string.IsNullOrWhiteSpace(value)).Take(5).ToList();
             var detected = DetectType(samples);
-            return new HeaderColumnDto(index, path, suggestion.Ambiguous ? null : suggestion.Canonical, suggestion.Ambiguous,
-                best.Depth > 1 ? HeaderValue(workbook, best.Start, index) : "", best.Depth > 1 ? HeaderValue(workbook, best.Start + best.Depth - 1, index) : path,
-                path, samples, detected, suggestion.Confidence, suggestion.Reason, suggestion.Learned);
+            return new HeaderColumnDto(index, hp.DisplayPath, suggestion.Ambiguous ? null : suggestion.Canonical, suggestion.Ambiguous,
+                best.Depth > 1 ? HeaderValue(workbook, best.Start, index) : "",
+                best.Depth > 1 ? HeaderValue(workbook, best.Start + best.Depth - 1, index) : hp.DisplayPath,
+                hp.DisplayPath, samples, detected, suggestion.Confidence, suggestion.Reason, suggestion.Learned);
         }).ToList();
         return new(best.Start + 1, columns, Aliases.Keys.ToList(), Required.ToList(), best.Depth, dataStart + 1, fingerprint);
     }
 
-    private static int DetectDataStart(List<object?[]> rows, int afterHeader, List<string> paths)
+    private static int DetectDataStart(WorkbookData workbook, List<object?[]> rows, int afterHeader, List<HeaderPath> headerPaths)
     {
-        var mapped = paths.Select((path, index) => (index, canonical: MatchAliases(path).FirstOrDefault().Canonical)).Where(value => value.canonical is not null).ToList();
         for (var row = afterHeader; row < rows.Count; row++)
         {
-            var hits = mapped.Count(value => !string.IsNullOrWhiteSpace(ValueAt(rows[row], value.index)));
-            if (hits >= 2 && !mapped.Any(value => Normalize(ValueAt(rows[row], value.index)) == Normalize(value.canonical))) return row;
+            if (IsBlank(rows[row])) continue;
+            var nonHeaderHits = 0;
+            var totalNonEmpty = 0;
+            for (var col = 0; col < headerPaths.Count; col++)
+            {
+                var cellVal = ValueAt(rows[row], col);
+                if (string.IsNullOrWhiteSpace(cellVal)) continue;
+                totalNonEmpty++;
+                var normalizedCell = Normalize(cellVal);
+                var isMerged = workbook.Merges.Any(m => row >= m.FromRow && row <= m.ToRow && col >= m.FromColumn && col <= m.ToColumn);
+                var isHeaderLabel = isMerged
+                                    || IsExactHeaderToken(cellVal)
+                                    || headerPaths[col].Segments.Any(seg => Normalize(seg) == normalizedCell)
+                                    || headerPaths[col].NormalizedPath == normalizedCell;
+                if (!isHeaderLabel)
+                {
+                    nonHeaderHits++;
+                }
+            }
+            if (totalNonEmpty >= 2 && nonHeaderHits >= totalNonEmpty / 2)
+            {
+                return row;
+            }
         }
         return afterHeader;
     }
 
-    private static List<string> ComposePaths(WorkbookData workbook, int start, int depth)
+    private static List<HeaderPath> ComposeHeaderPaths(WorkbookData workbook, int start, int depth)
     {
         var width = Math.Min(ScanColumns, workbook.Rows.Skip(start).Take(depth).Select(value => value.Length).DefaultIfEmpty().Max());
         return Enumerable.Range(0, width).Select(column =>
         {
-            var values = new List<string>();
+            var segments = new List<string>();
             for (var row = start; row < start + depth; row++)
             {
-                var value = HeaderValue(workbook, row, column);
-                if (value.Length > 0 && !values.Contains(value, StringComparer.OrdinalIgnoreCase)) values.Add(value);
+                var value = HeaderValue(workbook, row, column).Trim();
+                if (value.Length > 0)
+                {
+                    if (segments.Count == 0 || !string.Equals(segments[^1], value, StringComparison.OrdinalIgnoreCase))
+                    {
+                        segments.Add(value);
+                    }
+                }
             }
-            return string.Join(" > ", values);
+            var displayPath = string.Join(" > ", segments);
+            var normalizedPath = Normalize(displayPath);
+            return new HeaderPath(column, segments, displayPath, normalizedPath);
         }).ToList();
     }
 
+    private static List<string> ComposePaths(WorkbookData workbook, int start, int depth) =>
+        ComposeHeaderPaths(workbook, start, depth).Select(hp => hp.DisplayPath).ToList();
+
     private static string HeaderValue(WorkbookData workbook, int row, int column)
     {
-        var value = ValueAt(workbook.Rows[row], column);
-        if (value.Length > 0) return value;
         var merge = workbook.Merges.FirstOrDefault(value => row >= value.FromRow && row <= value.ToRow && column >= value.FromColumn && column <= value.ToColumn);
-        return merge is null ? string.Empty : ValueAt(workbook.Rows[merge.FromRow], merge.FromColumn);
+        if (merge is not null)
+        {
+            return ValueAt(workbook.Rows[merge.FromRow], merge.FromColumn);
+        }
+        return ValueAt(workbook.Rows[row], column);
     }
 
-    private static Suggestion Score(string path, IReadOnlyCollection<HeaderMappingProfile> learned, string fingerprint = "")
+    private static Suggestion Score(string pathOrNormalized, IReadOnlyCollection<HeaderMappingProfile> learned, string fingerprint = "")
     {
-        var normalized = Normalize(path);
+        var normalized = Normalize(pathOrNormalized);
+        if (normalized.Length == 0) return new(null, 0, false, 0, "No reliable alias match", false);
+
         var learnedMatch = learned.FirstOrDefault(value => value.NormalizedHeaderPath == normalized && (fingerprint.Length == 0 || value.WorkbookFingerprint == fingerprint || value.WorkbookFingerprint.Length == 0));
         if (learnedMatch is not null) return new(learnedMatch.CanonicalField, 20, false, learnedMatch.Confidence, "Confirmed learned mapping", true);
-        var matches = MatchAliases(path).OrderByDescending(value => value.Score).ToList();
+        var matches = MatchAliases(normalized).OrderByDescending(value => value.Score).ToList();
         if (matches.Count == 0 || matches[0].Score < .65) return new(null, 0, false, 0, "No reliable alias match", false);
         var ambiguous = matches.Count > 1 && Math.Abs(matches[0].Score - matches[1].Score) < .08;
         return new(matches[0].Canonical, matches[0].Score * 10, ambiguous, matches[0].Score, matches[0].Score == 1 ? "Exact normalized alias" : "Token/fuzzy alias similarity", false);
     }
 
-    private static IEnumerable<(string Canonical, double Score)> MatchAliases(string path)
+    private static IEnumerable<(string Canonical, double Score)> MatchAliases(string pathOrNormalized)
     {
-        var normalized = Normalize(path);
+        var normalized = Normalize(pathOrNormalized);
+        if (normalized.Length == 0) yield break;
+        var parts = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var leafToken = parts.Length > 0 ? parts[^1] : string.Empty;
+
         foreach (var pair in Aliases)
         {
-            var score = pair.Value.Append(pair.Key).Select(alias => Similarity(normalized, Normalize(alias))).Max();
-            if (score >= .45) yield return (pair.Key, score);
+            var maxScore = 0.0;
+            foreach (var rawAlias in pair.Value.Append(pair.Key))
+            {
+                var normalizedAlias = Normalize(rawAlias);
+                var aliasTokenCount = normalizedAlias.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length;
+                var sim = Similarity(normalized, normalizedAlias);
+                // Elevate score to 1.0 when the leaf segment of a multi-segment path exactly matches
+                // the alias, BUT only when the alias itself has >= 2 tokens.
+                // This prevents single-word abbreviations like "pra", "sra", "pvr" from
+                // claiming ownership of a path that merely contains that word.
+                if (sim < 1.0 && leafToken.Length > 0 && aliasTokenCount >= 2 && Normalize(leafToken) == normalizedAlias)
+                {
+                    sim = 1.0;
+                }
+                if (sim > maxScore) maxScore = sim;
+            }
+            if (maxScore >= .45) yield return (pair.Key, maxScore);
         }
     }
+
 
     private static bool IsExactHeaderToken(string value)
     {
@@ -182,10 +253,15 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
     private static double Similarity(string left, string right)
     {
         if (left == right) return 1;
-        if (left.EndsWith(right, StringComparison.Ordinal) || right.EndsWith(left, StringComparison.Ordinal)) return 1;
         var a = left.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
         var b = right.Split(' ', StringSplitOptions.RemoveEmptyEntries).ToHashSet();
-        var token = a.Count == 0 && b.Count == 0 ? 0 : (double)a.Intersect(b).Count() / a.Union(b).Count();
+        if (a.Count == 0 || b.Count == 0) return 0;
+        // Alias tokens are a meaningful subset of the path when the alias covers
+        // at least (path_token_count - 1) tokens: e.g. a 2-token alias covers a
+        // 3-token path but NOT a 4-token path (prevents "pra target" scoring 1.0
+        // against "pvr target pre pra" when "target" and "pra" both appear by chance).
+        if (b.Count > 1 && b.Count >= a.Count - 1 && b.IsSubsetOf(a)) return 1;
+        var token = (double)a.Intersect(b).Count() / a.Union(b).Count();
         var distance = Levenshtein(left, right);
         var fuzzy = 1d - (double)distance / Math.Max(1, Math.Max(left.Length, right.Length));
         return Math.Max(token, fuzzy);
@@ -234,8 +310,9 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
     private static DateTime? GetDate(object?[] row, IReadOnlyDictionary<string, int> map, string field) { var value = GetValue(row, map, field); if (value is DateTime date) return date; if (value is double serial && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); var text = Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim(); if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out serial) && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date) ? date : null; }
     private static string DetectType(List<string> samples) { if (samples.Count == 0) return "Empty"; if (samples.Count(value => GetDate([value], new Dictionary<string, int> { ["x"] = 0 }, "x") is not null) >= samples.Count * .8) return "Date"; if (samples.Count(value => int.TryParse(value, out _)) >= samples.Count * .8) return "Integer"; return "Text"; }
 
+    private sealed record HeaderPath(int ColumnIndex, List<string> Segments, string DisplayPath, string NormalizedPath);
     private sealed record WorkbookData(List<object?[]> Rows, List<Merge> Merges);
     private sealed record Merge(int FromRow, int ToRow, int FromColumn, int ToColumn);
-    private sealed record Candidate(int Start, int Depth, double Score, List<string> Paths);
+    private sealed record Candidate(int Start, int Depth, double Score, List<HeaderPath> HeaderPaths);
     private sealed record Suggestion(string? Canonical, double Score, bool Ambiguous, double Confidence, string Reason, bool Learned);
 }
