@@ -1,4 +1,4 @@
-import type { HeaderInspection, HeaderMapping, ImportBatch, ImportReviewSummary } from "@/lib/api/dataHubApi";
+import type { HeaderInspection, HeaderMapping, ImportBatch, ImportReviewRow, ImportReviewSummary } from "@/lib/api/dataHubApi";
 
 export const MAX_MASTER_PLAN_BYTES = 50 * 1024 * 1024;
 const SUPPORTED_EXTENSIONS = [".xlsx", ".xls", ".xlsm"];
@@ -47,4 +47,16 @@ export function canCommitImport(batch: ImportBatch | null, review: ImportReviewS
 export function commitResultMessage(batch: ImportBatch): string {
   const skipped = batch.skippedRows === 1 ? "1 row was skipped with no change" : `${batch.skippedRows} rows were skipped with no change`;
   return `${batch.createdRecords} record(s) inserted, ${batch.updatedRecords} updated. ${skipped}.`;
+}
+
+export function reviewRowMessage(row: ImportReviewRow): string {
+  if (row.message?.trim()) return row.message.trim();
+  if (row.field === "HwPic" && row.currentValue?.trim()) return `Unknown PIC '${row.currentValue.trim()}'.`;
+  if (row.conflictType === "NoChange" || row.status === "SkipNoChange") return "No changes detected for this Basic + Cat.";
+  if (row.status === "ReadyToInsert") return "Ready to insert.";
+  if (row.status === "ReadyToUpdate") return "Ready to update.";
+  if (row.status === "Skipped") return "Row was skipped.";
+  return row.field && row.field !== "Row"
+    ? `${row.field} requires review.`
+    : `Row ${row.rowNumber} requires business review.`;
 }

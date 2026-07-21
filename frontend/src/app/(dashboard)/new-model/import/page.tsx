@@ -22,7 +22,7 @@ import {
   type ImportReviewSummary,
   type ManualFile,
 } from "@/lib/api/dataHubApi";
-import { buildHeaderMappings, canCommitImport, commitResultMessage, getMappingIssues, validateMasterPlanFile } from "./importWorkflow";
+import { buildHeaderMappings, canCommitImport, commitResultMessage, getMappingIssues, reviewRowMessage, validateMasterPlanFile } from "./importWorkflow";
 
 type Step = "select" | "map" | "review" | "committed";
 
@@ -306,7 +306,7 @@ export default function ManualImportPage() {
                       <tr key={`${row.rowNumber}-${row.field}-${index}`} className="border-b align-top">
                         <td className="p-3">{row.rowNumber}</td><td className="p-3">{row.basic || "—"}</td><td className="p-3">{row.cat || "—"}</td><td className="p-3">{row.field}</td><td className="max-w-48 break-words p-3">{row.oldValue || "—"}</td><td className="max-w-48 break-words p-3">{row.newValue || row.currentValue || "—"}</td>
                         <td className="p-3"><Badge variant={row.severity === "Error" ? "destructive" : "outline"}>{row.severity}</Badge></td>
-                        <td className="max-w-md p-3">{row.message || (row.severity === "Ready" ? "Ready to insert." : "No message supplied.")}</td>
+                        <td className="max-w-md p-3">{reviewRowMessage(row)}</td>
                         <td className="p-3">{row.reviewItemId != null ? <div className="flex flex-wrap gap-2">{row.supportedActions.map(action => <Button key={action} size="sm" variant={action === "Update" || action === "Override" ? "default" : "outline"} disabled={requestRunning} onClick={() => handleReviewResolution(row.reviewItemId!, action)}>{action}</Button>)}</div> : resolvableWarning ? <div className="flex gap-2"><Button size="sm" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Accept")}>Accept</Button><Button size="sm" variant="outline" disabled={requestRunning} onClick={() => handleWarningResolution(row.rowNumber, "Skip")}>Skip</Button></div> : existingBusinessKey ? "Use batch choice above" : "—"}</td>
                       </tr>
                     );

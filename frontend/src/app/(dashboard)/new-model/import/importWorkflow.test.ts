@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { HeaderInspection, ImportBatch, ImportReviewSummary } from "@/lib/api/dataHubApi";
-import { buildHeaderMappings, canCommitImport, commitResultMessage, getMappingIssues, validateMasterPlanFile } from "./importWorkflow";
+import type { HeaderInspection, ImportBatch, ImportReviewRow, ImportReviewSummary } from "@/lib/api/dataHubApi";
+import { buildHeaderMappings, canCommitImport, commitResultMessage, getMappingIssues, reviewRowMessage, validateMasterPlanFile } from "./importWorkflow";
 
 const batch = (overrides: Partial<ImportBatch> = {}): ImportBatch => ({
   batchId: "batch-1", module: "NewModels", uploadedBy: "SYN-0001", uploadedAt: "2026-07-20T00:00:00Z",
@@ -55,5 +55,17 @@ describe("Master Plan import workflow guards", () => {
   it("reports inserts, updates, and skipped no-change rows", () => {
     const message = commitResultMessage(batch({ createdRecords: 2, skippedRows: 1, updatedRecords: 99 }));
     expect(message).toBe("2 record(s) inserted, 99 updated. 1 row was skipped with no change.");
+  });
+
+  it("renders contextual warning fallbacks without an empty-message placeholder", () => {
+    const row = (overrides: Partial<ImportReviewRow>): ImportReviewRow => ({
+      rowNumber: 7, sku: "", basic: "BASE", cat: "LPR", field: "Row", currentValue: "", oldValue: "", newValue: "",
+      severity: "Warning", message: "", status: "ReviewRequired", conflictType: "", reviewItemId: null, supportedActions: [], ...overrides,
+    });
+
+    expect(reviewRowMessage(row({ field: "HwPic", currentValue: "Alex Kim", conflictType: "PIC" }))).toBe("Unknown PIC 'Alex Kim'.");
+    expect(reviewRowMessage(row({ status: "SkipNoChange", conflictType: "NoChange" }))).toBe("No changes detected for this Basic + Cat.");
+    expect(reviewRowMessage(row({}))).toBe("Row 7 requires business review.");
+    expect(reviewRowMessage(row({ message: "  Explicit backend warning.  " }))).toBe("Explicit backend warning.");
   });
 });

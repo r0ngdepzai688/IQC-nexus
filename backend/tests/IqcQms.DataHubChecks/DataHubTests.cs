@@ -111,7 +111,11 @@ public sealed class DataHubTests
             [""],
             ["First MP", "", "Q'ty", "", "PVR Target", "MAIN 일정", ""],
             ["Week", "Q'ty", "LPR/LQV", "LSR", "Pre PRA", "LPR/LQV", "LSR"],
-            ["W30", "10", "3", "4", "2026-08-01", "2026-08-02", "2026-08-03"]
+            ["W30", "120", "120", "180", "2026-08-01", "2026-08-02", "2026-08-03"],
+            ["W31", "80", "80", "140", "2026-08-04", "2026-08-05", "2026-08-06"],
+            ["W32", "100", "0", "160", "2026-08-07", "2026-08-08", "2026-08-09"],
+            ["W33", "150", "150", "210", "2026-08-10", "2026-08-11", "2026-08-12"],
+            ["W34", "90", "90", "130", "2026-08-13", "2026-08-14", "2026-08-15"]
         ], "A4:B4", "C4:D4", "E4:E5", "F4:G4");
 
         var inspection = await _parser.InspectHeadersAsync(stream);
@@ -129,26 +133,36 @@ public sealed class DataHubTests
         Assert.Equal("First MP > Q'ty", col1.EffectiveHeaderPath);
         Assert.Null(col1.SuggestedCanonical);
         Assert.False(col1.Ambiguous);
+        Assert.Equal("Integer", col1.DetectedDataType);
 
         var col2 = inspection.Columns.Single(c => c.ColumnIndex == 2);
         Assert.Equal("Q'ty > LPR/LQV", col2.EffectiveHeaderPath);
         Assert.Equal("QtyLprLqv", col2.SuggestedCanonical);
         Assert.False(col2.Ambiguous);
+        Assert.Equal("Integer", col2.DetectedDataType);
+        Assert.Contains("0", col2.SampleValues!);
 
         var col3 = inspection.Columns.Single(c => c.ColumnIndex == 3);
         Assert.Equal("Q'ty > LSR", col3.EffectiveHeaderPath);
         Assert.Equal("QtyLsr", col3.SuggestedCanonical);
         Assert.False(col3.Ambiguous);
+        Assert.Equal("Integer", col3.DetectedDataType);
+
+        var col4 = inspection.Columns.Single(c => c.ColumnIndex == 4);
+        Assert.Equal("PvrTarget", col4.SuggestedCanonical);
+        Assert.Equal("Date", col4.DetectedDataType);
 
         var col5 = inspection.Columns.Single(c => c.ColumnIndex == 5);
         Assert.Equal("MAIN 일정 > LPR/LQV", col5.EffectiveHeaderPath);
         Assert.Equal("MainLprLqvDate", col5.SuggestedCanonical);
         Assert.False(col5.Ambiguous);
+        Assert.Equal("Date", col5.DetectedDataType);
 
         var col6 = inspection.Columns.Single(c => c.ColumnIndex == 6);
         Assert.Equal("MAIN 일정 > LSR", col6.EffectiveHeaderPath);
         Assert.Equal("MainLsrDate", col6.SuggestedCanonical);
         Assert.False(col6.Ambiguous);
+        Assert.Equal("Date", col6.DetectedDataType);
     }
 
     [Fact]
@@ -180,6 +194,46 @@ public sealed class DataHubTests
         Assert.Equal(1, inspection.HeaderDepth);
         Assert.Equal(2, inspection.DataStartRow);
         Assert.NotEmpty(inspection.WorkbookFingerprint);
+    }
+
+    [Fact]
+    public async Task UnmappedExcelDateFormattedSerialIsDetectedAsDate()
+    {
+        using var stream = DateFormattedWorkbook();
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+
+        var schedule = inspection.Columns.Single(column => column.EffectiveHeaderPath == "Unmapped Schedule");
+        Assert.Null(schedule.SuggestedCanonical);
+        Assert.Equal("Date", schedule.DetectedDataType);
+    }
+
+    [Fact]
+    public async Task CanonicalTypeIsStableWithoutSampleValues()
+    {
+        using var stream = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "Q'ty LSR", "PRA Target"],
+            ["Model", "Base", "B", "LPR", "", ""]);
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+
+        Assert.Equal("Integer", inspection.Columns.Single(column => column.SuggestedCanonical == "QtyLsr").DetectedDataType);
+        Assert.Equal("Date", inspection.Columns.Single(column => column.SuggestedCanonical == "PraTarget").DetectedDataType);
+    }
+
+    [Fact]
+    public async Task AmbiguousColumnUsesUnmappedTypeDetection()
+    {
+        using var stream = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "Main LSR Qty"],
+            ["Model", "Base", "B", "LPR", "2026-08-01"]);
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+        var ambiguous = inspection.Columns.Single(column => column.EffectiveHeaderPath == "Main LSR Qty");
+
+        Assert.True(ambiguous.Ambiguous);
+        Assert.Null(ambiguous.SuggestedCanonical);
+        Assert.Equal("Date", ambiguous.DetectedDataType);
     }
 
     [Fact]
@@ -418,6 +472,69 @@ public sealed class DataHubTests
         Assert.False(await fixture.Context.MasterPlans.AnyAsync());
     }
 
+    [Theory]
+    [InlineData("Override")]
+    [InlineData("Ignore")]
+    [InlineData("CreateMissing")]
+    public async Task UnknownPicReviewPreservesContextBeforeAndAfterResolution(string action)
+    {
+        await using var fixture = await ServiceFixture.Create(useRealParser: true);
+        using var workbook = Workbook(
+            ["Project Name", "Basic", "Grade", "Cat", "HW PIC"],
+            ["Synthetic Model", "SYN-PIC", "B", "LPR", "Alex Kim"]);
+
+        var batch = await fixture.Service.ProcessUploadAsync(workbook, "unknown-pic.xlsx", "synthetic-test");
+        var before = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync(batch.BatchId));
+
+        var warning = Assert.Single(before.Rows, row => row.Severity == "Warning");
+        Assert.Equal("HwPic", warning.Field);
+        Assert.Equal("Alex Kim", warning.CurrentValue);
+        Assert.Equal("Unknown PIC 'Alex Kim'.", warning.Message);
+        Assert.Equal(["Override", "Ignore", "CreateMissing"], warning.SupportedActions);
+        Assert.DoesNotContain(before.Rows, row => string.IsNullOrWhiteSpace(row.Message));
+
+        Assert.NotNull(warning.ReviewItemId);
+        Assert.True(await fixture.Service.ResolveReviewItemAsync(warning.ReviewItemId.Value, action, "synthetic-test"));
+        var after = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync(batch.BatchId));
+        var resolved = Assert.Single(after.Rows);
+
+        Assert.Equal("HwPic", resolved.Field);
+        Assert.Equal("Alex Kim", resolved.CurrentValue);
+        Assert.Equal("Unknown PIC 'Alex Kim'.", resolved.Message);
+        Assert.Null(resolved.ReviewItemId);
+        Assert.Empty(resolved.SupportedActions);
+    }
+
+    [Fact]
+    public async Task ResolvedContextualReviewUsesItsQueueTypeForFieldMetadata()
+    {
+        await using var fixture = await ServiceFixture.Create();
+        fixture.Context.ImportBatches.Add(new ImportBatch { BatchId = "AREA-CONTEXT", Status = "Staged", ReviewRequiredRows = 1 });
+        var staging = Ready("AREA-CONTEXT", 2, "SYN-AREA");
+        staging.Area = "JP1";
+        staging.RowStatus = "ReviewRequired";
+        staging.CoreValidationMessage = "Area Mapping Issue: 'JP1' not found in dictionary.";
+        fixture.Context.StagingMasterPlans.Add(staging);
+        await fixture.Context.SaveChangesAsync();
+        var review = new BusinessReviewQueue
+        {
+            BatchId = "AREA-CONTEXT",
+            StagingId = staging.Id,
+            ConflictType = "Area",
+            ConflictMessage = staging.CoreValidationMessage
+        };
+        fixture.Context.BusinessReviewQueues.Add(review);
+        await fixture.Context.SaveChangesAsync();
+
+        Assert.True(await fixture.Service.ResolveReviewItemAsync(review.Id, "Override", "synthetic-test"));
+        var summary = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync("AREA-CONTEXT"));
+        var resolved = Assert.Single(summary.Rows);
+
+        Assert.Equal("Area", resolved.Field);
+        Assert.Equal("JP1", resolved.CurrentValue);
+        Assert.Equal(staging.CoreValidationMessage, resolved.Message);
+    }
+
     private static StagingMasterPlan Ready(string batchId, int row, string basic) => new()
     {
         BatchId = batchId,
@@ -474,6 +591,28 @@ public sealed class DataHubTests
         }
     }
 
+    private static MemoryStream DateFormattedWorkbook()
+    {
+        var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
+        {
+            Write(archive, "[Content_Types].xml", """
+                <?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
+                """);
+            Write(archive, "_rels/.rels", """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""");
+            Write(archive, "xl/workbook.xml", """<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="MasterPlan" sheetId="1" r:id="rId1"/></sheets></workbook>""");
+            Write(archive, "xl/_rels/workbook.xml.rels", """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>""");
+            Write(archive, "xl/styles.xml", """<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font/></fonts><fills count="1"><fill/></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14" applyNumberFormat="1"/></cellXfs></styleSheet>""");
+            Write(archive, "xl/worksheets/sheet1.xml", """
+                <?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Project Name</t></is></c><c r="B1" t="inlineStr"><is><t>Basic</t></is></c><c r="C1" t="inlineStr"><is><t>Grade</t></is></c><c r="D1" t="inlineStr"><is><t>Cat</t></is></c><c r="E1" t="inlineStr"><is><t>Unmapped Schedule</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Model</t></is></c><c r="B2" t="inlineStr"><is><t>Base</t></is></c><c r="C2" t="inlineStr"><is><t>B</t></is></c><c r="D2" t="inlineStr"><is><t>LPR</t></is></c><c r="E2" s="1"><v>45505</v></c></row></sheetData></worksheet>
+                """);
+        }
+        stream.Position = 0;
+        return stream;
+
+        static void Write(ZipArchive archive, string path, string value) { using var writer = new StreamWriter(archive.CreateEntry(path).Open()); writer.Write(value); }
+    }
+
     private static MemoryStream AdaptiveWorkbook(string[][] rows, params string[] merges)
     {
         var stream = new MemoryStream();
@@ -500,7 +639,7 @@ public sealed class DataHubTests
         public AppDbContext Context { get; }
         public DataHubIngestionService Service { get; }
 
-        private ServiceFixture(string root, AppDbContext context)
+        private ServiceFixture(string root, AppDbContext context, bool useRealParser)
         {
             _root = root;
             Context = context;
@@ -516,17 +655,18 @@ public sealed class DataHubTests
                 NewModelsMasterPlanReportsPath = Path.Combine(masterPlan, "Reports"),
                 NewModelsMasterPlanTempPath = Path.Combine(masterPlan, "Temp")
             };
-            Service = new DataHubIngestionService(context, new EmptyParser(), NullLogger<DataHubIngestionService>.Instance, Options.Create(paths));
+            IMasterPlanContractParser parser = useRealParser ? new MasterPlanContractParser(context) : new EmptyParser();
+            Service = new DataHubIngestionService(context, parser, NullLogger<DataHubIngestionService>.Instance, Options.Create(paths));
         }
 
-        public static async Task<ServiceFixture> Create()
+        public static async Task<ServiceFixture> Create(bool useRealParser = false)
         {
             var root = Path.Combine(Path.GetTempPath(), $"iqc-datahub-{Guid.NewGuid():N}");
             Directory.CreateDirectory(root);
             var options = new DbContextOptionsBuilder<AppDbContext>()
                 .UseSqlite($"Data Source={Path.Combine(root, "test.db")}")
                 .Options;
-            var fixture = new ServiceFixture(root, new AppDbContext(options));
+            var fixture = new ServiceFixture(root, new AppDbContext(options), useRealParser);
             await fixture.Context.Database.EnsureCreatedAsync();
             return fixture;
         }
