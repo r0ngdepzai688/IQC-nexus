@@ -111,7 +111,11 @@ public sealed class DataHubTests
             [""],
             ["First MP", "", "Q'ty", "", "PVR Target", "MAIN 일정", ""],
             ["Week", "Q'ty", "LPR/LQV", "LSR", "Pre PRA", "LPR/LQV", "LSR"],
-            ["W30", "10", "3", "4", "2026-08-01", "2026-08-02", "2026-08-03"]
+            ["W30", "120", "120", "180", "2026-08-01", "2026-08-02", "2026-08-03"],
+            ["W31", "80", "80", "140", "2026-08-04", "2026-08-05", "2026-08-06"],
+            ["W32", "100", "0", "160", "2026-08-07", "2026-08-08", "2026-08-09"],
+            ["W33", "150", "150", "210", "2026-08-10", "2026-08-11", "2026-08-12"],
+            ["W34", "90", "90", "130", "2026-08-13", "2026-08-14", "2026-08-15"]
         ], "A4:B4", "C4:D4", "E4:E5", "F4:G4");
 
         var inspection = await _parser.InspectHeadersAsync(stream);
@@ -129,26 +133,36 @@ public sealed class DataHubTests
         Assert.Equal("First MP > Q'ty", col1.EffectiveHeaderPath);
         Assert.Null(col1.SuggestedCanonical);
         Assert.False(col1.Ambiguous);
+        Assert.Equal("Integer", col1.DetectedDataType);
 
         var col2 = inspection.Columns.Single(c => c.ColumnIndex == 2);
         Assert.Equal("Q'ty > LPR/LQV", col2.EffectiveHeaderPath);
         Assert.Equal("QtyLprLqv", col2.SuggestedCanonical);
         Assert.False(col2.Ambiguous);
+        Assert.Equal("Integer", col2.DetectedDataType);
+        Assert.Contains("0", col2.SampleValues!);
 
         var col3 = inspection.Columns.Single(c => c.ColumnIndex == 3);
         Assert.Equal("Q'ty > LSR", col3.EffectiveHeaderPath);
         Assert.Equal("QtyLsr", col3.SuggestedCanonical);
         Assert.False(col3.Ambiguous);
+        Assert.Equal("Integer", col3.DetectedDataType);
+
+        var col4 = inspection.Columns.Single(c => c.ColumnIndex == 4);
+        Assert.Equal("PvrTarget", col4.SuggestedCanonical);
+        Assert.Equal("Date", col4.DetectedDataType);
 
         var col5 = inspection.Columns.Single(c => c.ColumnIndex == 5);
         Assert.Equal("MAIN 일정 > LPR/LQV", col5.EffectiveHeaderPath);
         Assert.Equal("MainLprLqvDate", col5.SuggestedCanonical);
         Assert.False(col5.Ambiguous);
+        Assert.Equal("Date", col5.DetectedDataType);
 
         var col6 = inspection.Columns.Single(c => c.ColumnIndex == 6);
         Assert.Equal("MAIN 일정 > LSR", col6.EffectiveHeaderPath);
         Assert.Equal("MainLsrDate", col6.SuggestedCanonical);
         Assert.False(col6.Ambiguous);
+        Assert.Equal("Date", col6.DetectedDataType);
     }
 
     [Fact]
@@ -180,6 +194,18 @@ public sealed class DataHubTests
         Assert.Equal(1, inspection.HeaderDepth);
         Assert.Equal(2, inspection.DataStartRow);
         Assert.NotEmpty(inspection.WorkbookFingerprint);
+    }
+
+    [Fact]
+    public async Task UnmappedExcelDateFormattedSerialIsDetectedAsDate()
+    {
+        using var stream = DateFormattedWorkbook();
+
+        var inspection = await _parser.InspectHeadersAsync(stream);
+
+        var schedule = inspection.Columns.Single(column => column.EffectiveHeaderPath == "Unmapped Schedule");
+        Assert.Null(schedule.SuggestedCanonical);
+        Assert.Equal("Date", schedule.DetectedDataType);
     }
 
     [Fact]
@@ -472,6 +498,28 @@ public sealed class DataHubTests
             using var writer = new StreamWriter(archive.CreateEntry(path).Open());
             writer.Write(value);
         }
+    }
+
+    private static MemoryStream DateFormattedWorkbook()
+    {
+        var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
+        {
+            Write(archive, "[Content_Types].xml", """
+                <?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>
+                """);
+            Write(archive, "_rels/.rels", """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>""");
+            Write(archive, "xl/workbook.xml", """<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="MasterPlan" sheetId="1" r:id="rId1"/></sheets></workbook>""");
+            Write(archive, "xl/_rels/workbook.xml.rels", """<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>""");
+            Write(archive, "xl/styles.xml", """<?xml version="1.0" encoding="UTF-8"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="1"><font/></fonts><fills count="1"><fill/></fills><borders count="1"><border/></borders><cellStyleXfs count="1"><xf/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0"/><xf numFmtId="14" applyNumberFormat="1"/></cellXfs></styleSheet>""");
+            Write(archive, "xl/worksheets/sheet1.xml", """
+                <?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Project Name</t></is></c><c r="B1" t="inlineStr"><is><t>Basic</t></is></c><c r="C1" t="inlineStr"><is><t>Grade</t></is></c><c r="D1" t="inlineStr"><is><t>Cat</t></is></c><c r="E1" t="inlineStr"><is><t>Unmapped Schedule</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Model</t></is></c><c r="B2" t="inlineStr"><is><t>Base</t></is></c><c r="C2" t="inlineStr"><is><t>B</t></is></c><c r="D2" t="inlineStr"><is><t>LPR</t></is></c><c r="E2" s="1"><v>45505</v></c></row></sheetData></worksheet>
+                """);
+        }
+        stream.Position = 0;
+        return stream;
+
+        static void Write(ZipArchive archive, string path, string value) { using var writer = new StreamWriter(archive.CreateEntry(path).Open()); writer.Write(value); }
     }
 
     private static MemoryStream AdaptiveWorkbook(string[][] rows, params string[] merges)

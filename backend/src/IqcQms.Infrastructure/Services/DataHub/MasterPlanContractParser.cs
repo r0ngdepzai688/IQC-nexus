@@ -16,6 +16,8 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
     private const int ScanRows = 50;
     private const int ScanColumns = 50;
     private static readonly string[] Required = ["ProjectName", "Basic", "Grade", "Cat"];
+    private static readonly HashSet<string> IntegerFields = ["QtyLprLqv", "QtyLsr"];
+    private static readonly HashSet<string> DateFields = ["PvrTarget", "PraTarget", "SraTarget", "MainLprLqvDate", "MainLsrDate"];
     private static readonly Dictionary<string, string[]> Aliases = new(StringComparer.OrdinalIgnoreCase)
     {
         ["ProjectName"] = ["project name", "project", "model", "model name"],
@@ -123,8 +125,11 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
         var columns = best.HeaderPaths.Select((hp, index) =>
         {
             var suggestion = Score(hp.NormalizedPath, learned, fingerprint);
-            var samples = workbook.Rows.Skip(dataStart).Take(20).Select(row => ValueAt(row, index)).Where(value => !string.IsNullOrWhiteSpace(value)).Take(5).ToList();
-            var detected = DetectType(samples);
+            var sampledCells = workbook.Rows.Select((row, rowIndex) => new { RowIndex = rowIndex, Value = ValueAt(row, index) })
+                .Skip(dataStart).Take(20).Where(cell => !string.IsNullOrWhiteSpace(cell.Value)).Take(5).ToList();
+            var samples = sampledCells.Select(cell => cell.Value).ToList();
+            var dateFormattedSamples = sampledCells.Count(cell => workbook.DateFormattedCells.Contains((cell.RowIndex, index)));
+            var detected = DetectType(samples, suggestion.Canonical, dateFormattedSamples);
             return new HeaderColumnDto(index, hp.DisplayPath, suggestion.Ambiguous ? null : suggestion.Canonical, suggestion.Ambiguous,
                 best.Depth > 1 ? HeaderValue(workbook, best.Start, index) : "",
                 best.Depth > 1 ? HeaderValue(workbook, best.Start + best.Depth - 1, index) : hp.DisplayPath,
@@ -282,9 +287,28 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
         stream.Position = 0;
         using var reader = ExcelReaderFactory.CreateReader(stream);
         var rows = new List<object?[]>();
-        while (reader.Read()) rows.Add(Enumerable.Range(0, Math.Min(reader.FieldCount, ScanColumns)).Select(reader.GetValue).ToArray());
+        var dateFormattedCells = new HashSet<(int Row, int Column)>();
+        while (reader.Read())
+        {
+            var rowIndex = rows.Count;
+            var width = Math.Min(reader.FieldCount, ScanColumns);
+            rows.Add(Enumerable.Range(0, width).Select(reader.GetValue).ToArray());
+            for (var column = 0; column < width; column++)
+            {
+                if (IsDateNumberFormat(reader.GetNumberFormatString(column)))
+                    dateFormattedCells.Add((rowIndex, column));
+            }
+        }
         var merges = reader.MergeCells?.Select(value => new Merge(value.FromRow, value.ToRow, value.FromColumn, value.ToColumn)).ToList() ?? [];
-        return new(rows, merges);
+        return new(rows, merges, dateFormattedCells);
+    }
+
+    private static bool IsDateNumberFormat(string? format)
+    {
+        if (string.IsNullOrWhiteSpace(format)) return false;
+        var withoutLiterals = Regex.Replace(format, "\\\"[^\\\"]*\\\"|\\\\.", string.Empty);
+        withoutLiterals = Regex.Replace(withoutLiterals, @"\[(?!h+\]|m+\]|s+\])[^\]]+\]", string.Empty, RegexOptions.IgnoreCase);
+        return Regex.IsMatch(withoutLiterals, @"(?<![A-Za-z])(y{2,4}|m{1,4}|d{1,4}|h{1,2}|s{1,2})(?![A-Za-z])", RegexOptions.IgnoreCase);
     }
 
     private static string Normalize(string? value) => Regex.Replace((value ?? string.Empty).Normalize(NormalizationForm.FormKC).ToLowerInvariant().Replace("q'ty", "qty").Replace('/', ' '), @"[^\p{L}\p{N}]+", " ").Trim();
@@ -308,10 +332,23 @@ public sealed class MasterPlanContractParser(AppDbContext? context = null) : IMa
     }) >= 3;
     private static int? GetInt(object?[] row, IReadOnlyDictionary<string, int> map, string field) { var value = GetValue(row, map, field); if (value is double number) return (int)number; return int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out var result) ? result : null; }
     private static DateTime? GetDate(object?[] row, IReadOnlyDictionary<string, int> map, string field) { var value = GetValue(row, map, field); if (value is DateTime date) return date; if (value is double serial && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); var text = Convert.ToString(value, CultureInfo.InvariantCulture)?.Trim(); if (double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out serial) && serial is >= 0 and <= 2958465) return DateTime.FromOADate(serial); return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AllowWhiteSpaces, out date) ? date : null; }
-    private static string DetectType(List<string> samples) { if (samples.Count == 0) return "Empty"; if (samples.Count(value => GetDate([value], new Dictionary<string, int> { ["x"] = 0 }, "x") is not null) >= samples.Count * .8) return "Date"; if (samples.Count(value => int.TryParse(value, out _)) >= samples.Count * .8) return "Integer"; return "Text"; }
+    private static string DetectType(List<string> samples, string? canonicalField, int dateFormattedSamples)
+    {
+        if (samples.Count == 0) return "Empty";
+        if (canonicalField is not null && IntegerFields.Contains(canonicalField)) return "Integer";
+        if (canonicalField is not null && DateFields.Contains(canonicalField)) return "Date";
+
+        var integerCount = samples.Count(value => int.TryParse(value, NumberStyles.Integer, CultureInfo.InvariantCulture, out _));
+        if (integerCount >= samples.Count * .8)
+            return dateFormattedSamples >= samples.Count * .8 ? "Date" : "Integer";
+
+        return samples.Count(value => GetDate([value], new Dictionary<string, int> { ["x"] = 0 }, "x") is not null) >= samples.Count * .8
+            ? "Date"
+            : "Text";
+    }
 
     private sealed record HeaderPath(int ColumnIndex, List<string> Segments, string DisplayPath, string NormalizedPath);
-    private sealed record WorkbookData(List<object?[]> Rows, List<Merge> Merges);
+    private sealed record WorkbookData(List<object?[]> Rows, List<Merge> Merges, HashSet<(int Row, int Column)> DateFormattedCells);
     private sealed record Merge(int FromRow, int ToRow, int FromColumn, int ToColumn);
     private sealed record Candidate(int Start, int Depth, double Score, List<HeaderPath> HeaderPaths);
     private sealed record Suggestion(string? Canonical, double Score, bool Ambiguous, double Confidence, string Reason, bool Learned);
