@@ -472,8 +472,11 @@ public sealed class DataHubTests
         Assert.False(await fixture.Context.MasterPlans.AnyAsync());
     }
 
-    [Fact]
-    public async Task UnknownPicReviewUsesContextualFieldAndMessage()
+    [Theory]
+    [InlineData("Override")]
+    [InlineData("Ignore")]
+    [InlineData("CreateMissing")]
+    public async Task UnknownPicReviewPreservesContextBeforeAndAfterResolution(string action)
     {
         await using var fixture = await ServiceFixture.Create(useRealParser: true);
         using var workbook = Workbook(
@@ -481,14 +484,55 @@ public sealed class DataHubTests
             ["Synthetic Model", "SYN-PIC", "B", "LPR", "Alex Kim"]);
 
         var batch = await fixture.Service.ProcessUploadAsync(workbook, "unknown-pic.xlsx", "synthetic-test");
-        var summary = await fixture.Service.GetReviewSummaryAsync(batch.BatchId);
+        var before = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync(batch.BatchId));
 
-        var warning = Assert.Single(Assert.IsType<ImportReviewSummaryDto>(summary).Rows, row => row.Severity == "Warning");
+        var warning = Assert.Single(before.Rows, row => row.Severity == "Warning");
         Assert.Equal("HwPic", warning.Field);
         Assert.Equal("Alex Kim", warning.CurrentValue);
         Assert.Equal("Unknown PIC 'Alex Kim'.", warning.Message);
         Assert.Equal(["Override", "Ignore", "CreateMissing"], warning.SupportedActions);
-        Assert.DoesNotContain(summary.Rows, row => string.IsNullOrWhiteSpace(row.Message));
+        Assert.DoesNotContain(before.Rows, row => string.IsNullOrWhiteSpace(row.Message));
+
+        Assert.NotNull(warning.ReviewItemId);
+        Assert.True(await fixture.Service.ResolveReviewItemAsync(warning.ReviewItemId.Value, action, "synthetic-test"));
+        var after = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync(batch.BatchId));
+        var resolved = Assert.Single(after.Rows);
+
+        Assert.Equal("HwPic", resolved.Field);
+        Assert.Equal("Alex Kim", resolved.CurrentValue);
+        Assert.Equal("Unknown PIC 'Alex Kim'.", resolved.Message);
+        Assert.Null(resolved.ReviewItemId);
+        Assert.Empty(resolved.SupportedActions);
+    }
+
+    [Fact]
+    public async Task ResolvedContextualReviewUsesItsQueueTypeForFieldMetadata()
+    {
+        await using var fixture = await ServiceFixture.Create();
+        fixture.Context.ImportBatches.Add(new ImportBatch { BatchId = "AREA-CONTEXT", Status = "Staged", ReviewRequiredRows = 1 });
+        var staging = Ready("AREA-CONTEXT", 2, "SYN-AREA");
+        staging.Area = "JP1";
+        staging.RowStatus = "ReviewRequired";
+        staging.CoreValidationMessage = "Area Mapping Issue: 'JP1' not found in dictionary.";
+        fixture.Context.StagingMasterPlans.Add(staging);
+        await fixture.Context.SaveChangesAsync();
+        var review = new BusinessReviewQueue
+        {
+            BatchId = "AREA-CONTEXT",
+            StagingId = staging.Id,
+            ConflictType = "Area",
+            ConflictMessage = staging.CoreValidationMessage
+        };
+        fixture.Context.BusinessReviewQueues.Add(review);
+        await fixture.Context.SaveChangesAsync();
+
+        Assert.True(await fixture.Service.ResolveReviewItemAsync(review.Id, "Override", "synthetic-test"));
+        var summary = Assert.IsType<ImportReviewSummaryDto>(await fixture.Service.GetReviewSummaryAsync("AREA-CONTEXT"));
+        var resolved = Assert.Single(summary.Rows);
+
+        Assert.Equal("Area", resolved.Field);
+        Assert.Equal("JP1", resolved.CurrentValue);
+        Assert.Equal(staging.CoreValidationMessage, resolved.Message);
     }
 
     private static StagingMasterPlan Ready(string batchId, int row, string basic) => new()

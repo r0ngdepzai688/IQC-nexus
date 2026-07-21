@@ -575,7 +575,8 @@ namespace IqcQms.Infrastructure.Services.DataHub
             if (batch is null) return null;
             var staging = await _context.StagingMasterPlans.AsNoTracking().Where(value => value.BatchId == batchId).OrderBy(value => value.RawRowNumber).ToListAsync();
             var errors = await _context.ValidationErrors.AsNoTracking().Where(value => value.BatchId == batchId).ToListAsync();
-            var reviewItems = await _context.BusinessReviewQueues.AsNoTracking().Where(value => value.BatchId == batchId && value.Status == "Pending").ToListAsync();
+            var reviewItems = await _context.BusinessReviewQueues.AsNoTracking().Where(value => value.BatchId == batchId).ToListAsync();
+            var pendingReviewItems = reviewItems.Where(value => value.Status == "Pending").ToList();
             var rows = new List<ImportReviewRowDto>();
             foreach (var record in staging)
             {
@@ -588,7 +589,8 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 }));
                 if (rowErrors.Count == 0)
                 {
-                    var pendingReview = reviewItems.Where(value => value.StagingId == record.Id)
+                    var recordReviewItems = reviewItems.Where(value => value.StagingId == record.Id).ToList();
+                    var pendingReview = recordReviewItems.Where(value => value.Status == "Pending")
                         .OrderBy(value => value.ConflictType == "ExistingBusinessKey" ? 0 : 1)
                         .FirstOrDefault();
                     if (pendingReview?.ConflictType == "ExistingBusinessKey")
@@ -603,14 +605,15 @@ namespace IqcQms.Infrastructure.Services.DataHub
                         }));
                         continue;
                     }
+                    var contextualReview = pendingReview ?? ResolvedContextualReview(record, recordReviewItems);
                     rows.Add(new ImportReviewRowDto
                     {
-                        RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = ReviewField(pendingReview),
-                        CurrentValue = ReviewCurrentValue(record, pendingReview),
+                        RowNumber = record.RawRowNumber, Basic = record.Basic, Cat = record.Cat, Field = ReviewField(contextualReview),
+                        CurrentValue = ReviewCurrentValue(record, contextualReview),
                         Severity = record.RowStatus == "ReviewRequired" ? "Warning" : record.RowStatus is "Skipped" or "SkipNoChange" ? "Skipped" : "Ready",
-                        Message = ReviewMessage(record, pendingReview),
+                        Message = ReviewMessage(record, contextualReview),
                         Status = record.RowStatus,
-                        ConflictType = record.RowStatus == "SkipNoChange" ? "NoChange" : pendingReview?.ConflictType ?? string.Empty,
+                        ConflictType = record.RowStatus == "SkipNoChange" ? "NoChange" : contextualReview?.ConflictType ?? string.Empty,
                         ReviewItemId = pendingReview?.Id,
                         SupportedActions = pendingReview is null ? [] : ["Override", "Ignore", "CreateMissing"]
                     });
@@ -622,12 +625,24 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 BatchId = batch.BatchId, FileName = batch.OriginalFileName, ValidRows = batch.ValidRows,
                 WarningRows = staging.Count(value => value.RowStatus == "ReviewRequired"),
                 ErrorRows = staging.Count(value => value.RowStatus is "ValidationError" or "Blocked"),
-                ExistingSkuConflicts = reviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
-                ExistingBusinessKeyConflicts = reviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
+                ExistingSkuConflicts = pendingReviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
+                ExistingBusinessKeyConflicts = pendingReviewItems.Count(value => value.ConflictType == "ExistingBusinessKey"),
                 ReadyToUpdateRows = staging.Count(value => value.RowStatus == "ReadyToUpdate"),
                 NoChangeRows = staging.Count(value => value.RowStatus == "SkipNoChange"),
                 SkippedRows = staging.Count(value => value.RowStatus == "Skipped"), Rows = rows
             };
+        }
+
+        private static BusinessReviewQueue? ResolvedContextualReview(StagingMasterPlan record, IReadOnlyCollection<BusinessReviewQueue> reviews)
+        {
+            var recordMessage = !string.IsNullOrWhiteSpace(record.CoreValidationMessage)
+                ? record.CoreValidationMessage
+                : record.ValidationMessage;
+            return reviews
+                .Where(value => value.Status == "Resolved" && value.ConflictType != "ExistingBusinessKey")
+                .OrderByDescending(value => string.Equals(value.ConflictMessage, recordMessage, StringComparison.Ordinal))
+                .ThenByDescending(value => value.ResolvedAt ?? value.CreatedAt)
+                .FirstOrDefault();
         }
 
         private static string ReviewField(BusinessReviewQueue? review) => review?.ConflictType switch
