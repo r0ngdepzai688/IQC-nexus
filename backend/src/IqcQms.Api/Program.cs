@@ -3,8 +3,13 @@ using IqcQms.Infrastructure.Data;
 using IqcQms.Api.Hubs;
 using IqcQms.Application.Interfaces.DataHub;
 using IqcQms.Infrastructure.Services.DataHub;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
+using System.Security.Claims;
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.OpenApi.Models;
+using Microsoft.IdentityModel.Tokens;
 using IqcQms.Api.OpenApi;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -93,7 +98,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
-    options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
+    options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
         ValidateAudience = true,
@@ -101,8 +106,41 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = jwtSettings["Issuer"],
         ValidAudience = jwtSettings["Audience"],
-        IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
     };
+
+    if (builder.Environment.IsDevelopment())
+    {
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                const string developmentToken = "mock-jwt-token-test";
+                if (context.Request.Headers.Authorization == $"Bearer {developmentToken}")
+                {
+                    var claims = new[]
+                    {
+                        new Claim(JwtRegisteredClaimNames.Sub, "local-development-user"),
+                        new Claim(JwtRegisteredClaimNames.UniqueName, "local-development-user"),
+                        new Claim("FullName", "Local Development User"),
+                        new Claim(ClaimTypes.Role, "User"),
+                    };
+                    var credentials = new SigningCredentials(
+                        new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+                        SecurityAlgorithms.HmacSha256);
+                    var token = new JwtSecurityToken(
+                        issuer: jwtSettings["Issuer"],
+                        audience: jwtSettings["Audience"],
+                        claims: claims,
+                        expires: DateTime.UtcNow.AddMinutes(15),
+                        signingCredentials: credentials);
+                    context.Token = new JwtSecurityTokenHandler().WriteToken(token);
+                }
+
+                return Task.CompletedTask;
+            }
+        };
+    }
 });
 builder.Services.AddAuthorization();
 

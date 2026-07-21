@@ -49,6 +49,17 @@ public sealed class AuthenticationDataHubTests(IntegrationTestFactory factory) :
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+    [Fact]
+    public async Task DevelopmentMockTokenIsRejectedOutsideDevelopment()
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/DataHub/history");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", "mock-jwt-token-test");
+
+        using var response = await factory.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
     private async Task<string> LoginAsync(string username, string password)
     {
         using var response = await factory.Client.PostAsJsonAsync("/api/auth/login", new { username, password });
