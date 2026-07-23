@@ -18,7 +18,8 @@ public sealed class PreviewTests
         var valSummary = new ValidationSummary(5, 5, 0, 0, 1, 0, 0);
         var valResult = new ValidationResult("val-v1", "1.0", valSummary, Array.Empty<ValidationDiagnostic>());
 
-        var previewEngine = new ImportPreviewEngine("SecretKeyForTest");
+        var attestationService = new PreviewAttestationService(Microsoft.Extensions.Options.Options.Create(new PreviewAttestationOptions { SecretKey = "SecretKeyForTest-Minimum32BytesLongKeyString!" }));
+        var previewEngine = new ImportPreviewEngine(attestationService);
         var preview = previewEngine.GeneratePreview(job, workbook, mappingResult, valResult, sampleSize: 10);
 
         Assert.NotNull(preview);
@@ -27,7 +28,7 @@ public sealed class PreviewTests
         Assert.True(preview.CanCommit);
         Assert.NotNull(preview.Attestation);
 
-        var isValidSig = previewEngine.VerifyAttestation(preview.Attestation);
+        var isValidSig = previewEngine.VerifyAttestation(preview, mappingResult, valResult);
         Assert.True(isValidSig);
     }
 
@@ -42,12 +43,14 @@ public sealed class PreviewTests
         var valSummary = new ValidationSummary(1, 1, 0, 0, 0, 0, 0);
         var valResult = new ValidationResult("val-v1", "1.0", valSummary, Array.Empty<ValidationDiagnostic>());
 
-        var previewEngine = new ImportPreviewEngine("SecretKeyForTest");
+        var attestationService = new PreviewAttestationService(Microsoft.Extensions.Options.Options.Create(new PreviewAttestationOptions { SecretKey = "SecretKeyForTest-Minimum32BytesLongKeyString!" }));
+        var previewEngine = new ImportPreviewEngine(attestationService);
         var preview = previewEngine.GeneratePreview(job, workbook, mappingResult, valResult);
 
         var tamperedAttestation = preview.Attestation with { ContentFingerprint = "tampered_fingerprint" };
+        var tamperedPreview = preview with { Attestation = tamperedAttestation };
 
-        var isValidSig = previewEngine.VerifyAttestation(tamperedAttestation);
+        var isValidSig = previewEngine.VerifyAttestation(tamperedPreview, mappingResult, valResult);
         Assert.False(isValidSig);
     }
 }
