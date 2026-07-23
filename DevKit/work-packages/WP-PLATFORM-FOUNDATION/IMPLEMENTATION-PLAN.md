@@ -36,4 +36,15 @@ The legacy Master Plan import remains operational while its parser becomes a
 downstream mapping/validation consumer of `NormalizedWorkbook`. New API routes
 use stable error envelopes and provider-neutral job DTOs. Frontend migration is
 incremental through a centralized API client.
+## Data platform foundation status
 
+The provider-neutral backend foundation is implemented. Versioned workbook
+contracts, stable errors, provider capabilities, CSV/XLSX normalization, bounded
+input, cancellation, lifecycle transitions, preview gating, and persistence-neutral
+idempotency receipts are covered by synthetic tests. Existing persisted commit
+behavior remains transactional and now treats a repeated completed commit as an
+idempotent read of the stored result.
+
+No database migration was required. Client Agent and NASCA kinds remain
+unregistered contracts only. The legacy Master Plan pipeline remains operational;
+its mapping and validation behavior has not been duplicated inside providers.
