@@ -62,7 +62,19 @@ public sealed record ImportJobReference(string JobId, string OwnerUserId, Import
 public sealed record ImportFieldMapping(int SourceColumnNumber, string DestinationField, string? Transform = null);
 public sealed record ImportValidationSummary(int Valid, int Warnings, int Errors, int Skipped);
 public sealed record ImportPreviewReference(string JobId, string PreviewVersion, ImportValidationSummary Summary);
-public sealed record ImportCommitResult(string JobId, bool Replayed, int Inserted, int Updated, int Skipped);
+public sealed record ImportCommitResult(
+    string JobId,
+    string IdempotencyKey,
+    int InsertedCount,
+    int UpdatedCount,
+    int SkippedCount,
+    DateTimeOffset CommittedAt,
+    bool Replayed)
+{
+    public int Inserted => InsertedCount;
+    public int Updated => UpdatedCount;
+    public int Skipped => SkippedCount;
+}
 public sealed record ImportAuditEvent(string JobId, string EventType, string ActorUserId, DateTimeOffset OccurredAt);
 
 public interface IImportJobService
@@ -73,28 +85,28 @@ public interface IImportJobService
         CancellationToken cancellationToken = default);
 }
 
-public interface IImportMappingService
+public interface IWorkbookNormalizationService
 {
-    Task ConfirmAsync(
-        string jobId,
-        string actorUserId,
-        IReadOnlyCollection<ImportFieldMapping> mappings,
+    Task<NormalizedWorkbook> NormalizeAsync(
+        Stream stream,
+        string fileName,
+        string contentType,
         CancellationToken cancellationToken = default);
 }
 
-public interface IImportValidationService
+public interface IMappingExecutionEngine
 {
-    Task<ImportValidationSummary> ValidateAsync(
-        string jobId,
-        string actorUserId,
+    Task<MappingResult> MapAsync(
+        NormalizedWorkbook workbook,
+        IReadOnlyList<ImportFieldMapping> mappings,
         CancellationToken cancellationToken = default);
 }
 
-public interface IImportPreviewService
+public interface IImportPreviewEngineService
 {
-    Task<ImportPreviewReference> CreateAsync(
+    Task<ImportPreviewReference> GeneratePreviewAsync(
         string jobId,
-        string actorUserId,
+        MappingResult mappingResult,
         CancellationToken cancellationToken = default);
 }
 
@@ -106,11 +118,6 @@ public interface IImportCommitService
         string idempotencyKey,
         string actorUserId,
         CancellationToken cancellationToken = default);
-}
-
-public interface IImportAuditService
-{
-    Task RecordAsync(ImportAuditEvent auditEvent, CancellationToken cancellationToken = default);
 }
 
 public sealed class ImportPlatformException : Exception
@@ -138,8 +145,11 @@ public static class ImportErrorCodes
     public const string MappingInvalid = "IMPORT_MAPPING_INVALID";
     public const string ValidationFailed = "IMPORT_VALIDATION_FAILED";
     public const string PreviewRequired = "IMPORT_PREVIEW_REQUIRED";
+    public const string PreviewExpired = "IMPORT_PREVIEW_EXPIRED";
     public const string CommitConflict = "IMPORT_COMMIT_CONFLICT";
+    public const string IdempotencyConflict = "IMPORT_IDEMPOTENCY_CONFLICT";
     public const string CommitReplayed = "IMPORT_COMMIT_REPLAYED";
+    public const string CommitFailed = "IMPORT_COMMIT_FAILED";
     public const string SessionForbidden = "IMPORT_SESSION_FORBIDDEN";
     public const string Cancelled = "IMPORT_CANCELLED";
     public const string ProtocolUnsupported = "IMPORT_PROTOCOL_UNSUPPORTED";

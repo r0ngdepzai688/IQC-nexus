@@ -79,7 +79,7 @@ public sealed class ImportJob
         if (State != ImportJobState.Committing)
             ThrowInvalidTransition();
 
-        var result = new ImportCommitResult(JobId, false, inserted, updated, skipped);
+        var result = new ImportCommitResult(JobId, idempotencyKey, inserted, updated, skipped, DateTimeOffset.UtcNow, false);
         _commitReceipts.Add(idempotencyKey, result);
         State = ImportJobState.Completed;
         return result;

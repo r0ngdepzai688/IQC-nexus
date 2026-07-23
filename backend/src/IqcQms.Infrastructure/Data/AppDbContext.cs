@@ -61,6 +61,13 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<DataHubAuditLog> DataHubAuditLogs { get; set; }
         public DbSet<HeaderMappingProfile> HeaderMappingProfiles { get; set; }
 
+        // Persistent Import Orchestration Module
+        public DbSet<PersistentImportJob> PersistentImportJobs { get; set; }
+        public DbSet<PersistentImportMappedPayload> PersistentImportMappedPayloads { get; set; }
+        public DbSet<CommittedImportRecord> CommittedImportRecords { get; set; }
+        public DbSet<PersistentImportAuditEvent> PersistentImportAuditEvents { get; set; }
+        public DbSet<PersistentImportCommitReceipt> PersistentImportCommitReceipts { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -151,6 +158,28 @@ namespace IqcQms.Infrastructure.Data
                 .WithMany(t => t.RequiredBy)
                 .HasForeignKey(td => td.PrerequisiteTaskId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Persistent Import Indexes & Constraints
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.OwnerUserId);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.State);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.CreatedAt);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.CommitIdempotencyKey);
+
+            modelBuilder.Entity<PersistentImportMappedPayload>()
+                .HasIndex(p => p.JobId);
+
+            modelBuilder.Entity<CommittedImportRecord>()
+                .HasIndex(r => r.ImportJobId);
+
+            modelBuilder.Entity<PersistentImportAuditEvent>()
+                .HasIndex(a => new { a.JobId, a.OccurredAt });
+
+            modelBuilder.Entity<PersistentImportCommitReceipt>()
+                .HasIndex(c => c.JobId);
         }
     }
 }
