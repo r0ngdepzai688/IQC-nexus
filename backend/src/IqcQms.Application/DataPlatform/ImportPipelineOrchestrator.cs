@@ -104,7 +104,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
             CreatedAt = DateTimeOffset.UtcNow
         };
 
-        await _store.SaveAsync(record, cancellationToken);
+        await _store.SaveAsync(record, null, cancellationToken);
         return record;
     }
 
@@ -116,6 +116,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
         CancellationToken cancellationToken = default)
     {
         var record = await GetAuthorizedRecordAsync(jobId, actorUserId, isAdmin, cancellationToken);
+        var expectedVersion = record.Version;
 
         if (record.Job.State is not (ImportJobState.ReadyForMapping or ImportJobState.Validating or ImportJobState.ReadyForReview))
         {
@@ -137,7 +138,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
             record.Job.TransitionTo(ImportJobState.Validating, cancellationToken);
         }
 
-        await _store.SaveAsync(record, cancellationToken);
+        await _store.SaveAsync(record, expectedVersion, cancellationToken);
         return mappingResult;
     }
 
@@ -149,6 +150,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
         CancellationToken cancellationToken = default)
     {
         var record = await GetAuthorizedRecordAsync(jobId, actorUserId, isAdmin, cancellationToken);
+        var expectedVersion = record.Version;
 
         if (record.MappingResult == null)
         {
@@ -170,7 +172,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
         record.ValidationResult = validationResult;
         record.PreviewDetail = null;
 
-        await _store.SaveAsync(record, cancellationToken);
+        await _store.SaveAsync(record, expectedVersion, cancellationToken);
         return validationResult;
     }
 
@@ -182,6 +184,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
         CancellationToken cancellationToken = default)
     {
         var record = await GetAuthorizedRecordAsync(jobId, actorUserId, isAdmin, cancellationToken);
+        var expectedVersion = record.Version;
 
         if (record.MappingResult == null)
         {
@@ -211,7 +214,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
             record.Job.MarkPreviewReady(previewDetail.Attestation.ContentFingerprint);
         }
 
-        await _store.SaveAsync(record, cancellationToken);
+        await _store.SaveAsync(record, expectedVersion, cancellationToken);
         return previewDetail;
     }
 
