@@ -17,6 +17,9 @@ namespace IqcQms.Api.Controllers.NewModels;
 [Authorize]
 public class ImportJobsController : ControllerBase
 {
+    private static readonly HashSet<string> AllowedExtensions = new(StringComparer.OrdinalIgnoreCase) { ".csv", ".xlsx", ".xls" };
+    private static readonly HashSet<string> RejectedNascaExtensions = new(StringComparer.OrdinalIgnoreCase) { ".nasca", ".xlsm", ".xltm", ".xlam" };
+
     private readonly IImportPipelineOrchestrator _orchestrator;
     private readonly IDataSourceProviderRegistry _providerRegistry;
     private readonly IAuthorizationService _authorization;
@@ -42,20 +45,32 @@ public class ImportJobsController : ControllerBase
     public async Task<IActionResult> UploadAndCreateJob(IFormFile file)
     {
         if (file is null || file.Length == 0)
-            return BadRequest(new ProblemDetails { Title = "No file uploaded.", Status = 400 });
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.WorkbookEmpty, Detail = "No file uploaded.", Status = 400 });
 
         if (file.Length > ImportPlatformLimits.Default.MaximumPayloadBytes)
-            return BadRequest(new ProblemDetails { Title = "File size exceeds limit.", Status = 400 });
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.FileTooLarge, Detail = "File size exceeds payload limit (50 MB).", Status = 400 });
+
+        var sanitizedFileName = Path.GetFileName(file.FileName);
+        var ext = Path.GetExtension(sanitizedFileName).ToLowerInvariant();
+
+        if (RejectedNascaExtensions.Contains(ext) || sanitizedFileName.Contains("nasca", StringComparison.OrdinalIgnoreCase))
+        {
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.FileTypeUnsupported, Detail = "NASCA file formats are not permitted.", Status = 400 });
+        }
+
+        if (!AllowedExtensions.Contains(ext))
+        {
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.FileTypeUnsupported, Detail = $"File format '{ext}' is unsupported. Only CSV and XLSX files are permitted.", Status = 400 });
+        }
 
         string actor = User.Identity?.Name ?? "anonymous";
 
         try
         {
             using var stream = file.OpenReadStream();
-            var ext = Path.GetExtension(file.FileName).ToLowerInvariant();
             var kind = ext is ".xlsx" or ".xls" ? DataSourceProviderKind.Excel : DataSourceProviderKind.Csv;
 
-            var descriptor = new DataSourceDescriptor(kind, file.FileName, file.FileName, file.ContentType, file.Length);
+            var descriptor = new DataSourceDescriptor(kind, sanitizedFileName, sanitizedFileName, file.ContentType, file.Length);
             var provider = _providerRegistry.GetRequired(descriptor);
 
             var context = new DataSourceProviderContext(descriptor, stream, ImportPlatformLimits.Default);
@@ -122,7 +137,7 @@ public class ImportJobsController : ControllerBase
     public async Task<IActionResult> ExecuteMapping(string jobId, [FromBody] MappingProfileRequestDto request)
     {
         if (request is null || request.Rules is null || request.Rules.Count == 0)
-            return BadRequest(new ProblemDetails { Title = "MAPPING_INVALID", Detail = "At least one mapping rule is required.", Status = 400 });
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.MappingInvalid, Detail = "At least one mapping rule is required.", Status = 400 });
 
         string actor = User.Identity?.Name ?? "anonymous";
         bool isAdmin = await IsAdminAsync();
@@ -161,13 +176,13 @@ public class ImportJobsController : ControllerBase
     }
 
     [HttpPost("{jobId}/validation")]
-    [Authorize(Policy = PlatformPermissions.ImportCreate)]
+    [Authorize(Policy = PlatformPermissions.ImportReview)]
     [ProducesResponseType(typeof(ValidationResultDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ExecuteValidation(string jobId, [FromBody] ValidationProfileRequestDto request)
     {
         if (request is null)
-            return BadRequest(new ProblemDetails { Title = "VALIDATION_INVALID", Detail = "Validation profile is required.", Status = 400 });
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.ValidationFailed, Detail = "Validation profile is required.", Status = 400 });
 
         string actor = User.Identity?.Name ?? "anonymous";
         bool isAdmin = await IsAdminAsync();
@@ -247,7 +262,7 @@ public class ImportJobsController : ControllerBase
         {
             var record = await _orchestrator.GetJobAsync(jobId, actor, isAdmin, HttpContext.RequestAborted);
             if (record.PreviewDetail == null)
-                return NotFound(new ProblemDetails { Title = "PREVIEW_NOT_FOUND", Detail = "Preview has not been generated for this job.", Status = 404 });
+                return NotFound(new ProblemDetails { Title = ImportErrorCodes.PreviewRequired, Detail = "Preview has not been generated for this job.", Status = 404 });
 
             return Ok(record.PreviewDetail);
         }
@@ -296,7 +311,7 @@ public class ImportJobsController : ControllerBase
         record.Job.OwnerUserId,
         record.Job.State.ToString(),
         record.Workbook.SourceKind.ToString(),
-        record.Workbook.SourceDisplayName,
+        Path.GetFileName(record.Workbook.SourceDisplayName),
         record.Workbook.Worksheets.Count,
         record.MappingResult?.MappedRecordCount ?? 0,
         record.ValidationResult?.Summary.WarningCount ?? 0,
@@ -396,3 +411,4 @@ public sealed record ValidationRuleConfigRequestDto(
     string? RegexPattern,
     int RegexTimeoutMs = 100,
     string? ComparisonOperator = null);
+

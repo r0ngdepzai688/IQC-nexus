@@ -89,21 +89,6 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
-// Register Application Services
-builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
-builder.Services.AddSingleton<IDataSourceProvider, CsvDataSourceProvider>();
-builder.Services.AddSingleton<IDataSourceProvider, ExcelDataSourceProvider>();
-builder.Services.AddSingleton<DataSourceProviderRegistry>();
-builder.Services.AddSingleton<IDataSourceProviderRegistry>(services => services.GetRequiredService<DataSourceProviderRegistry>());
-builder.Services.AddSingleton<IWorkbookNormalizer>(services => services.GetRequiredService<DataSourceProviderRegistry>());
-builder.Services.AddSingleton<IWorkbookMappingService, WorkbookMappingService>();
-builder.Services.AddSingleton<IImportValidationEngine, ImportValidationEngine>();
-builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
-builder.Services.AddSingleton<IImportJobStore, InMemoryImportJobStore>();
-builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
-builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
-builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
-
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
@@ -114,6 +99,37 @@ if (string.IsNullOrWhiteSpace(secretKey))
     secretKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
     builder.Configuration["JwtSettings:Secret"] = secretKey;
 }
+
+// Preview Attestation setup
+var attestationKey = builder.Configuration["PreviewAttestation:SecretKey"] ?? secretKey;
+if (string.IsNullOrWhiteSpace(attestationKey) || System.Text.Encoding.UTF8.GetBytes(attestationKey).Length < 32)
+{
+    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+        throw new InvalidOperationException("PreviewAttestation:SecretKey must be configured with at least 32 bytes (256 bits) in Production.");
+    attestationKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+}
+
+builder.Services.Configure<PreviewAttestationOptions>(options =>
+{
+    options.SecretKey = attestationKey;
+    options.TokenLifetimeHours = 2;
+});
+
+// Register Application Services
+builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
+builder.Services.AddSingleton<IDataSourceProvider, CsvDataSourceProvider>();
+builder.Services.AddSingleton<IDataSourceProvider, ExcelDataSourceProvider>();
+builder.Services.AddSingleton<DataSourceProviderRegistry>();
+builder.Services.AddSingleton<IDataSourceProviderRegistry>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookNormalizer>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookMappingService, WorkbookMappingService>();
+builder.Services.AddSingleton<IImportValidationEngine, ImportValidationEngine>();
+builder.Services.AddSingleton<IPreviewAttestationService, PreviewAttestationService>();
+builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
+builder.Services.AddSingleton<IImportJobStore, InMemoryImportJobStore>();
+builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
+builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
+builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 
 builder.Services.AddAuthentication(options =>
 {
