@@ -48,3 +48,12 @@ idempotent read of the stored result.
 No database migration was required. Client Agent and NASCA kinds remain
 unregistered contracts only. The legacy Master Plan pipeline remains operational;
 its mapping and validation behavior has not been duplicated inside providers.
+
+## Verification disposition
+
+The data-platform foundation is complete enough for contract review, but not for
+claiming a complete provider-neutral import service. Mapping, validation, durable
+job/preview/idempotency persistence, provider-neutral authorization, and audit
+orchestration remain deferred. Client Agent and NASCA remain company-only
+contracts/placeholders. Authentication and Portal UI work must remain separate
+until this backend boundary is accepted.

@@ -53,6 +53,14 @@ public sealed class DataPlatformProviderTests
     }
 
     [Fact]
+    public async Task CsvEnforcesPayloadLimit()
+    {
+        var exception = await Assert.ThrowsAsync<ImportPlatformException>(() =>
+            NormalizeCsv("a,b\n1,2\n", new ImportPlatformLimits(MaximumPayloadBytes: 3)));
+
+        Assert.Equal(ImportErrorCodes.FileTooLarge, exception.Code);
+    }
+    [Fact]
     public async Task XlsxPreservesWorksheetsVisibilityMergeCoordinatesFormatsAndNumericSerial()
     {
         var bytes = CreateWorkbook();
@@ -81,8 +89,9 @@ public sealed class DataPlatformProviderTests
         Assert.False(ImportJobTransitionGuard.CanTransition(ImportJobState.ReadyForMapping, ImportJobState.Committing));
         Assert.False(ImportJobTransitionGuard.CanTransition(ImportJobState.Completed, ImportJobState.Created));
         Assert.True(ImportJobTransitionGuard.CanTransition(ImportJobState.ReadyForReview, ImportJobState.Committing));
-        Assert.Throws<InvalidOperationException>(() =>
+        var exception = Assert.Throws<ImportPlatformException>(() =>
             ImportJobTransitionGuard.EnsureCanTransition(ImportJobState.Created, ImportJobState.Completed));
+        Assert.Equal(ImportErrorCodes.InvalidTransition, exception.Code);
     }
 
     [Fact]

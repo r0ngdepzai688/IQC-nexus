@@ -44,3 +44,12 @@
   and dangerous process-kill scans are clean or have documented pre-existing
   findings.
 
+
+## Data-platform verification status
+
+The extraction/provider criteria are met by production code and synthetic tests.
+Lifecycle transition and preview guards are persistence-neutral production code.
+Mapping, blocking validation, provider-neutral audit orchestration, durable
+ownership/idempotency persistence, and provider-neutral API authorization remain
+deferred and must not be marked complete by downstream UI work. Client Agent and
+NASCA remain company-only contracts; raw NASCA bytes have no server route.

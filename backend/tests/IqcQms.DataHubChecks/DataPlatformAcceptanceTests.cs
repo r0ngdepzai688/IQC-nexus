@@ -63,6 +63,18 @@ public sealed class DataPlatformAcceptanceTests
         Assert.Contains(workbook.Diagnostics, item => item.Code == "EXCEL_FORMULA_TEXT_UNAVAILABLE");
     }
 
+    [Fact]
+    public async Task XlsxCancellationUsesStableSanitizedError()
+    {
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        var exception = await Assert.ThrowsAsync<ImportPlatformException>(() =>
+            NormalizeExcel(CreateWorkbook(), cancellationToken: cancellation.Token));
+
+        Assert.Equal(ImportErrorCodes.Cancelled, exception.Code);
+        Assert.Equal("The import was cancelled.", exception.Message);
+    }
     [Theory]
     [InlineData(1, 100, 100, 100, ImportErrorCodes.WorksheetLimitExceeded)]
     [InlineData(10, 3, 100, 100, ImportErrorCodes.RowLimitExceeded)]
@@ -145,11 +157,13 @@ public sealed class DataPlatformAcceptanceTests
 
     private static Task<NormalizedWorkbook> NormalizeExcel(
         byte[] bytes,
-        ImportPlatformLimits? limits = null)
+        ImportPlatformLimits? limits = null,
+        CancellationToken cancellationToken = default)
     {
         var stream = new MemoryStream(bytes);
         return new ExcelDataSourceProvider().NormalizeAsync(
-            Context(DataSourceProviderKind.Excel, "synthetic.xlsx", stream, limits));
+            Context(DataSourceProviderKind.Excel, "synthetic.xlsx", stream, limits),
+            cancellationToken);
     }
 
     private static DataSourceProviderContext Context(

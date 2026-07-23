@@ -13,3 +13,16 @@
 | Decorative UI obscures operations | Poor usability | industrial tokens, compact hierarchy, state matrix | UI quality gate |
 | Local confidential artifacts enter changes | Data leak | opaque boundary and pre-commit status scan | Git checks |
 
+
+## Verification-pass residual risks
+
+- Provider-neutral mapping, validation, audit, and API orchestration are contracts
+  only; do not represent them as production-complete.
+- Durable job ownership, preview attestations, and idempotency receipts still
+  require an additive persistence design review.
+- Legacy DataHub error responses and audit value handling require a separate
+  security pass before broad provider-neutral exposure.
+- Formula text is unavailable from the current safe XLSX reader; cached values
+  are retained with an explicit diagnostic.
+- Excluded local artifacts are untracked and ignored; status scans remain required
+  before staging.

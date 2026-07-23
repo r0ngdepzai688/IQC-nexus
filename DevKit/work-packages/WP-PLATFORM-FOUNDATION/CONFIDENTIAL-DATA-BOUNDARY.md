@@ -12,12 +12,9 @@ seeding, demonstrations, or development bootstrap.
 
 ## Git finding
 
-Potential confidential data files are tracked in the repository and require
-owner review.
-
-Other excluded artifacts are ignored locally. Their presence does not authorize
-their use. Existing broad ignore patterns are not extended or relied upon as a
-data-governance control.
+The checked excluded artifacts are untracked and ignored locally. None are
+tracked by Git. Their presence does not authorize their use. Existing ignore
+patterns are not extended or relied upon as a data-governance control.
 
 ## Engineering boundary
 
