@@ -85,9 +85,7 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
       };
       const res = await importRepository.applyMapping(jobId, profile);
       setMappingResult(res);
-      if (job) {
-        setJob({ ...job, state: "Validating", status: "Validating" });
-      }
+      loadJob();
     } catch (err) {
       alert("Failed to apply mapping profile.");
     } finally {
@@ -103,9 +101,7 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
         { kind: 2, severity: 1, targetField: targetField2, minNumeric: 1 }, // NumericRange
       ]);
       setValidationResult(res);
-      if (job) {
-        setJob({ ...job, warnings: res.summary.warningCount, errors: res.summary.errorCount });
-      }
+      loadJob();
     } catch (err) {
       alert("Failed to execute validation engine.");
     } finally {
@@ -118,9 +114,7 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
     try {
       const res = await importRepository.generatePreview(jobId);
       setPreview(res);
-      if (job) {
-        setJob({ ...job, state: "ReadyForReview", status: "Pending review" });
-      }
+      loadJob();
     } catch (err) {
       alert("Failed to generate preview attestation.");
     } finally {
