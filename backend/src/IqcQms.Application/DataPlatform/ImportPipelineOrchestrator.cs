@@ -59,6 +59,7 @@ public interface IImportPipelineOrchestrator
         int page = 1,
         int pageSize = 50,
         ValidationSeverity? minSeverity = null,
+        string? targetField = null,
         CancellationToken cancellationToken = default);
 }
 
@@ -243,6 +244,7 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
         int page = 1,
         int pageSize = 50,
         ValidationSeverity? minSeverity = null,
+        string? targetField = null,
         CancellationToken cancellationToken = default)
     {
         var record = await GetAuthorizedRecordAsync(jobId, actorUserId, isAdmin, cancellationToken);
@@ -258,9 +260,19 @@ public sealed class ImportPipelineOrchestrator : IImportPipelineOrchestrator
             query = query.Where(d => d.Severity >= minSeverity.Value);
         }
 
-        var list = query.ToList();
+        if (!string.IsNullOrWhiteSpace(targetField))
+        {
+            query = query.Where(d => string.Equals(d.TargetField, targetField, StringComparison.OrdinalIgnoreCase));
+        }
+
+        var list = query
+            .OrderBy(d => d.Coordinate?.RowNumber ?? 0)
+            .ThenBy(d => d.Coordinate?.ColumnNumber ?? 0)
+            .ThenBy(d => d.RuleId)
+            .ToList();
+
         var totalCount = list.Count;
-        var validPageSize = pageSize > 0 ? pageSize : 50;
+        var validPageSize = Math.Clamp(pageSize, 1, 100); // Bounded page size max 100
         var totalPages = (int)Math.Ceiling((double)totalCount / validPageSize);
         var validPage = Math.Max(1, Math.Min(page, totalPages > 0 ? totalPages : 1));
 
