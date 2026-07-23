@@ -1,0 +1,8 @@
+import { AlertTriangle, Ban, CheckCircle2, Clock3, Inbox, LoaderCircle } from "lucide-react";
+export function LoadingState({ label = "Loading" }: { label?: string }) { return <div className="state-panel" role="status"><LoaderCircle className="spin" /><strong>{label}</strong><span>Retrieving the latest available information.</span></div>; }
+export function SlowNetworkState() { return <div className="state-panel state-warning" role="status"><Clock3 /><strong>This is taking longer than expected</strong><span>The request is still running. You can safely keep this page open.</span></div>; }
+export function EmptyState({ title = "No data available", detail = "There are no records to display." }: { title?: string; detail?: string }) { return <div className="state-panel"><Inbox /><strong>{title}</strong><span>{detail}</span></div>; }
+export function ServiceErrorState({ retry }: { retry?: () => void }) { return <div className="state-panel state-danger" role="alert"><AlertTriangle /><strong>Information could not be loaded</strong><span>Try again. If the problem continues, contact platform support.</span>{retry && <button className="secondary-action" onClick={retry}>Try again</button>}</div>; }
+export function ForbiddenState() { return <div className="state-panel"><Ban /><strong>Permission required</strong><span>Your account is signed in but is not authorized for this content.</span></div>; }
+export function SuccessState({ message }: { message: string }) { return <div className="state-inline state-success" role="status"><CheckCircle2 />{message}</div>; }
+export function TableSkeleton() { return <div className="table-skeleton" role="status" aria-label="Loading table">{Array.from({ length: 5 }, (_, index) => <span key={index} />)}</div>; }
