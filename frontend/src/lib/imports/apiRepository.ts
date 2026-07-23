@@ -1,4 +1,6 @@
 import {
+  ImportAuditEvent,
+  ImportCommitResult,
   ImportJob,
   ImportJobRepository,
   ImportJobState,
@@ -6,6 +8,7 @@ import {
   ImportQuery,
   MappingProfileConfig,
   MappingResultSummary,
+  PaginatedAuditResult,
   ValidationResultSummary,
   ValidationRuleConfigRequest,
 } from "./contracts";
@@ -42,7 +45,6 @@ export class ApiImportJobRepository implements ImportJobRepository {
       headers: this.getHeaders(),
     });
     if (!response.ok) {
-      // Fallback to legacy DataHub history endpoint if import-jobs is not populated yet
       const fallbackResp = await fetch(`${API_BASE}/DataHub/history`, { signal, headers: this.getHeaders() });
       if (!fallbackResp.ok) throw new Error(`Import list failed (${response.status})`);
       const batches = (await fallbackResp.json()) as any[];
@@ -123,6 +125,39 @@ export class ApiImportJobRepository implements ImportJobRepository {
     });
     if (!response.ok) throw new Error(`Get preview failed (${response.status})`);
     return (await response.json()) as ImportPreviewDetail;
+  }
+
+  async commitImportJob(
+    id: string,
+    idempotencyKey: string,
+    expectedVersion: number,
+    signal?: AbortSignal
+  ): Promise<ImportCommitResult> {
+    const response = await fetch(`${API_BASE}/import-jobs/${id}/commit`, {
+      method: "POST",
+      signal,
+      headers: this.getHeaders(),
+      body: JSON.stringify({ idempotencyKey, expectedVersion }),
+    });
+    if (!response.ok) {
+      const errJson = await response.json().catch(() => ({}));
+      throw new Error(errJson.detail || `Commit failed (${response.status})`);
+    }
+    return (await response.json()) as ImportCommitResult;
+  }
+
+  async getAuditEvents(
+    id: string,
+    page: number = 1,
+    pageSize: number = 50,
+    signal?: AbortSignal
+  ): Promise<PaginatedAuditResult> {
+    const response = await fetch(`${API_BASE}/import-jobs/${id}/audit?page=${page}&pageSize=${pageSize}`, {
+      signal,
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error(`Get audit events failed (${response.status})`);
+    return (await response.json()) as PaginatedAuditResult;
   }
 }
 

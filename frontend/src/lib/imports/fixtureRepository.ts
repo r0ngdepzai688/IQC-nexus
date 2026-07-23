@@ -1,10 +1,13 @@
 import {
+  ImportAuditEvent,
+  ImportCommitResult,
   ImportJob,
   ImportJobRepository,
   ImportPreviewDetail,
   ImportQuery,
   MappingProfileConfig,
   MappingResultSummary,
+  PaginatedAuditResult,
   ValidationResultSummary,
   ValidationRuleConfigRequest,
 } from "./contracts";
@@ -190,6 +193,77 @@ export class FixtureImportJobRepository implements ImportJobRepository {
         signature: "synth_attestation_sig_abc123",
       },
       canCommit: true,
+    };
+  }
+
+  async commitImportJob(
+    id: string,
+    idempotencyKey: string,
+    _expectedVersion: number,
+    _signal?: AbortSignal
+  ): Promise<ImportCommitResult> {
+    return {
+      jobId: id,
+      idempotencyKey,
+      insertedCount: 42,
+      updatedCount: 0,
+      skippedCount: 0,
+      committedAt: new Date().toISOString(),
+      replayed: false,
+    };
+  }
+
+  async getAuditEvents(
+    id: string,
+    page: number = 1,
+    pageSize: number = 50,
+    _signal?: AbortSignal
+  ): Promise<PaginatedAuditResult> {
+    const events: ImportAuditEvent[] = [
+      {
+        id: 1,
+        eventId: "evt-001",
+        jobId: id,
+        eventType: "Created",
+        actorUserId: "alex.engineer",
+        fromState: null,
+        toState: "Created",
+        code: "JOB_CREATED",
+        message: "Import job created from CSV provider.",
+        occurredAt: "2026-07-24T00:10:00Z",
+      },
+      {
+        id: 2,
+        eventId: "evt-002",
+        jobId: id,
+        eventType: "Mapped",
+        actorUserId: "alex.engineer",
+        fromState: "ReadyForMapping",
+        toState: "Validating",
+        code: "MAPPING_APPLIED",
+        message: "Applied mapping profile v1.0 (42 records mapped).",
+        occurredAt: "2026-07-24T00:12:00Z",
+      },
+      {
+        id: 3,
+        eventId: "evt-003",
+        jobId: id,
+        eventType: "PreviewGenerated",
+        actorUserId: "alex.engineer",
+        fromState: "Validating",
+        toState: "ReadyForReview",
+        code: "PREVIEW_GENERATED",
+        message: "Generated preview attestation.",
+        occurredAt: "2026-07-24T00:14:00Z",
+      },
+    ];
+
+    return {
+      totalCount: events.length,
+      page,
+      pageSize,
+      totalPages: 1,
+      items: events,
     };
   }
 }

@@ -23,6 +23,7 @@ export interface ImportJob {
   blockingErrors: number;
   createdAt: string;
   previewVersion?: string;
+  version?: number;
 }
 
 export interface ImportQuery {
@@ -98,7 +99,7 @@ export interface ValidationResultSummary {
     errorCount: number;
     blockingErrorCount: number;
   };
-  diagnosticsSample: ValidationDiagnosticDto[];
+  diagnosticsSample?: ValidationDiagnosticDto[];
 }
 
 export interface RepresentativeRecordDto {
@@ -151,6 +152,38 @@ export interface ImportPreviewDetail {
   canCommit: boolean;
 }
 
+export interface ImportCommitResult {
+  jobId: string;
+  idempotencyKey: string;
+  insertedCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  committedAt: string;
+  replayed: boolean;
+}
+
+export interface ImportAuditEvent {
+  id: number;
+  eventId: string;
+  jobId: string;
+  eventType: string;
+  actorUserId: string;
+  fromState?: string | null;
+  toState?: string | null;
+  code: string;
+  message: string;
+  sanitizedMetadataJson?: string;
+  occurredAt: string;
+}
+
+export interface PaginatedAuditResult {
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+  items: ImportAuditEvent[];
+}
+
 export interface ImportJobRepository {
   list(query: ImportQuery, signal?: AbortSignal): Promise<ImportJob[]>;
   getJob(id: string, signal?: AbortSignal): Promise<ImportJob>;
@@ -158,4 +191,6 @@ export interface ImportJobRepository {
   runValidation(id: string, rules: ValidationRuleConfigRequest[], signal?: AbortSignal): Promise<ValidationResultSummary>;
   generatePreview(id: string, signal?: AbortSignal): Promise<ImportPreviewDetail>;
   getPreview(id: string, signal?: AbortSignal): Promise<ImportPreviewDetail>;
+  commitImportJob(id: string, idempotencyKey: string, expectedVersion: number, signal?: AbortSignal): Promise<ImportCommitResult>;
+  getAuditEvents(id: string, page?: number, pageSize?: number, signal?: AbortSignal): Promise<PaginatedAuditResult>;
 }
