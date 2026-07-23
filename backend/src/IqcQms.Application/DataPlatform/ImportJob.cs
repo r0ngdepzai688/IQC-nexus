@@ -95,6 +95,6 @@ public sealed class ImportJob
 
     private static void ThrowInvalidTransition() =>
         throw new ImportPlatformException(
-            "IMPORT_INVALID_TRANSITION",
+            ImportErrorCodes.InvalidTransition,
             "The import job transition is not allowed.");
 }

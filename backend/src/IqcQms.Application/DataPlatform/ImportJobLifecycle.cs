@@ -35,7 +35,7 @@ public static class ImportJobTransitionGuard
     public static void EnsureCanTransition(ImportJobState current, ImportJobState next)
     {
         if (!CanTransition(current, next))
-            throw new InvalidOperationException($"Import job cannot transition from {current} to {next}.");
+            throw new ImportPlatformException(ImportErrorCodes.InvalidTransition, "The import job transition is not allowed.");
     }
 
     private static IReadOnlySet<ImportJobState> Set(params ImportJobState[] states) =>

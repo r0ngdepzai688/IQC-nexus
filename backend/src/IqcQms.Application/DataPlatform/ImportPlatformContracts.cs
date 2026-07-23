@@ -144,4 +144,5 @@ public static class ImportErrorCodes
     public const string Cancelled = "IMPORT_CANCELLED";
     public const string ProtocolUnsupported = "IMPORT_PROTOCOL_UNSUPPORTED";
     public const string InternalError = "IMPORT_INTERNAL_ERROR";
+    public const string InvalidTransition = "IMPORT_INVALID_TRANSITION";
 }

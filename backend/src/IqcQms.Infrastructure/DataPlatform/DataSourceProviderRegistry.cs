@@ -31,10 +31,13 @@ public sealed class DataSourceProviderRegistry : IDataSourceProviderRegistry, IW
                 ImportErrorCodes.ProviderNotFound,
                 $"No data source provider is available for {source.Kind}.");
 
-    public Task<NormalizedWorkbook> NormalizeAsync(
+    public async Task<NormalizedWorkbook> NormalizeAsync(
         DataSourceProviderContext context,
-        CancellationToken cancellationToken = default) =>
-        GetRequired(context.Source).NormalizeAsync(context, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        var workbook = await GetRequired(context.Source).NormalizeAsync(context, cancellationToken);
+        return NormalizedWorkbookValidation.EnsureSupported(workbook);
+    }
 }
 
 internal static class ProviderInput
