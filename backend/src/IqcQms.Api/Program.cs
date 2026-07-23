@@ -96,6 +96,11 @@ builder.Services.AddSingleton<IDataSourceProvider, ExcelDataSourceProvider>();
 builder.Services.AddSingleton<DataSourceProviderRegistry>();
 builder.Services.AddSingleton<IDataSourceProviderRegistry>(services => services.GetRequiredService<DataSourceProviderRegistry>());
 builder.Services.AddSingleton<IWorkbookNormalizer>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookMappingService, WorkbookMappingService>();
+builder.Services.AddSingleton<IImportValidationEngine, ImportValidationEngine>();
+builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
+builder.Services.AddSingleton<IImportJobStore, InMemoryImportJobStore>();
+builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 
