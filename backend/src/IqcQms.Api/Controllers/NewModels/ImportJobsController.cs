@@ -22,17 +22,23 @@ public class ImportJobsController : ControllerBase
 
     private readonly IImportPipelineOrchestrator _orchestrator;
     private readonly IDataSourceProviderRegistry _providerRegistry;
+    private readonly IImportCommitEngine _commitEngine;
+    private readonly IImportAuditService _auditService;
     private readonly IAuthorizationService _authorization;
     private readonly ILogger<ImportJobsController> _logger;
 
     public ImportJobsController(
         IImportPipelineOrchestrator orchestrator,
         IDataSourceProviderRegistry providerRegistry,
+        IImportCommitEngine commitEngine,
+        IImportAuditService auditService,
         IAuthorizationService authorization,
         ILogger<ImportJobsController> logger)
     {
         _orchestrator = orchestrator;
         _providerRegistry = providerRegistry;
+        _commitEngine = commitEngine;
+        _auditService = auditService;
         _authorization = authorization;
         _logger = logger;
     }
@@ -303,6 +309,71 @@ public class ImportJobsController : ControllerBase
         }
     }
 
+    [HttpPost("{jobId}/commit")]
+    [Authorize(Policy = PlatformPermissions.ImportCommit)]
+    [ProducesResponseType(typeof(ImportCommitResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> ExecuteCommit(string jobId, [FromBody] ImportCommitRequestDto request)
+    {
+        if (request is null || string.IsNullOrWhiteSpace(request.IdempotencyKey))
+            return BadRequest(new ProblemDetails { Title = ImportErrorCodes.IdempotencyConflict, Detail = "Idempotency key is required for commit.", Status = 400 });
+
+        string actor = User.Identity?.Name ?? "anonymous";
+        bool isAdmin = await IsAdminAsync();
+
+        var commitReq = new ImportCommitRequest(jobId, request.IdempotencyKey, request.ExpectedVersion);
+
+        try
+        {
+            var result = await _commitEngine.ExecuteCommitAsync(commitReq, actor, isAdmin, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (ImportPlatformException ex) when (ex.Code == ImportErrorCodes.SessionForbidden)
+        {
+            return Forbid();
+        }
+        catch (ImportPlatformException ex) when (ex.Code is ImportErrorCodes.CommitConflict or ImportErrorCodes.IdempotencyConflict)
+        {
+            return Conflict(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 409 });
+        }
+        catch (ImportPlatformException ex) when (ex.Code is ImportErrorCodes.PreviewExpired or ImportErrorCodes.ValidationFailed or ImportErrorCodes.PreviewRequired)
+        {
+            return UnprocessableEntity(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 422 });
+        }
+        catch (ImportPlatformException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 400 });
+        }
+    }
+
+    [HttpGet("{jobId}/audit")]
+    [Authorize(Policy = PlatformPermissions.ImportReview)]
+    [ProducesResponseType(typeof(PaginatedAuditResult), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAuditEvents(
+        string jobId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
+    {
+        string actor = User.Identity?.Name ?? "anonymous";
+        bool isAdmin = await IsAdminAsync();
+
+        try
+        {
+            var result = await _auditService.GetAuditTrailAsync(jobId, actor, isAdmin, page, pageSize, HttpContext.RequestAborted);
+            return Ok(result);
+        }
+        catch (ImportPlatformException ex) when (ex.Code == ImportErrorCodes.SessionForbidden)
+        {
+            return Forbid();
+        }
+        catch (ImportPlatformException ex)
+        {
+            return BadRequest(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 400 });
+        }
+    }
+
     private async Task<bool> IsAdminAsync() =>
         (await _authorization.AuthorizeAsync(User, null, PlatformPermissions.ImportAdmin)).Succeeded;
 
@@ -412,3 +483,6 @@ public sealed record ValidationRuleConfigRequestDto(
     int RegexTimeoutMs = 100,
     string? ComparisonOperator = null);
 
+public sealed record ImportCommitRequestDto(
+    string IdempotencyKey,
+    long ExpectedVersion);

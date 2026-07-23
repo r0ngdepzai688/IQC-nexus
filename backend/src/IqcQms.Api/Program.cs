@@ -126,7 +126,12 @@ builder.Services.AddSingleton<IWorkbookMappingService, WorkbookMappingService>()
 builder.Services.AddSingleton<IImportValidationEngine, ImportValidationEngine>();
 builder.Services.AddSingleton<IPreviewAttestationService, PreviewAttestationService>();
 builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
-builder.Services.AddSingleton<IImportJobStore, InMemoryImportJobStore>();
+builder.Services.AddSingleton<IPreviewInvalidationEngine, PreviewInvalidationEngine>();
+
+builder.Services.AddScoped<IImportJobStore, EfImportJobStore>();
+builder.Services.AddScoped<IImportAuditService, EfImportAuditService>();
+builder.Services.AddScoped<IImportCommitEngine, ImportCommitService>();
+
 builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
