@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using System.IdentityModel.Tokens.Jwt;
 using System.Threading.RateLimiting;
+using IqcQms.Application.DataPlatform;
+using IqcQms.Infrastructure.DataPlatform;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +91,11 @@ builder.Services.AddRateLimiter(options =>
 
 // Register Application Services
 builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
+builder.Services.AddSingleton<IDataSourceProvider, CsvDataSourceProvider>();
+builder.Services.AddSingleton<IDataSourceProvider, ExcelDataSourceProvider>();
+builder.Services.AddSingleton<DataSourceProviderRegistry>();
+builder.Services.AddSingleton<IDataSourceProviderRegistry>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookNormalizer>(services => services.GetRequiredService<DataSourceProviderRegistry>());
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 
