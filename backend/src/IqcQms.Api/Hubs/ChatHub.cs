@@ -1,8 +1,10 @@
 using Microsoft.AspNetCore.SignalR;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Authorization;
 
 namespace IqcQms.Api.Hubs
 {
+    [Authorize]
     public class ChatHub : Hub
     {
         // Join a conversation group (room)

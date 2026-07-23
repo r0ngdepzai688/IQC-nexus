@@ -2,12 +2,13 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using IqcQms.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
+using IqcQms.Application.Auth;
 
 namespace IqcQms.Api.Controllers
 {
     [ApiController]
     [Route("api/[controller]")]
-    // [Authorize] // Temporarily disabled for easier testing if needed, or we can leave it since frontend might not pass token yet. Let's not use [Authorize] for now unless strictly required, wait, auth is simulated. I will remove [Authorize].
+    [Authorize(Policy = PlatformPermissions.UserManage)]
     public class UsersController : ControllerBase
     {
         private readonly AppDbContext _context;
@@ -18,14 +19,14 @@ namespace IqcQms.Api.Controllers
         }
 
         [HttpGet("count")]
-        public async Task<IActionResult> GetUserCount()
+        public async Task<IActionResult> GetUserCount(CancellationToken cancellationToken)
         {
-            var count = await _context.Users.CountAsync();
+            var count = await _context.Users.CountAsync(cancellationToken);
             return Ok(new { count });
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetUsers()
+        public async Task<IActionResult> GetUsers(CancellationToken cancellationToken)
         {
             var users = await _context.Users
                 .Select(u => new
@@ -43,7 +44,7 @@ namespace IqcQms.Api.Controllers
                     createdDate = u.CreatedAt.ToString("yyyy-MM-dd"),
                     notes = u.Notes
                 })
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             return Ok(users);
         }

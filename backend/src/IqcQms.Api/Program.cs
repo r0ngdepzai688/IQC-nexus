@@ -6,6 +6,12 @@ using IqcQms.Infrastructure.Services.DataHub;
 using System.Security.Cryptography;
 using Microsoft.OpenApi.Models;
 using IqcQms.Api.OpenApi;
+using IqcQms.Api.Security;
+using IqcQms.Application.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,6 +75,17 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<AuthorizeOperationFilter>();
 });
 builder.Services.AddSignalR(); // Add SignalR
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("login", limiter =>
+    {
+        limiter.PermitLimit = 5;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+        limiter.AutoReplenishment = true;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
 // Register Application Services
 builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
@@ -103,8 +120,36 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey))
     };
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var subject = context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(subject, out var userId))
+            {
+                context.Fail("Invalid token subject.");
+                return;
+            }
+
+            var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            var active = await db.Users.AsNoTracking().AnyAsync(
+                user => user.Id == userId && user.IsActive && user.AccountStatus == "Active",
+                context.HttpContext.RequestAborted);
+            if (!active)
+                context.Fail("User account is disabled.");
+        }
+    };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    foreach (var permission in PlatformPermissions.All)
+        options.AddPolicy(permission, policy => policy.AddRequirements(new PermissionRequirement(permission)));
+});
 
 // Configure Database Connection (SQLite for local dev)
 var dbConfig = builder.Configuration.GetSection("DatabaseConfig");
@@ -124,6 +169,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); // Apply CORS
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -133,6 +179,7 @@ app.MapHub<ChatHub>("/chathub"); // Map SignalR Hub
 
 // Basic health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { Status = "Healthy", Message = "IQC QMS API is running on SQLite!" }))
+    .AllowAnonymous()
     .WithName("GetHealth")
     .WithOpenApi();
 
