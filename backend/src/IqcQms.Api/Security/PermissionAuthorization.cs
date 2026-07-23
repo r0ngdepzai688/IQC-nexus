@@ -1,5 +1,5 @@
 using System.IdentityModel.Tokens.Jwt;
-using System.Text.Json;
+using IqcQms.Application.Auth;
 using IqcQms.Domain.Entities.Auth;
 using IqcQms.Infrastructure.Data;
 using Microsoft.AspNetCore.Authorization;
@@ -33,28 +33,7 @@ public sealed class PermissionAuthorizationHandler(AppDbContext context)
             return;
         }
 
-        if (ParsePermissions(user.Role).Contains(requirement.Permission))
+        if (RolePermissions.Parse(user.Role).Contains(requirement.Permission))
             authorizationContext.Succeed(requirement);
-    }
-
-    private static HashSet<string> ParsePermissions(Role? role)
-    {
-        if (string.IsNullOrWhiteSpace(role?.Permissions))
-            return [];
-
-        try
-        {
-            var values = JsonSerializer.Deserialize<string[]>(role.Permissions);
-            if (values is not null)
-                return values.ToHashSet(StringComparer.OrdinalIgnoreCase);
-        }
-        catch (JsonException)
-        {
-            // Backward-compatible support for existing comma/semicolon-delimited role data.
-        }
-
-        return role.Permissions
-            .Split([',', ';'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 }

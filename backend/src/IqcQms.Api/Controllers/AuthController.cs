@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using IqcQms.Application.Auth;
 using IqcQms.Domain.Entities.Auth;
 using IqcQms.Domain.Entities.System;
 using IqcQms.Infrastructure.Data;
@@ -21,6 +22,10 @@ public sealed class AuthController(AppDbContext context, IConfiguration configur
     [AllowAnonymous]
     [EnableRateLimiting("login")]
     [HttpPost("login")]
+    [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status429TooManyRequests)]
     public async Task<IActionResult> Login(
         [FromBody] LoginRequest request,
         CancellationToken cancellationToken = default)
@@ -172,6 +177,7 @@ public sealed class UserDto
     public int Id { get; init; }
     public string Username { get; init; } = string.Empty;
     public string FullName { get; init; } = string.Empty;
+    public string EmployeeId { get; init; } = string.Empty;
     public string Department { get; init; } = string.Empty;
     public string KnoxId { get; init; } = string.Empty;
     public string Position { get; init; } = string.Empty;
@@ -183,14 +189,28 @@ public sealed class UserDto
     public string Email { get; init; } = string.Empty;
     public string RoleProfile { get; init; } = string.Empty;
     public string Avatar { get; init; } = string.Empty;
+    public IReadOnlyList<string> Roles { get; init; } = [];
+    public IReadOnlyList<string> Permissions { get; init; } = [];
 
     public static UserDto From(User user) => new()
     {
-        Id = user.Id, Username = user.Username, FullName = user.FullName,
-        Department = user.Department, KnoxId = user.KnoxId, Position = user.Position,
-        Scope = user.Scope, SystemRole = user.SystemRole, AccountStatus = user.AccountStatus,
-        Organization = user.Organization, Part = user.Part, Email = user.Email,
-        RoleProfile = user.RoleProfile, Avatar = user.Avatar
+        Id = user.Id,
+        Username = user.Username,
+        FullName = user.FullName,
+        EmployeeId = !string.IsNullOrWhiteSpace(user.Username) ? user.Username : user.KnoxId,
+        Department = user.Department,
+        KnoxId = user.KnoxId,
+        Position = user.Position,
+        Scope = user.Scope,
+        SystemRole = user.SystemRole,
+        AccountStatus = user.AccountStatus,
+        Organization = user.Organization,
+        Part = user.Part,
+        Email = user.Email,
+        RoleProfile = user.RoleProfile,
+        Avatar = user.Avatar,
+        Roles = string.IsNullOrWhiteSpace(user.Role?.RoleName) ? [user.SystemRole] : [user.Role.RoleName],
+        Permissions = RolePermissions.Parse(user.Role).Order(StringComparer.OrdinalIgnoreCase).ToArray()
     };
 }
 

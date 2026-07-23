@@ -81,7 +81,7 @@ builder.Services.AddRateLimiter(options =>
 {
     options.AddFixedWindowLimiter("login", limiter =>
     {
-        limiter.PermitLimit = 5;
+        limiter.PermitLimit = builder.Environment.IsEnvironment("Testing") ? 10_000 : 5;
         limiter.Window = TimeSpan.FromMinutes(1);
         limiter.QueueLimit = 0;
         limiter.AutoReplenishment = true;

@@ -1,127 +1,166 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from "react";
+import { AuthUser, authClient, normalizeAuthUser, PlatformPermission } from "@/lib/auth/client";
+import { createContext, ReactNode, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-export type Role = 'Group Leader' | 'Part Leader' | 'Cell Leader' | 'Staff';
-export type SystemRole = 'Administrator' | 'User';
-export type AccountStatus = 'Active' | 'Inactive' | 'Pending' | 'Locked';
+export type Role = "Group Leader" | "Part Leader" | "Cell Leader" | "Staff";
+export type AuthState = AuthUser;
 
-export interface AuthState {
-  employeeId: string;
-  name: string;
-  position: Role;
-  scope: string;
-  systemRole: SystemRole;
-  accountStatus: AccountStatus;
-  avatar: string;
-  organization: string;
-  part: string;
-  email: string;
-  roleProfile: string;
-}
-
-interface AuthContextProps {
-  user: AuthState;
+export interface AuthContextValue {
+  user: AuthUser;
+  status: "loading" | "authenticated" | "anonymous" | "error";
+  error: string | null;
+  can: (permission: PlatformPermission) => boolean;
+  hasRole: (role: string) => boolean;
+  login: (username: string, password: string) => Promise<AuthUser>;
+  signOut: () => Promise<void>;
   activeRoleLens: Role;
-  setRoleLens: (lens: Role) => void;
-  loginAs: (user: Partial<AuthState>) => void;
+  setRoleLens: (role: Role) => void;
+  loginAs: (updates: Partial<AuthUser>) => void;
 }
 
-const defaultUser: AuthState = {
-  employeeId: '',
-  name: 'Authenticated User',
-  position: 'Staff',
-  scope: '',
-  systemRole: 'User',
-  accountStatus: 'Active',
-  avatar: '',
-  organization: '',
-  part: '',
-  email: '',
-  roleProfile: ''
-};
+const emptyUser = normalizeAuthUser(null);
 
-const AuthContext = createContext<AuthContextProps>({
-  user: defaultUser,
-  activeRoleLens: 'Staff',
-  setRoleLens: () => {},
-  loginAs: () => {},
-});
+const AuthContext = createContext<AuthContextValue | null>(null);
 
-export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<AuthState>(defaultUser);
-  const [activeRoleLens, setActiveRoleLens] = useState<Role>(defaultUser.position);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AuthUser>(() => {
+    if (authClient.hasToken()) {
+      const cached = authClient.getStoredUser();
+      if (cached) return cached;
+    }
+    return emptyUser;
+  });
 
-  // Load from localStorage on mount
-  React.useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        try {
-          const parsed = JSON.parse(storedUser);
-          const loadedUser: AuthState = {
-            employeeId: parsed.username || defaultUser.employeeId,
-            name: parsed.fullName || defaultUser.name,
-            position: parsed.position || defaultUser.position,
-            scope: parsed.scope || defaultUser.scope,
-            systemRole: parsed.systemRole || defaultUser.systemRole,
-            accountStatus: parsed.accountStatus || defaultUser.accountStatus,
-            avatar: parsed.avatar || '',
-            organization: parsed.organization || defaultUser.organization,
-            part: parsed.part || defaultUser.part,
-            email: parsed.email || defaultUser.email,
-            roleProfile: parsed.roleProfile || defaultUser.roleProfile
-          };
-          setUser(loadedUser); // eslint-disable-line react-hooks/set-state-in-effect
-          setActiveRoleLens(loadedUser.position);
-        } catch (e) {
-          console.error("Failed to parse user from localStorage", e);
-        }
+  const [status, setStatus] = useState<AuthContextValue["status"]>(() =>
+    authClient.hasToken() ? "loading" : "anonymous"
+  );
+  const [error, setError] = useState<string | null>(null);
+
+  const [activeRoleLens, setRoleLens] = useState<Role>(() => {
+    if (authClient.hasToken()) {
+      const cached = authClient.getStoredUser();
+      if (cached && ["Group Leader", "Part Leader", "Cell Leader", "Staff"].includes(cached.position)) {
+        return cached.position as Role;
       }
     }
+    return "Staff";
+  });
+
+  useEffect(() => {
+    if (!authClient.hasToken()) {
+      return;
+    }
+
+    authClient.currentUser()
+      .then((currentUser) => {
+        setUser(currentUser);
+        if (["Group Leader", "Part Leader", "Cell Leader", "Staff"].includes(currentUser.position)) {
+          setRoleLens(currentUser.position as Role);
+        }
+        setStatus("authenticated");
+        setError(null);
+      })
+      .catch((err: unknown) => {
+        const authErr = err as { status?: number; message?: string };
+        if (authErr?.status === 401) {
+          setUser(emptyUser);
+          setStatus("anonymous");
+        } else {
+          // If network error but we have cached user from initial state, stay authenticated
+          if (authClient.getStoredUser()) {
+            setStatus("authenticated");
+          } else {
+            setStatus("error");
+            setError(authErr?.message || "Failed to authenticate session.");
+          }
+        }
+      });
   }, []);
 
-  const loginAs = (updates: Partial<AuthState>) => {
-    setUser(prev => {
-      const newUser = { ...prev, ...updates };
-      // If position changes and we haven't overridden the lens, update lens too
-      if (updates.position) {
-        setActiveRoleLens(updates.position);
+  const login = async (username: string, password: string): Promise<AuthUser> => {
+    try {
+      setStatus("loading");
+      setError(null);
+      const authenticatedUser = await authClient.login(username, password);
+      setUser(authenticatedUser);
+      if (["Group Leader", "Part Leader", "Cell Leader", "Staff"].includes(authenticatedUser.position)) {
+        setRoleLens(authenticatedUser.position as Role);
       }
-      
-      // Persist to localStorage so it survives reloads
-      if (typeof window !== 'undefined') {
-        const stored = localStorage.getItem('user');
-        let parsed = stored ? JSON.parse(stored) : {};
-        parsed = {
-          ...parsed,
-          username: newUser.employeeId,
-          fullName: newUser.name,
-          position: newUser.position,
-          scope: newUser.scope,
-          systemRole: newUser.systemRole,
-          organization: newUser.organization,
-          part: newUser.part,
-          email: newUser.email,
-          roleProfile: newUser.roleProfile
-        };
-        localStorage.setItem('user', JSON.stringify(parsed));
-      }
-      
-      return newUser;
-    });
+      setStatus("authenticated");
+      return authenticatedUser;
+    } catch (err: unknown) {
+      setStatus("anonymous");
+      const authErr = err as { message?: string };
+      const msg = authErr?.message || "Invalid credentials or network error.";
+      setError(msg);
+      throw err;
+    }
   };
 
-  const setRoleLens = (lens: Role) => {
-    setActiveRoleLens(lens);
+  const signOut = async () => {
+    try {
+      await authClient.logout();
+    } finally {
+      setUser(emptyUser);
+      setStatus("anonymous");
+      setError(null);
+    }
   };
 
-  return (
-    <AuthContext.Provider value={{ user, activeRoleLens, setRoleLens, loginAs }}>
-      {children}
-    </AuthContext.Provider>
+  const loginAs = (updates: Partial<AuthUser>) => {
+    setUser((current) => normalizeAuthUser({ ...current, ...updates }));
+  };
+
+  const can = useCallback(
+    (permission: PlatformPermission): boolean => {
+      if (user.systemRole === "Administrator") return true;
+      return user.permissions.includes(permission);
+    },
+    [user.systemRole, user.permissions]
   );
-};
 
-export const useAuth = () => useContext(AuthContext);
+  const hasRole = useCallback(
+    (role: string): boolean => {
+      if (user.systemRole === "Administrator") return true;
+      return user.roles.some((r) => r.toLowerCase() === role.toLowerCase());
+    },
+    [user.systemRole, user.roles]
+  );
 
+  const value = useMemo<AuthContextValue>(
+    () => ({
+      user,
+      status,
+      error,
+      can,
+      hasRole,
+      login,
+      signOut,
+      activeRoleLens,
+      setRoleLens,
+      loginAs,
+    }),
+    [user, status, error, can, hasRole, activeRoleLens]
+  );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+}
+
+export function useAuth(): AuthContextValue {
+  const value = useContext(AuthContext);
+  if (!value) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return value;
+}
+
+export function usePermission(permission: PlatformPermission): boolean {
+  const { can } = useAuth();
+  return can(permission);
+}
+
+export function useAnyPermission(permissions: PlatformPermission[]): boolean {
+  const { can } = useAuth();
+  return permissions.some((permission) => can(permission));
+}
