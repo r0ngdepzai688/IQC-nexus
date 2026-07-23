@@ -67,6 +67,8 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<CommittedImportRecord> CommittedImportRecords { get; set; }
         public DbSet<PersistentImportAuditEvent> PersistentImportAuditEvents { get; set; }
         public DbSet<PersistentImportCommitReceipt> PersistentImportCommitReceipts { get; set; }
+        public DbSet<PersistentImportWorkItem> PersistentImportWorkItems { get; set; }
+        public DbSet<PersistentImportOutboxMessage> PersistentImportOutboxMessages { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -180,6 +182,14 @@ namespace IqcQms.Infrastructure.Data
 
             modelBuilder.Entity<PersistentImportCommitReceipt>()
                 .HasIndex(c => c.JobId);
+
+            modelBuilder.Entity<PersistentImportWorkItem>()
+                .HasIndex(w => new { w.State, w.AvailableAtUtc });
+            modelBuilder.Entity<PersistentImportWorkItem>()
+                .HasIndex(w => w.JobId);
+
+            modelBuilder.Entity<PersistentImportOutboxMessage>()
+                .HasIndex(o => new { o.IsDispatched, o.OccurredAtUtc });
         }
     }
 }
