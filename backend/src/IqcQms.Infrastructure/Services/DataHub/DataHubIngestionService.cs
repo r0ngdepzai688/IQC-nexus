@@ -380,7 +380,9 @@ namespace IqcQms.Infrastructure.Services.DataHub
         public async Task<ImportBatch> CommitBatchAsync(string batchId, string committedBy)
         {
             var batch = await _context.ImportBatches.FirstOrDefaultAsync(b => b.BatchId == batchId);
-            if (batch == null || batch.Status != "Staged") throw new InvalidOperationException("Batch not ready for commit");
+            if (batch == null) throw new InvalidOperationException("Batch not ready for commit");
+            if (batch.Status == "Committed") return batch;
+            if (batch.Status != "Staged") throw new InvalidOperationException("Batch not ready for commit");
 
             var allRecords = await _context.StagingMasterPlans.Where(s => s.BatchId == batchId).ToListAsync();
             if (allRecords.Any(s => s.RowStatus is "ValidationError" or "ReviewRequired" or "Blocked"))
@@ -482,11 +484,11 @@ namespace IqcQms.Infrastructure.Services.DataHub
                 _context.ChangeTracker.Clear();
                 throw new InvalidOperationException("A normalized Basic + Cat conflict was detected during commit. Refresh and review the batch again; no rows were committed.", ex);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 await transaction.RollbackAsync();
                 batch.Status = "Failed";
-                LogError(batchId, $"Commit failed: {ex.Message}");
+                LogError(batchId, "Commit failed with a sanitized persistence error.");
                 await _context.SaveChangesAsync();
                 throw;
             }
@@ -507,9 +509,9 @@ namespace IqcQms.Infrastructure.Services.DataHub
                     File.Copy(rawFile.ArchivedPath, processedPath, overwrite: true);
                 }
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger.LogWarning($"Could not copy file to Processed archive for batch {batchId}. Error: {ex.Message}");
+                _logger.LogWarning("Could not copy the committed import artifact to the processed archive for batch {BatchId}.", batchId);
             }
 
             return batch;
