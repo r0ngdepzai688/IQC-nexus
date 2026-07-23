@@ -38,17 +38,21 @@ public sealed class CsvDataSourceProvider : IDataSourceProvider
             var rows = parsedRows.Select((fields, rowIndex) =>
                 new NormalizedRow(
                     rowIndex + 1,
-                    fields.Select((value, columnIndex) => new NormalizedCell(
-                        rowIndex + 1,
-                        columnIndex + 1,
-                        value.Length == 0 ? NormalizedCellRawType.Empty : NormalizedCellRawType.String,
-                        value,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null,
-                        false)).ToList(),
+                    fields.Select((val, columnIndex) =>
+                    {
+                        var sanitizedValue = NeutralizeFormula(val);
+                        return new NormalizedCell(
+                            rowIndex + 1,
+                            columnIndex + 1,
+                            sanitizedValue.Length == 0 ? NormalizedCellRawType.Empty : NormalizedCellRawType.String,
+                            sanitizedValue,
+                            null,
+                            null,
+                            null,
+                            null,
+                            null,
+                            false);
+                    }).ToList(),
                     fields.All(string.IsNullOrEmpty))).ToList();
 
             var worksheet = new NormalizedWorksheet(0, "CSV", WorksheetVisibility.Visible, rows.Count, width, [], rows);
@@ -79,6 +83,16 @@ public sealed class CsvDataSourceProvider : IDataSourceProvider
                 "The CSV payload could not be normalized.",
                 exception);
         }
+    }
+
+    private static string NeutralizeFormula(string text)
+    {
+        if (string.IsNullOrEmpty(text)) return text;
+        if (text.StartsWith('=') || text.StartsWith('+') || text.StartsWith('-') || text.StartsWith('@'))
+        {
+            return "'" + text;
+        }
+        return text;
     }
 
     private static string DecodeUtf8(byte[] bytes)
