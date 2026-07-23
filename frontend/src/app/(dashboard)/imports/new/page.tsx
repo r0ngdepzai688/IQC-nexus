@@ -1,0 +1,3 @@
+import { Construction } from "lucide-react";
+import Link from "next/link";
+export default function NewImportPage() { return <div className="page-stack"><section className="page-heading"><div><p className="eyebrow">IMPORT CENTER</p><h2>Import creation is not enabled</h2><p>This shell does not invent upload, mapping, validation, or commit behavior before the provider-neutral backend workflow is ready.</p></div></section><div className="state-panel"><Construction /><strong>Future workflow boundary</strong><span>Return to the job list to monitor existing imports.</span><Link className="primary-action" href="/imports">Return to Import Center</Link></div></div>; }

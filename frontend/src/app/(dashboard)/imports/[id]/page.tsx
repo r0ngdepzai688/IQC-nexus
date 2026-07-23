@@ -1,0 +1,2 @@
+import { EmptyState } from "@/components/portal/states";
+export default function ImportDetailPage() { return <div className="page-stack"><section className="page-heading"><div><p className="eyebrow">IMPORT CENTER</p><h2>Import detail</h2><p>The job-detail contract is not connected in this milestone.</p></div></section><EmptyState title="Detail unavailable" detail="No unfinished backend behavior has been simulated." /></div>; }
