@@ -1,20 +1,32 @@
-# Import Lifecycle
+# Import Lifecycle Specification
 
-The enforced lifecycle is:
+The authoritative backend lifecycle state machine is:
 
-`Created -> Inspecting -> ReadyForMapping -> Validating -> ReadyForReview -> Committing -> Completed`
+`Created -> Inspecting -> ReadyForMapping -> Validating -> ReadyForReview`
 
-`Failed` and `Cancelled` are terminal. Inspection can fail or be cancelled. Validation may return to mapping. Review may revalidate. A commit conflict may return to review; successful commit is terminal.
+```mermaid
+graph TD
+    Created --> Inspecting
+    Inspecting --> ReadyForMapping
+    ReadyForMapping --> Validating
+    Validating --> ReadyForReview
+    ReadyForReview --> Validating
+    Created --> Cancelled
+    Inspecting --> Cancelled
+    ReadyForMapping --> Cancelled
+    Validating --> Cancelled
+    ReadyForReview --> Cancelled
+    Inspecting --> Failed
+    Validating --> Failed
+```
 
-Consequences:
+## Lifecycle Principles & Rules
 
-- Mapping cannot begin before inspection.
-- Mapping confirmation is a deliberate action before validation.
-- `ReadyForReview` represents a materialized preview version; commit cannot transition directly from mapping or validation.
-- Blocking validation errors prevent readiness for review/commit.
-- Commit implementations must use one persistence transaction for core mutations, import state, idempotency receipt, and audit.
-- A repeated commit key returns the prior outcome or `IMPORT_COMMIT_REPLAYED`; it never duplicates effects.
-- Every job is owned by an authenticated user. Reads and writes require ownership or the explicit `import.admin` permission.
-- Cancellation flows through every asynchronous stage.
-
-The transition guard is persistence-neutral. A durable job store and preview/commit receipt are intentionally deferred until the existing Data Hub entities and uniqueness/index requirements are reviewed.
+1. **State Machine Authority**: `ImportJobTransitionGuard` in `IqcQms.Application.DataPlatform` is the single source of truth for all lifecycle state transitions.
+2. **Inspection Phase**: Normalization converts CSV/XLSX source files into a provider-neutral `NormalizedWorkbook`. NASCA formats and unsupported extensions are strictly rejected during upload inspection.
+3. **Mapping Phase**: Mapping profile configuration translates source headers to target schema fields. Applying mapping transitions state from `ReadyForMapping` to `Validating`.
+4. **Validation Phase**: The validation engine evaluates field and record rules. Re-running validation remains in `Validating` or `ReadyForReview`.
+5. **Review & Preview Phase**: Generating preview creates a tamper-evident HMAC-SHA256 attestation fingerprint and transitions job to `ReadyForReview`.
+6. **Deferred Commitment**: Production database commit persistence (`Committing` -> `Completed`) is explicitly deferred in this milestone. No public API route or frontend UI activates commit transitions.
+7. **Terminal States**: `Failed` and `Cancelled` are terminal states.
+8. **Ownership & Access**: Jobs are owned by authenticated creators. Operations require ownership or `import.admin` policy authorization.
