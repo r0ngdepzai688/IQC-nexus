@@ -27,10 +27,13 @@ public sealed class ImportReadinessHealthCheck : IHealthCheck
                 return HealthCheckResult.Unhealthy("Database connection failed.");
             }
 
-            var pendingMigrations = await _context.Database.GetPendingMigrationsAsync(cancellationToken);
-            if (pendingMigrations.Any())
+            if (_context.Database.IsRelational())
             {
-                return HealthCheckResult.Degraded($"Pending database migrations: {string.Join(", ", pendingMigrations)}");
+                var pendingMigrations = await _context.Database.GetPendingMigrationsAsync(cancellationToken);
+                if (pendingMigrations.Any())
+                {
+                    return HealthCheckResult.Degraded($"Pending database migrations: {string.Join(", ", pendingMigrations)}");
+                }
             }
 
             return HealthCheckResult.Healthy("Import platform database and store are ready.");

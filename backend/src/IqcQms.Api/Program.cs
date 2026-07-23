@@ -14,6 +14,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Threading.RateLimiting;
 using IqcQms.Application.DataPlatform;
 using IqcQms.Infrastructure.DataPlatform;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +90,11 @@ builder.Services.AddRateLimiter(options =>
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<ImportReadinessHealthCheck>("import_ready", tags: new[] { "readiness" })
+    .AddCheck<ImportOperationalHealthCheck>("import_operational", tags: new[] { "degraded" });
+
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var secretKey = jwtSettings["Secret"];
@@ -129,12 +135,20 @@ builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
 builder.Services.AddSingleton<IPreviewInvalidationEngine, PreviewInvalidationEngine>();
 
 builder.Services.AddScoped<IImportJobStore, EfImportJobStore>();
+builder.Services.AddScoped<IImportWorkQueue, EfImportWorkQueue>();
 builder.Services.AddScoped<IImportAuditService, EfImportAuditService>();
 builder.Services.AddScoped<IImportCommitEngine, ImportCommitService>();
 
 builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
+
+// Register Background Hosted Services outside testing
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<ImportCommitBackgroundWorker>();
+    builder.Services.AddHostedService<ImportOutboxBackgroundWorker>();
+}
 
 builder.Services.AddAuthentication(options =>
 {
@@ -209,6 +223,11 @@ app.UseAuthorization();
 
 app.MapControllers();
 app.MapHub<ChatHub>("/chathub"); // Map SignalR Hub
+
+// Health check endpoints
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("readiness") }).AllowAnonymous();
+app.MapHealthChecks("/health/degraded", new HealthCheckOptions { Predicate = check => check.Tags.Contains("degraded") }).AllowAnonymous();
 
 // Basic health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { Status = "Healthy", Message = "IQC QMS API is running on SQLite!" }))

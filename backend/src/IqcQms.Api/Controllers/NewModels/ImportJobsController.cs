@@ -23,6 +23,8 @@ public class ImportJobsController : ControllerBase
     private readonly IImportPipelineOrchestrator _orchestrator;
     private readonly IDataSourceProviderRegistry _providerRegistry;
     private readonly IImportCommitEngine _commitEngine;
+    private readonly IImportWorkQueue _workQueue;
+    private readonly IPreviewInvalidationEngine _invalidationEngine;
     private readonly IImportAuditService _auditService;
     private readonly IAuthorizationService _authorization;
     private readonly ILogger<ImportJobsController> _logger;
@@ -31,6 +33,8 @@ public class ImportJobsController : ControllerBase
         IImportPipelineOrchestrator orchestrator,
         IDataSourceProviderRegistry providerRegistry,
         IImportCommitEngine commitEngine,
+        IImportWorkQueue workQueue,
+        IPreviewInvalidationEngine invalidationEngine,
         IImportAuditService auditService,
         IAuthorizationService authorization,
         ILogger<ImportJobsController> logger)
@@ -38,6 +42,8 @@ public class ImportJobsController : ControllerBase
         _orchestrator = orchestrator;
         _providerRegistry = providerRegistry;
         _commitEngine = commitEngine;
+        _workQueue = workQueue;
+        _invalidationEngine = invalidationEngine;
         _auditService = auditService;
         _authorization = authorization;
         _logger = logger;
@@ -289,14 +295,15 @@ public class ImportJobsController : ControllerBase
         string jobId,
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 50,
-        [FromQuery] ValidationSeverity? minSeverity = null)
+        [FromQuery] ValidationSeverity? minSeverity = null,
+        [FromQuery] string? targetField = null)
     {
         string actor = User.Identity?.Name ?? "anonymous";
         bool isAdmin = await IsAdminAsync();
 
         try
         {
-            var result = await _orchestrator.GetDiagnosticsAsync(jobId, actor, isAdmin, page, pageSize, minSeverity, HttpContext.RequestAborted);
+            var result = await _orchestrator.GetDiagnosticsAsync(jobId, actor, isAdmin, page, pageSize, minSeverity, targetField, HttpContext.RequestAborted);
             return Ok(result);
         }
         catch (ImportPlatformException ex) when (ex.Code == ImportErrorCodes.SessionForbidden)
@@ -311,7 +318,7 @@ public class ImportJobsController : ControllerBase
 
     [HttpPost("{jobId}/commit")]
     [Authorize(Policy = PlatformPermissions.ImportCommit)]
-    [ProducesResponseType(typeof(ImportCommitResult), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ImportCommitStatusDto), StatusCodes.Status202Accepted)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status409Conflict)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status422UnprocessableEntity)]
@@ -323,12 +330,46 @@ public class ImportJobsController : ControllerBase
         string actor = User.Identity?.Name ?? "anonymous";
         bool isAdmin = await IsAdminAsync();
 
-        var commitReq = new ImportCommitRequest(jobId, request.IdempotencyKey, request.ExpectedVersion);
-
         try
         {
-            var result = await _commitEngine.ExecuteCommitAsync(commitReq, actor, isAdmin, HttpContext.RequestAborted);
-            return Ok(result);
+            var record = await _orchestrator.GetJobAsync(jobId, actor, isAdmin, HttpContext.RequestAborted);
+            if (record.Job.State != ImportJobState.ReadyForReview)
+            {
+                throw new ImportPlatformException(
+                    ImportErrorCodes.InvalidTransition,
+                    $"Import job '{jobId}' in state '{record.Job.State}' is not eligible for commit. Must be in 'ReadyForReview'.");
+            }
+
+            if (record.ValidationResult == null || record.ValidationResult.Summary.BlockingErrorCount > 0 || record.ValidationResult.Summary.ErrorCount > 0)
+            {
+                throw new ImportPlatformException(
+                    ImportErrorCodes.ValidationFailed,
+                    "Job contains blocking validation errors and cannot be committed.");
+            }
+
+            if (!_invalidationEngine.IsPreviewValid(record))
+            {
+                throw new ImportPlatformException(
+                    ImportErrorCodes.PreviewExpired,
+                    "Preview attestation is stale, invalid, or expired.");
+            }
+
+            var correlationId = $"corr-{Guid.NewGuid():N}";
+            var enqueueReq = new EnqueueCommitWorkRequest(jobId, request.IdempotencyKey, request.ExpectedVersion, actor, correlationId);
+            var workItem = await _workQueue.EnqueueCommitAsync(enqueueReq, HttpContext.RequestAborted);
+
+            ImportMetrics.CommitRequests.Add(1);
+
+            var statusDto = new ImportCommitStatusDto(
+                jobId,
+                request.IdempotencyKey,
+                workItem.State == "Completed" ? "Completed" : workItem.State == "Leased" ? "Processing" : workItem.State,
+                workItem.WorkItemId,
+                workItem.ExpectedVersion,
+                PollAfterMs: 1000,
+                CorrelationId: correlationId);
+
+            return Accepted(statusDto);
         }
         catch (ImportPlatformException ex) when (ex.Code == ImportErrorCodes.SessionForbidden)
         {
@@ -345,6 +386,46 @@ public class ImportJobsController : ControllerBase
         catch (ImportPlatformException ex)
         {
             return BadRequest(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 400 });
+        }
+    }
+
+    [HttpGet("{jobId}/commit/status")]
+    [Authorize(Policy = PlatformPermissions.ImportReview)]
+    [ProducesResponseType(typeof(ImportCommitStatusDto), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCommitStatus(string jobId)
+    {
+        string actor = User.Identity?.Name ?? "anonymous";
+        bool isAdmin = await IsAdminAsync();
+
+        try
+        {
+            var record = await _orchestrator.GetJobAsync(jobId, actor, isAdmin, HttpContext.RequestAborted);
+            var workItem = await _workQueue.GetActiveWorkItemAsync(jobId, HttpContext.RequestAborted);
+
+            var state = record.Job.State == ImportJobState.Completed
+                ? "Completed"
+                : workItem != null
+                    ? (workItem.State == "Leased" ? "Processing" : workItem.State)
+                    : record.Job.State.ToString();
+
+            var statusDto = new ImportCommitStatusDto(
+                jobId,
+                workItem?.IdempotencyKey ?? "",
+                state,
+                workItem?.WorkItemId,
+                record.Version,
+                PollAfterMs: state is "Completed" or "Failed" or "Poison" ? 0 : 1000,
+                CorrelationId: workItem?.CorrelationId);
+
+            return Ok(statusDto);
+        }
+        catch (ImportPlatformException ex) when (ex.Code == ImportErrorCodes.SessionForbidden)
+        {
+            return Forbid();
+        }
+        catch (ImportPlatformException ex)
+        {
+            return NotFound(new ProblemDetails { Title = ex.Code, Detail = ex.Message, Status = 404 });
         }
     }
 
@@ -486,3 +567,12 @@ public sealed record ValidationRuleConfigRequestDto(
 public sealed record ImportCommitRequestDto(
     string IdempotencyKey,
     long ExpectedVersion);
+
+public sealed record ImportCommitStatusDto(
+    string JobId,
+    string IdempotencyKey,
+    string CommitStatus,
+    string? WorkItemId,
+    long JobVersion,
+    int PollAfterMs = 1000,
+    string? CorrelationId = null);
