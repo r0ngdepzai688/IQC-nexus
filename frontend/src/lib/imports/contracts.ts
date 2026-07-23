@@ -162,6 +162,16 @@ export interface ImportCommitResult {
   replayed: boolean;
 }
 
+export interface ImportCommitStatus {
+  jobId: string;
+  idempotencyKey: string;
+  commitStatus: string; // Queued, Processing, Completed, Failed, Poison
+  workItemId?: string;
+  jobVersion: number;
+  pollAfterMs: number;
+  correlationId?: string;
+}
+
 export interface ImportAuditEvent {
   id: number;
   eventId: string;
@@ -191,6 +201,7 @@ export interface ImportJobRepository {
   runValidation(id: string, rules: ValidationRuleConfigRequest[], signal?: AbortSignal): Promise<ValidationResultSummary>;
   generatePreview(id: string, signal?: AbortSignal): Promise<ImportPreviewDetail>;
   getPreview(id: string, signal?: AbortSignal): Promise<ImportPreviewDetail>;
-  commitImportJob(id: string, idempotencyKey: string, expectedVersion: number, signal?: AbortSignal): Promise<ImportCommitResult>;
+  commitImportJob(id: string, idempotencyKey: string, expectedVersion: number, signal?: AbortSignal): Promise<any>;
+  getCommitStatus(id: string, signal?: AbortSignal): Promise<ImportCommitStatus>;
   getAuditEvents(id: string, page?: number, pageSize?: number, signal?: AbortSignal): Promise<PaginatedAuditResult>;
 }

@@ -9,13 +9,14 @@ import { importDataProvider, importRepository } from "@/lib/imports";
 import {
   ImportAuditEvent,
   ImportCommitResult,
+  ImportCommitStatus,
   ImportJob,
   ImportPreviewDetail,
   MappingProfileConfig,
   MappingResultSummary,
   ValidationResultSummary,
 } from "@/lib/imports/contracts";
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Settings, ShieldCheck, RefreshCw, Database, History, Lock } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Settings, ShieldCheck, RefreshCw, Database, History, Lock, Loader2 } from "lucide-react";
 
 export default function ImportJobDetailPage() {
   const params = useParams();
@@ -45,14 +46,15 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
   // Validation state
   const [validationResult, setValidationResult] = useState<ValidationResultSummary | null>(null);
   const [validationLoading, setValidationLoading] = useState(false);
-  const [severityFilter, setSeverityFilter] = useState<string>("All");
 
   // Preview state
   const [preview, setPreview] = useState<ImportPreviewDetail | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
-  // Commit & Audit state
+  // Commit & Polling state
   const [commitLoading, setCommitLoading] = useState(false);
+  const [isPollingCommit, setIsPollingCommit] = useState(false);
+  const [commitStatusState, setCommitStatusState] = useState<string | null>(null);
   const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
   const [commitError, setCommitError] = useState<string | null>(null);
   const [showCommitModal, setShowCommitModal] = useState(false);
@@ -103,6 +105,50 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
       return () => controller.abort();
     }
   }, [activeTab, loadAudit]);
+
+  // Polling hook for background commit execution
+  useEffect(() => {
+    if (!isPollingCommit) return;
+
+    const controller = new AbortController();
+    const interval = setInterval(() => {
+      importRepository
+        .getCommitStatus(jobId, controller.signal)
+        .then((res) => {
+          setCommitStatusState(res.commitStatus);
+          if (res.commitStatus === "Completed") {
+            setIsPollingCommit(false);
+            setCommitLoading(false);
+            setCommitResult({
+              jobId: res.jobId,
+              idempotencyKey: res.idempotencyKey,
+              insertedCount: preview?.totalRecordsProcessed || 0,
+              updatedCount: 0,
+              skippedCount: 0,
+              committedAt: new Date().toISOString(),
+              replayed: false,
+            });
+            loadJob();
+          } else if (res.commitStatus === "Failed" || res.commitStatus === "Poison") {
+            setIsPollingCommit(false);
+            setCommitLoading(false);
+            setCommitError(`Background commit processing failed with status '${res.commitStatus}'.`);
+          }
+        })
+        .catch((err) => {
+          if (err?.name !== "AbortError") {
+            setIsPollingCommit(false);
+            setCommitLoading(false);
+            setCommitError("Failed to poll commit task status.");
+          }
+        });
+    }, 1000);
+
+    return () => {
+      clearInterval(interval);
+      controller.abort();
+    };
+  }, [isPollingCommit, jobId, job, loadJob]);
 
   const handleApplyMapping = async () => {
     setMappingLoading(true);
@@ -163,11 +209,16 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
       const idempotencyKey = `commit-${jobId}-${Date.now()}`;
       const expectedVersion = job?.version || 1;
       const res = await importRepository.commitImportJob(jobId, idempotencyKey, expectedVersion);
-      setCommitResult(res);
-      loadJob();
+      if (res.commitStatus === "Queued" || res.commitStatus === "Pending" || res.commitStatus === "Processing") {
+        setCommitStatusState(res.commitStatus);
+        setIsPollingCommit(true);
+      } else if (res.insertedCount !== undefined) {
+        setCommitResult(res as ImportCommitResult);
+        setCommitLoading(false);
+        loadJob();
+      }
     } catch (err: any) {
       setCommitError(err.message || "Transactional commit failed.");
-    } finally {
       setCommitLoading(false);
     }
   };
@@ -483,8 +534,17 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
                 Job ID: <code>{commitResult.jobId}</code> · Idempotency Key: <code>{commitResult.idempotencyKey}</code>
               </p>
               <p style={{ color: "#166534", fontSize: "0.9rem" }}>
-                Inserted Records: <strong>{commitResult.insertedCount}</strong> · Committed At: {new Date(commitResult.committedAt).toLocaleString()}
+                Committed At: {new Date(commitResult.committedAt).toLocaleString()}
                 {commitResult.replayed && <span style={{ marginLeft: "8px", background: "#dcfce7", padding: "2px 8px", borderRadius: "4px" }}>Idempotent Replay</span>}
+              </p>
+            </div>
+          ) : isPollingCommit ? (
+            <div style={{ padding: "24px", background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "8px", textAlign: "center" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "8px", color: "#1d4ed8", fontWeight: 700, fontSize: "1.1rem" }}>
+                <Loader2 size={24} className="animate-spin" /> Background Commit Processing
+              </div>
+              <p style={{ marginTop: "8px", color: "#1e40af", fontSize: "0.9rem" }}>
+                Status: <strong>{commitStatusState}</strong>. Executing background worker transaction...
               </p>
             </div>
           ) : (
@@ -519,7 +579,7 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
                     fontSize: "1rem",
                   }}
                 >
-                  {commitLoading ? "Executing Commit Transaction..." : "Commit Mapped Records to Database"}
+                  {commitLoading ? "Enqueuing Commit Task..." : "Commit Mapped Records to Database"}
                 </button>
               </PermissionGate>
             </div>
@@ -529,9 +589,9 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
           {showCommitModal && (
             <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
               <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", maxWidth: "500px", width: "100%" }}>
-                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: 0 }}>Confirm Transactional Commit</h3>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: 0 }}>Confirm Background Commit</h3>
                 <p style={{ fontSize: "0.9rem", color: "#475569" }}>
-                  Are you sure you want to commit job <code>{job.id}</code> to the database? This action will write synthetic records into the generic commit target and update the job state to Completed.
+                  Are you sure you want to enqueue job <code>{job.id}</code> for background commit execution? This action will process synthetic records into the generic commit target.
                 </p>
                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
                   <button

@@ -1,6 +1,7 @@
 import {
   ImportAuditEvent,
   ImportCommitResult,
+  ImportCommitStatus,
   ImportJob,
   ImportJobRepository,
   ImportJobState,
@@ -132,7 +133,7 @@ export class ApiImportJobRepository implements ImportJobRepository {
     idempotencyKey: string,
     expectedVersion: number,
     signal?: AbortSignal
-  ): Promise<ImportCommitResult> {
+  ): Promise<any> {
     const response = await fetch(`${API_BASE}/import-jobs/${id}/commit`, {
       method: "POST",
       signal,
@@ -143,7 +144,16 @@ export class ApiImportJobRepository implements ImportJobRepository {
       const errJson = await response.json().catch(() => ({}));
       throw new Error(errJson.detail || `Commit failed (${response.status})`);
     }
-    return (await response.json()) as ImportCommitResult;
+    return await response.json();
+  }
+
+  async getCommitStatus(id: string, signal?: AbortSignal): Promise<ImportCommitStatus> {
+    const response = await fetch(`${API_BASE}/import-jobs/${id}/status`, {
+      signal,
+      headers: this.getHeaders(),
+    });
+    if (!response.ok) throw new Error(`Get commit status failed (${response.status})`);
+    return (await response.json()) as ImportCommitStatus;
   }
 
   async getAuditEvents(

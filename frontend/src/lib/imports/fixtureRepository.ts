@@ -1,6 +1,7 @@
 import {
   ImportAuditEvent,
   ImportCommitResult,
+  ImportCommitStatus,
   ImportJob,
   ImportJobRepository,
   ImportPreviewDetail,
@@ -201,15 +202,25 @@ export class FixtureImportJobRepository implements ImportJobRepository {
     idempotencyKey: string,
     _expectedVersion: number,
     _signal?: AbortSignal
-  ): Promise<ImportCommitResult> {
+  ): Promise<any> {
     return {
       jobId: id,
       idempotencyKey,
-      insertedCount: 42,
-      updatedCount: 0,
-      skippedCount: 0,
-      committedAt: new Date().toISOString(),
-      replayed: false,
+      commitStatus: "Queued",
+      workItemId: "work-syn-101",
+      jobVersion: 1,
+      pollAfterMs: 1000,
+    };
+  }
+
+  async getCommitStatus(id: string, _signal?: AbortSignal): Promise<ImportCommitStatus> {
+    return {
+      jobId: id,
+      idempotencyKey: "key-syn-101",
+      commitStatus: "Completed",
+      workItemId: "work-syn-101",
+      jobVersion: 2,
+      pollAfterMs: 0,
     };
   }
 
