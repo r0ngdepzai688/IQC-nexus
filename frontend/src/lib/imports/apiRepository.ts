@@ -148,7 +148,7 @@ export class ApiImportJobRepository implements ImportJobRepository {
   }
 
   async getCommitStatus(id: string, signal?: AbortSignal): Promise<ImportCommitStatus> {
-    const response = await fetch(`${API_BASE}/import-jobs/${id}/status`, {
+    const response = await fetch(`${API_BASE}/import-jobs/${id}/commit/status`, {
       signal,
       headers: this.getHeaders(),
     });
