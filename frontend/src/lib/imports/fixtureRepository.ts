@@ -1,13 +1,195 @@
-import { ImportJob, ImportJobRepository, ImportQuery } from "./contracts";
-export const fixtureImportJobs: ImportJob[] = [
-  { id: "IQC-SYN-1042", source: "CSV", fileName: "synthetic-supplier-lot.csv", creator: "Synthetic Operator", status: "Pending review", errors: 0, warnings: 4, createdAt: "2026-07-23T14:14:00Z" },
-  { id: "IQC-SYN-1039", source: "XLSX", fileName: "synthetic-inspection.xlsx", creator: "Synthetic Engineer", status: "Failed", errors: 2, warnings: 1, createdAt: "2026-07-23T13:50:00Z" },
-  { id: "IQC-SYN-1028", source: "CSV", fileName: "synthetic-parts.csv", creator: "Synthetic Operator", status: "Completed", errors: 0, warnings: 0, createdAt: "2026-07-22T09:34:00Z" },
+import {
+  ImportJob,
+  ImportJobRepository,
+  ImportPreviewDetail,
+  ImportQuery,
+  MappingProfileConfig,
+  MappingResultSummary,
+  ValidationResultSummary,
+  ValidationRuleConfigRequest,
+} from "./contracts";
+
+const SYNTHETIC_JOBS: ImportJob[] = [
+  {
+    id: "IQC-SYN-1039",
+    source: "CSV provider",
+    fileName: "synthetic_master_plan_batch1.csv",
+    creator: "alex.engineer",
+    status: "Failed",
+    state: "Failed",
+    errors: 3,
+    warnings: 1,
+    blockingErrors: 1,
+    createdAt: "2026-07-24T00:15:00Z",
+  },
+  {
+    id: "JOB-2026-001",
+    source: "CSV provider",
+    fileName: "synthetic_master_plan_batch1.csv",
+    creator: "alex.engineer",
+    status: "Pending review",
+    state: "ReadyForReview",
+    errors: 0,
+    warnings: 2,
+    blockingErrors: 0,
+    createdAt: "2026-07-24T00:15:00Z",
+    previewVersion: "preview-v1.0",
+  },
+  {
+    id: "JOB-2026-002",
+    source: "Excel provider",
+    fileName: "synthetic_iqc_inspection_report.xlsx",
+    creator: "sarah.qa",
+    status: "Validating",
+    state: "Validating",
+    errors: 1,
+    warnings: 3,
+    blockingErrors: 0,
+    createdAt: "2026-07-23T22:30:00Z",
+  },
+  {
+    id: "JOB-2026-003",
+    source: "CSV provider",
+    fileName: "synthetic_supplier_lot_data.csv",
+    creator: "david.iqc",
+    status: "Completed",
+    state: "Completed",
+    errors: 0,
+    warnings: 0,
+    blockingErrors: 0,
+    createdAt: "2026-07-23T18:00:00Z",
+    previewVersion: "preview-v1.0",
+  },
 ];
+
 export class FixtureImportJobRepository implements ImportJobRepository {
-  async list(query: ImportQuery, signal?: AbortSignal) {
-    await new Promise<void>((resolve, reject) => { const timer = setTimeout(resolve, 180); signal?.addEventListener("abort", () => { clearTimeout(timer); reject(new DOMException("Aborted", "AbortError")); }); });
-    const search = query.search.trim().toLowerCase();
-    return fixtureImportJobs.filter(job => (query.status === "All" || job.status === query.status) && (!search || `${job.id} ${job.source} ${job.fileName} ${job.creator}`.toLowerCase().includes(search))).sort((a, b) => query.sort === "status" ? a.status.localeCompare(b.status) : query.sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : b.createdAt.localeCompare(a.createdAt));
+  async list(query: ImportQuery, _signal?: AbortSignal): Promise<ImportJob[]> {
+    const search = query.search.toLowerCase();
+    return SYNTHETIC_JOBS.filter(
+      (job) =>
+        (query.status === "All" || job.status === query.status) &&
+        `${job.id} ${job.fileName} ${job.creator}`.toLowerCase().includes(search)
+    );
+  }
+
+  async getJob(id: string, _signal?: AbortSignal): Promise<ImportJob> {
+    const found = SYNTHETIC_JOBS.find((j) => j.id === id);
+    if (found) return found;
+    return {
+      id,
+      source: "Synthetic Fixture Provider",
+      fileName: "synthetic_import_fixture.csv",
+      creator: "alex.engineer",
+      status: "Ready for mapping",
+      state: "ReadyForMapping",
+      errors: 0,
+      warnings: 0,
+      blockingErrors: 0,
+      createdAt: new Date().toISOString(),
+    };
+  }
+
+  async applyMapping(
+    _id: string,
+    profile: MappingProfileConfig,
+    _signal?: AbortSignal
+  ): Promise<MappingResultSummary> {
+    return {
+      profileId: profile.profileId || "synthetic-profile",
+      profileVersion: profile.version || "1.0",
+      totalRowsProcessed: 42,
+      mappedRecordCount: 42,
+      hasBlockingErrors: false,
+      unmappedSourceColumns: ["IgnoredCol1", "InternalNotes"],
+      ignoredSourceColumns: profile.ignoredSourceColumns || [],
+    };
+  }
+
+  async runValidation(
+    _id: string,
+    rules: ValidationRuleConfigRequest[],
+    _signal?: AbortSignal
+  ): Promise<ValidationResultSummary> {
+    return {
+      validationProfileId: "val-profile-v1",
+      validationProfileVersion: "1.0",
+      summary: {
+        totalRecordsEvaluated: 42,
+        validRecords: 40,
+        invalidRecords: 2,
+        informationCount: 1,
+        warningCount: 2,
+        errorCount: 0,
+        blockingErrorCount: 0,
+      },
+      diagnosticsSample: [
+        {
+          ruleId: rules[0]?.ruleId || "r1",
+          code: "VAL_NUMERIC_OUT_OF_RANGE",
+          message: "Quantity (0) is below minimum recommended threshold (1).",
+          severity: 1,
+          targetField: "Quantity",
+          coordinate: { worksheetIndex: 1, worksheetName: "Sheet1", rowNumber: 14, columnNumber: 3 },
+        },
+      ],
+    };
+  }
+
+  async generatePreview(id: string, _signal?: AbortSignal): Promise<ImportPreviewDetail> {
+    return this.getPreview(id);
+  }
+
+  async getPreview(id: string, _signal?: AbortSignal): Promise<ImportPreviewDetail> {
+    const job = await this.getJob(id);
+    return {
+      jobId: job.id,
+      ownerUserId: job.creator,
+      providerKind: job.source,
+      sourceDisplayName: job.fileName,
+      mappingProfileId: "synthetic-map-v1",
+      mappingProfileVersion: "1.0",
+      validationProfileId: "synthetic-val-v1",
+      validationProfileVersion: "1.0",
+      generatedAt: new Date().toISOString(),
+      totalRecordsProcessed: 42,
+      sampleRecordsCount: 2,
+      totalWarningsCount: job.warnings,
+      totalErrorsCount: job.errors,
+      totalBlockingErrorsCount: job.blockingErrors,
+      representativeRecords: [
+        {
+          recordIndex: 1,
+          rowCoordinate: { worksheetIndex: 1, worksheetName: "Main", rowNumber: 2, columnNumber: 1 },
+          fields: [
+            { targetField: "PartNo", sourceColumnName: "Part Number", originalNormalizedValue: "  PN-1001  ", mappedValue: "PN-1001", hasTransformationError: false },
+            { targetField: "Quantity", sourceColumnName: "Qty", originalNormalizedValue: "50", mappedValue: 50, hasTransformationError: false },
+          ],
+          diagnostics: [],
+        },
+        {
+          recordIndex: 2,
+          rowCoordinate: { worksheetIndex: 1, worksheetName: "Main", rowNumber: 3, columnNumber: 1 },
+          fields: [
+            { targetField: "PartNo", sourceColumnName: "Part Number", originalNormalizedValue: "  PN-1002  ", mappedValue: "PN-1002", hasTransformationError: false },
+            { targetField: "Quantity", sourceColumnName: "Qty", originalNormalizedValue: "0", mappedValue: 0, hasTransformationError: false },
+          ],
+          diagnostics: [
+            { ruleId: "val-qty", code: "VAL_NUMERIC_OUT_OF_RANGE", message: "Quantity is 0", severity: 1, targetField: "Quantity", coordinate: { worksheetIndex: 1, worksheetName: "Main", rowNumber: 3, columnNumber: 2 } }
+          ],
+        },
+      ],
+      diagnosticsSample: [],
+      attestation: {
+        jobId: job.id,
+        ownerUserId: job.creator,
+        contentFingerprint: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        mappingProfileVersion: "1.0",
+        validationProfileVersion: "1.0",
+        generatedAt: new Date().toISOString(),
+        expiresAt: new Date(Date.now() + 7200000).toISOString(),
+        signature: "synth_attestation_sig_abc123",
+      },
+      canCommit: true,
+    };
   }
 }

@@ -161,13 +161,13 @@ function ImportJobs() {
                         {job.errors} errors · {job.warnings} warnings
                       </td>
                       <td>
-                        <button
+                        <a
+                          href={`/imports/${job.id}`}
                           className="secondary-action"
-                          disabled
-                          title="Detail API is not part of this milestone"
+                          style={{ textDecoration: "none", display: "inline-block" }}
                         >
-                          View
-                        </button>
+                          View Detail
+                        </a>
                       </td>
                     </tr>
                   ))}
