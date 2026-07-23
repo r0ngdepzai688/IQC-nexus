@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Security.Cryptography;
-using System.Text;
+using System.Linq;
 
 namespace IqcQms.Application.DataPlatform;
 
@@ -58,16 +57,19 @@ public interface IImportPreviewEngine
         ValidationResult validationResult,
         int sampleSize = 50);
 
-    bool VerifyAttestation(ImportPreviewAttestation attestation);
+    bool VerifyAttestation(
+        ImportPreviewDetail previewDetail,
+        MappingResult mappingResult,
+        ValidationResult validationResult);
 }
 
 public sealed class ImportPreviewEngine : IImportPreviewEngine
 {
-    private readonly string _signingSecret;
+    private readonly IPreviewAttestationService _attestationService;
 
-    public ImportPreviewEngine(string? signingSecret = null)
+    public ImportPreviewEngine(IPreviewAttestationService attestationService)
     {
-        _signingSecret = signingSecret ?? "IqcNexus_Preview_Attestation_Signing_Secret_2026";
+        _attestationService = attestationService ?? throw new ArgumentNullException(nameof(attestationService));
     }
 
     public ImportPreviewDetail GeneratePreview(
@@ -83,7 +85,6 @@ public sealed class ImportPreviewEngine : IImportPreviewEngine
         ArgumentNullException.ThrowIfNull(validationResult);
 
         var generatedAt = DateTimeOffset.UtcNow;
-        var expiresAt = generatedAt.AddHours(2);
 
         var worksheetSummaries = workbook.Worksheets
             .Select(w => new WorksheetPreviewSummary(w.Name, w.RowCount, w.ColumnCount))
@@ -100,21 +101,17 @@ public sealed class ImportPreviewEngine : IImportPreviewEngine
 
         var sampleDiags = validationResult.Diagnostics.Take(100).ToList();
 
-        var fingerprintSource = $"{job.JobId}:{job.OwnerUserId}:{mappingResult.ProfileId}:{mappingResult.ProfileVersion}:{validationResult.ValidationProfileId}:{validationResult.ValidationProfileVersion}:{mappingResult.MappedRecordCount}:{validationResult.Summary.WarningCount}:{validationResult.Summary.ErrorCount}:{validationResult.Summary.BlockingErrorCount}";
-        var fingerprint = ComputeSha256(fingerprintSource);
-
-        var signatureSource = $"{job.JobId}:{job.OwnerUserId}:{fingerprint}:{generatedAt.ToUnixTimeSeconds()}:{expiresAt.ToUnixTimeSeconds()}";
-        var signature = ComputeHmacSha256(signatureSource, _signingSecret);
-
-        var attestation = new ImportPreviewAttestation(
+        var attestation = _attestationService.CreateAttestation(
             job.JobId,
             job.OwnerUserId,
-            fingerprint,
+            mappingResult.ProfileId,
             mappingResult.ProfileVersion,
+            validationResult.ValidationProfileId,
             validationResult.ValidationProfileVersion,
-            generatedAt,
-            expiresAt,
-            signature);
+            mappingResult.MappedRecordCount,
+            validationResult.Summary.WarningCount,
+            validationResult.Summary.ErrorCount,
+            validationResult.Summary.BlockingErrorCount);
 
         return new ImportPreviewDetail(
             job.JobId,
@@ -137,27 +134,24 @@ public sealed class ImportPreviewEngine : IImportPreviewEngine
             attestation);
     }
 
-    public bool VerifyAttestation(ImportPreviewAttestation attestation)
+    public bool VerifyAttestation(
+        ImportPreviewDetail previewDetail,
+        MappingResult mappingResult,
+        ValidationResult validationResult)
     {
-        if (attestation == null) return false;
-        if (DateTimeOffset.UtcNow > attestation.ExpiresAt) return false;
+        if (previewDetail == null || previewDetail.Attestation == null) return false;
 
-        var signatureSource = $"{attestation.JobId}:{attestation.OwnerUserId}:{attestation.ContentFingerprint}:{attestation.GeneratedAt.ToUnixTimeSeconds()}:{attestation.ExpiresAt.ToUnixTimeSeconds()}";
-        var expectedSig = ComputeHmacSha256(signatureSource, _signingSecret);
-
-        return string.Equals(expectedSig, attestation.Signature, StringComparison.Ordinal);
-    }
-
-    private static string ComputeSha256(string raw)
-    {
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(raw));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
-    }
-
-    private static string ComputeHmacSha256(string raw, string key)
-    {
-        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(key));
-        var bytes = hmac.ComputeHash(Encoding.UTF8.GetBytes(raw));
-        return Convert.ToHexString(bytes).ToLowerInvariant();
+        return _attestationService.VerifyAttestation(
+            previewDetail.Attestation,
+            previewDetail.JobId,
+            previewDetail.OwnerUserId,
+            mappingResult.ProfileId,
+            mappingResult.ProfileVersion,
+            validationResult.ValidationProfileId,
+            validationResult.ValidationProfileVersion,
+            mappingResult.MappedRecordCount,
+            validationResult.Summary.WarningCount,
+            validationResult.Summary.ErrorCount,
+            validationResult.Summary.BlockingErrorCount);
     }
 }
