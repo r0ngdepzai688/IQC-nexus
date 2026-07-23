@@ -7,13 +7,15 @@ import { EmptyState, ServiceErrorState, SlowNetworkState } from "@/components/po
 import { UserBadge } from "@/components/ui/user-badge";
 import { importDataProvider, importRepository } from "@/lib/imports";
 import {
+  ImportAuditEvent,
+  ImportCommitResult,
   ImportJob,
   ImportPreviewDetail,
   MappingProfileConfig,
   MappingResultSummary,
   ValidationResultSummary,
 } from "@/lib/imports/contracts";
-import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Settings, ShieldCheck, RefreshCw } from "lucide-react";
+import { ArrowLeft, CheckCircle2, AlertTriangle, XCircle, FileText, Settings, ShieldCheck, RefreshCw, Database, History, Lock } from "lucide-react";
 
 export default function ImportJobDetailPage() {
   const params = useParams();
@@ -29,7 +31,7 @@ export default function ImportJobDetailPage() {
 function ImportDetailContent({ jobId }: { jobId: string }) {
   const router = useRouter();
   const [job, setJob] = useState<ImportJob | null>(null);
-  const [activeTab, setActiveTab] = useState<"overview" | "mapping" | "validation" | "preview">("overview");
+  const [activeTab, setActiveTab] = useState<"overview" | "mapping" | "validation" | "preview" | "commit" | "audit">("overview");
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
 
   // Mapping state
@@ -49,6 +51,15 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
   const [preview, setPreview] = useState<ImportPreviewDetail | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // Commit & Audit state
+  const [commitLoading, setCommitLoading] = useState(false);
+  const [commitResult, setCommitResult] = useState<ImportCommitResult | null>(null);
+  const [commitError, setCommitError] = useState<string | null>(null);
+  const [showCommitModal, setShowCommitModal] = useState(false);
+
+  const [auditEvents, setAuditEvents] = useState<ImportAuditEvent[]>([]);
+  const [auditLoading, setAuditLoading] = useState(false);
+
   const loadJob = useCallback(
     (signal?: AbortSignal) => {
       setState("loading");
@@ -65,11 +76,33 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
     [jobId]
   );
 
+  const loadAudit = useCallback(
+    (signal?: AbortSignal) => {
+      setAuditLoading(true);
+      importRepository
+        .getAuditEvents(jobId, 1, 50, signal)
+        .then((res) => {
+          setAuditEvents(res.items);
+        })
+        .catch(() => {})
+        .finally(() => setAuditLoading(false));
+    },
+    [jobId]
+  );
+
   useEffect(() => {
     const controller = new AbortController();
     loadJob(controller.signal);
     return () => controller.abort();
   }, [loadJob]);
+
+  useEffect(() => {
+    if (activeTab === "audit") {
+      const controller = new AbortController();
+      loadAudit(controller.signal);
+      return () => controller.abort();
+    }
+  }, [activeTab, loadAudit]);
 
   const handleApplyMapping = async () => {
     setMappingLoading(true);
@@ -122,291 +155,267 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
     }
   };
 
+  const handleExecuteCommit = async () => {
+    setShowCommitModal(false);
+    setCommitLoading(true);
+    setCommitError(null);
+    try {
+      const idempotencyKey = `commit-${jobId}-${Date.now()}`;
+      const expectedVersion = job?.version || 1;
+      const res = await importRepository.commitImportJob(jobId, idempotencyKey, expectedVersion);
+      setCommitResult(res);
+      loadJob();
+    } catch (err: any) {
+      setCommitError(err.message || "Transactional commit failed.");
+    } finally {
+      setCommitLoading(false);
+    }
+  };
+
   if (state === "loading") return <TableSkeleton />;
-  if (state === "error" || !job) return <ServiceErrorState retry={() => loadJob()} />;
+  if (state === "error" || !job) {
+    return <ServiceErrorState retry={() => loadJob()} />;
+  }
 
   return (
-    <div className="page-stack" style={{ gap: "24px", padding: "24px 0" }}>
-      {/* Header */}
-      <section className="page-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-        <div>
-          <button
-            onClick={() => router.push("/imports")}
-            className="secondary-action"
-            style={{ marginBottom: "12px", display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "0.875rem" }}
-          >
-            <ArrowLeft size={16} /> Back to Imports
-          </button>
-          <p className="eyebrow">IMPORT JOB ORCHESTRATION</p>
-          <h2>{job.fileName}</h2>
-          <p style={{ color: "var(--muted, #64748b)" }}>Job ID: <code>{job.id}</code> · Provider: {job.source}</p>
-        </div>
-
-        <div style={{ textAlign: "right" }}>
-          <span className={`status-badge ${job.status === "Failed" ? "danger" : job.status === "Completed" ? "success" : "warning"}`}>
-            {job.status}
+    <div style={{ padding: "24px", maxWidth: "1400px", margin: "0 auto" }}>
+      {/* Top Breadcrumb Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "16px" }}>
+        <button
+          onClick={() => router.push("/imports")}
+          style={{ display: "flex", alignItems: "center", gap: "6px", background: "none", border: "none", color: "#64748b", cursor: "pointer", fontWeight: 500 }}
+        >
+          <ArrowLeft size={16} /> Back to Import Center
+        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <span className={`status-badge ${job.status === "Completed" ? "success" : job.status === "Failed" ? "danger" : "warning"}`}>
+            {job.state}
           </span>
-          <p style={{ marginTop: "6px", fontSize: "0.85rem", color: "var(--muted, #64748b)" }}>
-            State: <strong>{job.state}</strong>
-          </p>
+          <UserBadge name={job.creator} />
         </div>
-      </section>
+      </div>
 
-      {importDataProvider === "fixture" && (
-        <div className="fixture-banner" role="note" style={{ background: "#f8fafc", borderLeft: "4px solid #3b82f6", padding: "12px 16px", borderRadius: "8px" }}>
-          <strong>Fixture Provider Active</strong>
-          <span style={{ marginLeft: "8px" }}>Synthetic orchestration data is simulated via client fixture adapter.</span>
-        </div>
-      )}
+      {/* Title */}
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ fontSize: "1.75rem", fontWeight: 700, margin: 0 }}>{job.fileName}</h1>
+        <p style={{ color: "#64748b", fontSize: "0.875rem", marginTop: "4px" }}>
+          Job ID: <code>{job.id}</code> · Provider: {job.source} · Created: {new Date(job.createdAt).toLocaleString()}
+        </p>
+      </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: "8px", borderBottom: "1px solid var(--border, #e2e8f0)", paddingBottom: "8px" }}>
+      {/* Workflow Tabs */}
+      <div style={{ display: "flex", gap: "12px", borderBottom: "1px solid #e2e8f0", marginBottom: "24px" }}>
         <button
           onClick={() => setActiveTab("overview")}
-          className={`tab-btn ${activeTab === "overview" ? "active" : ""}`}
-          style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: activeTab === "overview" ? "#3b82f6" : "transparent", color: activeTab === "overview" ? "#fff" : "inherit", cursor: "pointer", fontWeight: 500 }}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "overview" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "overview" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          <FileText size={16} style={{ display: "inline", marginRight: "6px" }} /> Job Overview
+          Overview
         </button>
-
         <button
           onClick={() => setActiveTab("mapping")}
-          className={`tab-btn ${activeTab === "mapping" ? "active" : ""}`}
-          style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: activeTab === "mapping" ? "#3b82f6" : "transparent", color: activeTab === "mapping" ? "#fff" : "inherit", cursor: "pointer", fontWeight: 500 }}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "mapping" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "mapping" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          <Settings size={16} style={{ display: "inline", marginRight: "6px" }} /> Mapping Configuration
+          Mapping Rules
         </button>
-
         <button
           onClick={() => setActiveTab("validation")}
-          className={`tab-btn ${activeTab === "validation" ? "active" : ""}`}
-          style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: activeTab === "validation" ? "#3b82f6" : "transparent", color: activeTab === "validation" ? "#fff" : "inherit", cursor: "pointer", fontWeight: 500 }}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "validation" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "validation" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          <AlertTriangle size={16} style={{ display: "inline", marginRight: "6px" }} /> Validation Results
+          Validation Engine
         </button>
-
         <button
           onClick={() => setActiveTab("preview")}
-          className={`tab-btn ${activeTab === "preview" ? "active" : ""}`}
-          style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: activeTab === "preview" ? "#3b82f6" : "transparent", color: activeTab === "preview" ? "#fff" : "inherit", cursor: "pointer", fontWeight: 500 }}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "preview" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "preview" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
         >
-          <ShieldCheck size={16} style={{ display: "inline", marginRight: "6px" }} /> Review & Preview
+          Review & Attestation
+        </button>
+        <button
+          onClick={() => setActiveTab("commit")}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "commit" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "commit" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <Database size={16} /> Transactional Commit
+        </button>
+        <button
+          onClick={() => setActiveTab("audit")}
+          style={{
+            padding: "10px 16px",
+            border: "none",
+            background: "none",
+            borderBottom: activeTab === "audit" ? "2px solid #3b82f6" : "2px solid transparent",
+            color: activeTab === "audit" ? "#3b82f6" : "#64748b",
+            fontWeight: 600,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "6px",
+          }}
+        >
+          <History size={16} /> Audit Trail
         </button>
       </div>
 
-      {/* Tab 1: Overview */}
+      {/* Tab: Overview */}
       {activeTab === "overview" && (
-        <section className="panel" style={{ padding: "24px", background: "var(--card-bg, #ffffff)", borderRadius: "12px", border: "1px solid var(--border, #e2e8f0)" }}>
-          <h3 style={{ marginBottom: "16px" }}>Metadata & Lifecycle History</h3>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "16px", marginBottom: "24px" }}>
-            <div style={{ padding: "16px", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
-              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Creator</span>
-              <div style={{ marginTop: "4px" }}>
-                <UserBadge name={job.creator} size="sm" />
-              </div>
-            </div>
-
-            <div style={{ padding: "16px", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
-              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Created At</span>
-              <div style={{ marginTop: "4px", fontWeight: 600 }}>{new Date(job.createdAt).toLocaleString()}</div>
-            </div>
-
-            <div style={{ padding: "16px", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
-              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Validation Summary</span>
-              <div style={{ marginTop: "4px", fontWeight: 600 }}>
-                {job.errors} Errors · {job.warnings} Warnings
-              </div>
-            </div>
-
-            <div style={{ padding: "16px", border: "1px solid #e2e8f0", borderRadius: "8px" }}>
-              <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Preview Version</span>
-              <div style={{ marginTop: "4px", fontWeight: 600 }}>{job.previewVersion || "Not Generated"}</div>
-            </div>
+        <section style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "16px" }}>
+          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            <span style={{ color: "#64748b", fontSize: "0.85rem" }}>Lifecycle State</span>
+            <div style={{ fontSize: "1.25rem", fontWeight: 700, marginTop: "4px" }}>{job.state}</div>
           </div>
-
-          <h4>Lifecycle State Progression</h4>
-          <ol style={{ display: "flex", gap: "12px", listStyle: "none", padding: 0, marginTop: "12px", flexWrap: "wrap" }}>
-            {["Created", "Inspecting", "ReadyForMapping", "Validating", "ReadyForReview"].map((st, idx) => (
-              <li
-                key={st}
-                style={{
-                  padding: "8px 14px",
-                  borderRadius: "20px",
-                  background: job.state === st ? "#3b82f6" : "#f1f5f9",
-                  color: job.state === st ? "#fff" : "#475569",
-                  fontSize: "0.875rem",
-                  fontWeight: 500,
-                }}
-              >
-                {idx + 1}. {st}
-              </li>
-            ))}
-          </ol>
+          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            <span style={{ color: "#64748b", fontSize: "0.85rem" }}>Warnings</span>
+            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#d97706", marginTop: "4px" }}>{job.warnings}</div>
+          </div>
+          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            <span style={{ color: "#64748b", fontSize: "0.85rem" }}>Errors</span>
+            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#dc2626", marginTop: "4px" }}>{job.errors}</div>
+          </div>
+          <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+            <span style={{ color: "#64748b", fontSize: "0.85rem" }}>Blocking Errors</span>
+            <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#991b1b", marginTop: "4px" }}>{job.blockingErrors}</div>
+          </div>
         </section>
       )}
 
-      {/* Tab 2: Mapping Configuration */}
+      {/* Tab: Mapping */}
       {activeTab === "mapping" && (
-        <section className="panel" style={{ padding: "24px", background: "var(--card-bg, #ffffff)", borderRadius: "12px", border: "1px solid var(--border, #e2e8f0)" }}>
-          <h3>Provider-Neutral Mapping Configuration</h3>
-          <p style={{ color: "#64748b", marginBottom: "20px" }}>Map source worksheet columns to target schema fields deterministically.</p>
-
-          <div style={{ display: "grid", gap: "16px", maxWidth: "600px", marginBottom: "24px" }}>
-            <label style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              Header Row Number
+        <section style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "16px" }}>Mapping Configuration</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "16px" }}>
+            <div>
+              <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "4px" }}>
+                Source "Part Number" → Target Field
+              </label>
               <input
-                type="number"
-                value={headerRowNumber}
-                onChange={(e) => setHeaderRowNumber(Number(e.target.value))}
-                style={{ padding: "8px 12px", borderRadius: "8px", border: "1px solid #cbd5e1" }}
+                type="text"
+                value={targetField1}
+                onChange={(e) => setTargetField1(e.target.value)}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
               />
-            </label>
-
-            <label style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <input
-                type="checkbox"
-                checked={caseInsensitive}
-                onChange={(e) => setCaseInsensitive(e.target.checked)}
-              />
-              Case-Insensitive Header Matching
-            </label>
-
-            <div style={{ border: "1px solid #e2e8f0", padding: "16px", borderRadius: "8px" }}>
-              <strong>Column Rules</strong>
-              <div style={{ marginTop: "12px", display: "grid", gap: "12px" }}>
-                <div>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Source: "Part Number" (Header 1)</span>
-                  <input
-                    type="text"
-                    value={targetField1}
-                    onChange={(e) => setTargetField1(e.target.value)}
-                    placeholder="Target Field Name"
-                    style={{ display: "block", width: "100%", padding: "8px", marginTop: "4px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                  />
-                  <small style={{ color: "#64748b" }}>Transformation: Trim Text (Required)</small>
-                </div>
-
-                <div>
-                  <span style={{ fontSize: "0.85rem", color: "#64748b" }}>Source: "Quantity" (Header 2)</span>
-                  <input
-                    type="text"
-                    value={targetField2}
-                    onChange={(e) => setTargetField2(e.target.value)}
-                    placeholder="Target Field Name"
-                    style={{ display: "block", width: "100%", padding: "8px", marginTop: "4px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
-                  />
-                  <small style={{ color: "#64748b" }}>Transformation: Parse Integer (Required)</small>
-                </div>
-              </div>
             </div>
-
-            <button
-              onClick={handleApplyMapping}
-              disabled={mappingLoading}
-              className="primary-action"
-              style={{ padding: "10px 20px", borderRadius: "8px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
-            >
-              {mappingLoading ? "Executing Mapping..." : "Apply Mapping Profile"}
-            </button>
+            <div>
+              <label style={{ display: "block", fontSize: "0.875rem", fontWeight: 600, marginBottom: "4px" }}>
+                Source "Qty" → Target Field
+              </label>
+              <input
+                type="text"
+                value={targetField2}
+                onChange={(e) => setTargetField2(e.target.value)}
+                style={{ width: "100%", padding: "8px", borderRadius: "6px", border: "1px solid #cbd5e1" }}
+              />
+            </div>
           </div>
+          <button
+            onClick={handleApplyMapping}
+            disabled={mappingLoading}
+            style={{ padding: "8px 16px", borderRadius: "6px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+          >
+            {mappingLoading ? "Applying Mapping..." : "Apply Mapping Profile"}
+          </button>
 
           {mappingResult && (
-            <div style={{ padding: "16px", background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "8px" }}>
-              <h4 style={{ color: "#166534" }}>Mapping Executed Successfully</h4>
-              <p>Total Processed Rows: {mappingResult.totalRowsProcessed}</p>
-              <p>Mapped Records: {mappingResult.mappedRecordCount}</p>
-              <p>Unmapped Source Columns: {mappingResult.unmappedSourceColumns.join(", ") || "None"}</p>
+            <div style={{ marginTop: "20px", padding: "16px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "6px" }}>
+              <div style={{ fontWeight: 600, color: "#166534" }}>Mapping Applied Successfully</div>
+              <p style={{ fontSize: "0.875rem", marginTop: "4px", color: "#15803d" }}>
+                Total Rows Processed: {mappingResult.totalRowsProcessed} · Mapped Records: {mappingResult.mappedRecordCount}
+              </p>
             </div>
           )}
         </section>
       )}
 
-      {/* Tab 3: Validation Results */}
+      {/* Tab: Validation */}
       {activeTab === "validation" && (
-        <section className="panel" style={{ padding: "24px", background: "var(--card-bg, #ffffff)", borderRadius: "12px", border: "1px solid var(--border, #e2e8f0)" }}>
+        <section style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3>Validation Engine Results</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>Validation Engine</h3>
             <button
               onClick={handleRunValidation}
               disabled={validationLoading}
-              style={{ padding: "8px 16px", borderRadius: "8px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 500, display: "inline-flex", alignItems: "center", gap: "6px" }}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
             >
-              <RefreshCw size={16} /> {validationLoading ? "Running..." : "Execute Validation"}
+              {validationLoading ? "Running Engine..." : "Execute Validation Engine"}
             </button>
           </div>
 
           {validationResult ? (
             <div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: "12px", marginBottom: "20px" }}>
-                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "8px" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Evaluated Records</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700 }}>{validationResult.summary.totalRecordsEvaluated}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "12px", marginBottom: "20px" }}>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Valid Records</span>
+                  <div style={{ fontWeight: 700, color: "#16a34a" }}>{validationResult.summary.validRecords}</div>
                 </div>
-                <div style={{ padding: "12px", background: "#f0fdf4", borderRadius: "8px" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#166534" }}>Valid Records</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#166534" }}>{validationResult.summary.validRecords}</div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Warnings</span>
+                  <div style={{ fontWeight: 700, color: "#d97706" }}>{validationResult.summary.warningCount}</div>
                 </div>
-                <div style={{ padding: "12px", background: "#fefce8", borderRadius: "8px" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#854d0e" }}>Warnings</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#854d0e" }}>{validationResult.summary.warningCount}</div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Errors</span>
+                  <div style={{ fontWeight: 700, color: "#dc2626" }}>{validationResult.summary.errorCount}</div>
                 </div>
-                <div style={{ padding: "12px", background: "#fef2f2", borderRadius: "8px" }}>
-                  <span style={{ fontSize: "0.8rem", color: "#991b1b" }}>Errors</span>
-                  <div style={{ fontSize: "1.25rem", fontWeight: 700, color: "#991b1b" }}>{validationResult.summary.errorCount}</div>
+                <div style={{ padding: "12px", background: "#f8fafc", borderRadius: "6px" }}>
+                  <span style={{ fontSize: "0.8rem", color: "#64748b" }}>Blocking Errors</span>
+                  <div style={{ fontWeight: 700, color: "#991b1b" }}>{validationResult.summary.blockingErrorCount}</div>
                 </div>
               </div>
-
-              <h4>Diagnostics Sample</h4>
-              {validationResult.diagnosticsSample.length ? (
-                <table className="data-table" style={{ width: "100%", marginTop: "12px", borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr style={{ background: "#f8fafc" }}>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Rule / Code</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Severity</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Target Field</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Source Coordinate</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Message</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {validationResult.diagnosticsSample.map((d, idx) => (
-                      <tr key={idx} style={{ borderBottom: "1px solid #e2e8f0" }}>
-                        <td style={{ padding: "10px" }}><code>{d.code}</code></td>
-                        <td style={{ padding: "10px" }}>
-                          <span className={`status-badge ${d.severity >= 2 ? "danger" : "warning"}`}>
-                            {d.severity === 1 ? "Warning" : d.severity === 2 ? "Error" : "Info"}
-                          </span>
-                        </td>
-                        <td style={{ padding: "10px" }}>{d.targetField || "N/A"}</td>
-                        <td style={{ padding: "10px" }}>
-                          {d.coordinate ? `Row ${d.coordinate.rowNumber}, Col ${d.coordinate.columnNumber}` : "Workbook"}
-                        </td>
-                        <td style={{ padding: "10px" }}>{d.message}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p style={{ color: "#64748b", marginTop: "12px" }}>No validation diagnostics triggered.</p>
-              )}
             </div>
           ) : (
-            <EmptyState title="No Validation Results" detail="Run the validation engine to generate field and record diagnostics." />
+            <EmptyState title="Validation Not Run" detail="Click 'Execute Validation Engine' to validate mapped fields against business rules." />
           )}
         </section>
       )}
 
-      {/* Tab 4: Review & Preview */}
+      {/* Tab: Preview & Attestation */}
       {activeTab === "preview" && (
-        <section className="panel" style={{ padding: "24px", background: "var(--card-bg, #ffffff)", borderRadius: "12px", border: "1px solid var(--border, #e2e8f0)" }}>
+        <section style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-            <h3>Mandatory Review & Preview Attestation</h3>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>Review & Preview Attestation</h3>
             <button
               onClick={handleGeneratePreview}
               disabled={previewLoading}
-              className="primary-action"
-              style={{ padding: "8px 16px", borderRadius: "8px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+              style={{ padding: "8px 16px", borderRadius: "6px", background: "#3b82f6", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
             >
               {previewLoading ? "Generating Preview..." : "Generate Preview Attestation"}
             </button>
@@ -414,7 +423,6 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
 
           {preview ? (
             <div>
-              {/* Attestation Banner */}
               <div style={{ padding: "16px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "8px", marginBottom: "20px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#166534", fontWeight: 700 }}>
                   <ShieldCheck size={20} /> Tamper-Evident Preview Attestation Issued
@@ -429,13 +437,12 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
 
               <h4>Representative Records Preview</h4>
               <div style={{ overflowX: "auto", marginTop: "12px" }}>
-                <table className="data-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ background: "#f8fafc" }}>
                       <th style={{ padding: "10px", textAlign: "left" }}>Record #</th>
                       <th style={{ padding: "10px", textAlign: "left" }}>Coordinate</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Fields (Target: Mapped Value [Original])</th>
-                      <th style={{ padding: "10px", textAlign: "left" }}>Diagnostics</th>
+                      <th style={{ padding: "10px", textAlign: "left" }}>Fields</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -446,32 +453,144 @@ function ImportDetailContent({ jobId }: { jobId: string }) {
                         <td style={{ padding: "10px" }}>
                           {rec.fields.map((f, i) => (
                             <span key={i} style={{ display: "inline-block", marginRight: "12px", background: "#f1f5f9", padding: "4px 8px", borderRadius: "4px", fontSize: "0.85rem" }}>
-                              <strong>{f.targetField}</strong>: {String(f.mappedValue)} <small style={{ color: "#64748b" }}>[{f.originalNormalizedValue}]</small>
+                              <strong>{f.targetField}</strong>: {String(f.mappedValue)}
                             </span>
                           ))}
-                        </td>
-                        <td style={{ padding: "10px" }}>
-                          {rec.diagnostics.length > 0 ? (
-                            <span className="status-badge warning">{rec.diagnostics.length} issue(s)</span>
-                          ) : (
-                            <span className="status-badge success">Clean</span>
-                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
-
-              <div style={{ marginTop: "24px", padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px border #cbd5e1" }}>
-                <strong>Commit Action Status: Explicitly Deferred</strong>
-                <p style={{ fontSize: "0.875rem", color: "#64748b", marginTop: "4px" }}>
-                  Per milestone boundary rules, production DB commitment is deferred. This preview contract guarantees content fingerprint integrity prior to future commit execution.
-                </p>
-              </div>
             </div>
           ) : (
             <EmptyState title="Preview Not Generated" detail="Click 'Generate Preview Attestation' to review representative mapped records and receive a server attestation fingerprint." />
+          )}
+        </section>
+      )}
+
+      {/* Tab: Transactional Commit */}
+      {activeTab === "commit" && (
+        <section style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+          <h3 style={{ fontSize: "1.1rem", fontWeight: 600, marginBottom: "16px" }}>Durable Transactional Commit</h3>
+
+          {commitResult ? (
+            <div style={{ padding: "20px", background: "#f0fdf4", border: "1px solid #86efac", borderRadius: "8px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#166534", fontWeight: 700, fontSize: "1.1rem" }}>
+                <CheckCircle2 size={24} /> Transactional Commit Completed
+              </div>
+              <p style={{ marginTop: "8px", color: "#15803d", fontSize: "0.9rem" }}>
+                Job ID: <code>{commitResult.jobId}</code> · Idempotency Key: <code>{commitResult.idempotencyKey}</code>
+              </p>
+              <p style={{ color: "#166534", fontSize: "0.9rem" }}>
+                Inserted Records: <strong>{commitResult.insertedCount}</strong> · Committed At: {new Date(commitResult.committedAt).toLocaleString()}
+                {commitResult.replayed && <span style={{ marginLeft: "8px", background: "#dcfce7", padding: "2px 8px", borderRadius: "4px" }}>Idempotent Replay</span>}
+              </p>
+            </div>
+          ) : (
+            <div>
+              <div style={{ padding: "16px", background: "#f8fafc", borderRadius: "8px", border: "1px solid #e2e8f0", marginBottom: "20px" }}>
+                <div style={{ fontWeight: 600, marginBottom: "8px" }}>Commit Preconditions Check</div>
+                <ul style={{ paddingLeft: "20px", margin: 0, fontSize: "0.9rem", color: "#334155" }}>
+                  <li>Lifecycle State: <strong>{job.state}</strong> {job.state === "ReadyForReview" ? "✅" : "❌ (Must be ReadyForReview)"}</li>
+                  <li>Validation Blocking Errors: <strong>{job.blockingErrors}</strong> {job.blockingErrors === 0 ? "✅" : "❌ (Must be 0)"}</li>
+                  <li>Preview Attestation: {preview ? "Issued ✅" : "Not Issued ❌"}</li>
+                </ul>
+              </div>
+
+              {commitError && (
+                <div style={{ padding: "12px", background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "6px", color: "#991b1b", marginBottom: "16px" }}>
+                  <strong>Commit Failed:</strong> {commitError}
+                </div>
+              )}
+
+              <PermissionGate permission="import.commit">
+                <button
+                  onClick={() => setShowCommitModal(true)}
+                  disabled={commitLoading || job.state !== "ReadyForReview" || job.blockingErrors > 0}
+                  style={{
+                    padding: "12px 24px",
+                    borderRadius: "8px",
+                    background: job.state === "ReadyForReview" && job.blockingErrors === 0 ? "#16a34a" : "#94a3b8",
+                    color: "#fff",
+                    border: "none",
+                    cursor: job.state === "ReadyForReview" && job.blockingErrors === 0 ? "pointer" : "not-allowed",
+                    fontWeight: 700,
+                    fontSize: "1rem",
+                  }}
+                >
+                  {commitLoading ? "Executing Commit Transaction..." : "Commit Mapped Records to Database"}
+                </button>
+              </PermissionGate>
+            </div>
+          )}
+
+          {/* Commitment Confirmation Modal */}
+          {showCommitModal && (
+            <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000 }}>
+              <div style={{ background: "#fff", padding: "24px", borderRadius: "12px", maxWidth: "500px", width: "100%" }}>
+                <h3 style={{ fontSize: "1.2rem", fontWeight: 700, marginTop: 0 }}>Confirm Transactional Commit</h3>
+                <p style={{ fontSize: "0.9rem", color: "#475569" }}>
+                  Are you sure you want to commit job <code>{job.id}</code> to the database? This action will write synthetic records into the generic commit target and update the job state to Completed.
+                </p>
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "12px", marginTop: "24px" }}>
+                  <button
+                    onClick={() => setShowCommitModal(false)}
+                    style={{ padding: "8px 16px", borderRadius: "6px", background: "#e2e8f0", border: "none", cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleExecuteCommit}
+                    style={{ padding: "8px 16px", borderRadius: "6px", background: "#16a34a", color: "#fff", border: "none", cursor: "pointer", fontWeight: 600 }}
+                  >
+                    Confirm Commit
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* Tab: Audit Trail */}
+      {activeTab === "audit" && (
+        <section style={{ background: "#ffffff", padding: "20px", borderRadius: "8px", border: "1px solid #e2e8f0" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+            <h3 style={{ fontSize: "1.1rem", fontWeight: 600, margin: 0 }}>Append-Only Audit Timeline</h3>
+            <button
+              onClick={() => loadAudit()}
+              style={{ padding: "6px 12px", borderRadius: "6px", background: "#f1f5f9", border: "1px solid #cbd5e1", cursor: "pointer", display: "flex", alignItems: "center", gap: "4px" }}
+            >
+              <RefreshCw size={14} /> Refresh
+            </button>
+          </div>
+
+          {auditLoading ? (
+            <div style={{ padding: "24px", textAlign: "center", color: "#64748b" }}>Loading audit trail...</div>
+          ) : auditEvents.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {auditEvents.map((evt) => (
+                <div key={evt.id} style={{ padding: "12px 16px", background: "#f8fafc", borderRadius: "6px", borderLeft: "4px solid #3b82f6" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span style={{ fontWeight: 700, fontSize: "0.95rem" }}>{evt.eventType}</span>
+                    <span style={{ fontSize: "0.8rem", color: "#64748b" }}>{new Date(evt.occurredAt).toLocaleString()}</span>
+                  </div>
+                  <p style={{ margin: "4px 0", fontSize: "0.875rem", color: "#334155" }}>{evt.message}</p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "0.8rem", color: "#64748b" }}>
+                    <span>Actor:</span>
+                    <UserBadge name={evt.actorUserId} />
+                    {evt.fromState && evt.toState && (
+                      <span style={{ marginLeft: "12px" }}>
+                        Transition: <code>{evt.fromState}</code> → <code>{evt.toState}</code>
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <EmptyState title="No Audit Events" detail="No audit trail events recorded yet for this import job." />
           )}
         </section>
       )}
