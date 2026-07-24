@@ -1,38 +1,26 @@
-# IQC Nexus Client Agent — Payload Replay Protection & Idempotent Submission
+# IQC Nexus Client Agent — Payload Replay Protection & Idempotent Submission (Phase 2D.1)
 
 ## Overview
 
-The IQC Nexus Client Agent guarantees strict atomic payload acceptance, idempotency, and replay protection for all workbook submissions.
+The IQC Nexus Client Agent provides complete atomic payload acceptance, canonical SHA-256 digest verification, local queue durability, and replay tombstone protection.
 
-## Core Submission Identifiers
+## Architectural Components
 
-- **`PayloadSubmissionId`**: High-entropy non-secret UUID (`agt_sub_<guid>`) generated ONCE per logical queued submission by the Client Agent before the first HTTP request. Persisted in the local SQLite queue and preserved across network retries and Agent restarts.
-- **`Nonce`**: Cryptographically random value (`agt_nonce_<guid>`) generated once for the submission.
-- **`SourceFingerprint`**: Deterministic SHA-256 hash calculated over normalized workbook content.
+### 1. Dedicated Canonicalizer (`INormalizedWorkbookCanonicalizer`)
+All normalized workbook payloads are serialized into a deterministic UTF-8 binary representation ([NormalizedWorkbookCanonicalizer.cs](file:///D:/Code_viber/Portal/backend/src/IqcQms.Infrastructure/Security/NormalizedWorkbookCanonicalizer.cs)):
+- **Ordering**: Explicit sorting by `SheetName` (`Ordinal`), `RowIndex`, and `ColumnIndex`/`ColumnName`.
+- **Formatting**: Invariant culture for numbers, ISO 8601 UTC for dates, uppercase `TRUE`/`FALSE` for booleans, explicit null vs empty string tags, and Form C Unicode normalization.
+- **`SourceFingerprint`**: Derived as `SHA-256("v1:" + canonicalWorkbookBytes)`.
 
-## Server Canonical Payload Digest
+### 2. Corrected Canonical Request Digest
+Calculated server-side via `CanonicalPayloadHasher.ComputeCanonicalHash`:
+- Binds: `CanonicalizationVersion`, `SchemaVersion`, `DeviceId`, `PayloadSubmissionId`, `Nonce`, `SourceFingerprint`, and `CanonicalWorkbookBytes`.
+- Excludes: Server-generated result fields such as `ServerImportJobId` and `UploadId` to maintain strict client request identity across retries.
 
-The server recomputes a deterministic SHA-256 digest (`CanonicalPayloadHash`) over an invariant UTF-8 JSON representation binding:
-- `CanonicalSchemaVersion`
-- `DeviceId`
-- `PayloadSubmissionId`
-- `Nonce`
-- `ServerImportJobId`
-- `SourceFingerprint`
-- `NormalizedWorkbook` content.
+### 3. Authoritative Relational Insert & Concurrency Arbitration
+- Submissions are inserted into `AgentPayloadSubmission` within a database transaction.
+- **Race Conflict Resolution**: Catches `DbUpdateException` on unique constraint races (`(AgentDeviceId, PayloadSubmissionId)` or `(AgentDeviceId, Nonce)`). On conflict, queries the authoritative submission record. If identical, returns the original committed response with `IsDuplicateRetry = true` without throwing HTTP 500.
 
-## Idempotency & Replay Semantics
-
-### 1. First Valid Submission
-The server creates a record in `AgentPayloadSubmission` within an atomic database transaction. Returns `UploadId` with `IsDuplicateRetry = false`.
-
-### 2. Safe Duplicate Retry
-When a retry arrives with the **SAME `PayloadSubmissionId`**, **SAME `Nonce`**, and **SAME `CanonicalPayloadHash`**:
-- The server recovers the committed `UploadId` and `ReceivedAtUtc`.
-- Returns `IsDuplicateRetry = true`.
-- No duplicate database record or downstream import action is triggered.
-
-### 3. Submission Mismatch or Replay Attack
-If a submission arrives with an existing `PayloadSubmissionId` or `Nonce` but a **DIFFERENT `CanonicalPayloadHash`**:
-- The server rejects the submission with `InvalidOperationException` ("mismatch detected").
-- Prevents payload tampering or cross-device replay.
+### 4. Retention & Replay Tombstones (`AgentPayloadReplayTombstone`)
+- Full submission results are retained during `FullResultRetention`.
+- After full submission cleanup, a compact `AgentPayloadReplayTombstone` record is retained to prevent re-acceptance of archived submissions.
