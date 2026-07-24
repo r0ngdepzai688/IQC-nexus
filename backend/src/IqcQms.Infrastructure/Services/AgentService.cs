@@ -5,41 +5,55 @@ using IqcQms.Application.Services;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.Domain.Entities.Agent;
 using IqcQms.Infrastructure.Data;
+using IqcQms.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace IqcQms.Infrastructure.Services;
 
 public class AgentService : IAgentService
 {
     private readonly AppDbContext _db;
+    private readonly AgentSecurityOptions _securityOptions;
     private readonly ILogger<AgentService> _logger;
 
-    public AgentService(AppDbContext db, ILogger<AgentService> logger)
+    public AgentService(AppDbContext db, IOptions<AgentSecurityOptions> securityOptions, ILogger<AgentService> logger)
     {
         _db = db;
+        _securityOptions = securityOptions.Value;
         _logger = logger;
+    }
+
+    public AgentService(AppDbContext db, ILogger<AgentService> logger)
+        : this(db, Options.Create(new AgentSecurityOptions()), logger)
+    {
     }
 
     public async Task<AgentPairingCreateResponse> CreatePairingCodeAsync(int ownerUserId, string? ownerDisplayName = null)
     {
-        var rawCode = GenerateRandomPairingCode();
-        var hashedCode = HashString(rawCode);
+        var requestId = Guid.NewGuid();
+        var rawCode = GenerateSixDigitPairingCode();
+        var hashedCode = ComputeHmacPairingCode(requestId, rawCode, _securityOptions.PairingPepper);
 
         var pairingRequest = new AgentPairingRequest
         {
+            Id = requestId,
             HashedCode = hashedCode,
             OwnerUserId = ownerUserId,
             OwnerDisplayName = ownerDisplayName,
+            State = AgentPairingRequestState.Pending,
             CreatedAtUtc = DateTime.UtcNow,
             ExpiresAtUtc = DateTime.UtcNow.AddMinutes(10),
-            AttemptCount = 0
+            FailedAttemptCount = 0,
+            MaxFailedAttempts = _securityOptions.MaxPairingFailedAttempts,
+            ConcurrencyVersion = 1
         };
 
         _db.AgentPairingRequests.Add(pairingRequest);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation("Created pairing request for user {UserId}, expires at {ExpiresAtUtc}", ownerUserId, pairingRequest.ExpiresAtUtc);
+        _logger.LogInformation("Created pairing request {RequestId} for user {UserId}, expires at {ExpiresAtUtc}", requestId, ownerUserId, pairingRequest.ExpiresAtUtc);
 
         return new AgentPairingCreateResponse
         {
@@ -56,23 +70,52 @@ public class AgentService : IAgentService
             throw new ArgumentException("Pairing code and device ID are required.");
         }
 
-        var inputHash = HashString(request.PairingCode.Trim());
-        var pairingReqs = await _db.AgentPairingRequests
-            .Where(p => p.ConsumedAtUtc == null && p.ExpiresAtUtc > DateTime.UtcNow)
+        var normalizedCode = request.PairingCode.Trim();
+
+        using var tx = await _db.Database.BeginTransactionAsync();
+
+        var candidateReqs = await _db.AgentPairingRequests
+            .Where(p => p.State == AgentPairingRequestState.Pending && p.ConsumedAtUtc == null && p.ExpiresAtUtc > DateTime.UtcNow)
             .ToListAsync();
 
-        var matchedReq = pairingReqs.FirstOrDefault(p => CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(p.HashedCode),
-            Encoding.UTF8.GetBytes(inputHash)));
+        AgentPairingRequest? matchedReq = null;
+        foreach (var p in candidateReqs)
+        {
+            var testHash = ComputeHmacPairingCode(p.Id, normalizedCode, _securityOptions.PairingPepper);
+            if (CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(p.HashedCode), Encoding.UTF8.GetBytes(testHash)))
+            {
+                matchedReq = p;
+                break;
+            }
+        }
 
         if (matchedReq == null)
         {
-            _logger.LogWarning("Failed pairing attempt for device {DeviceId}: invalid or expired code", request.DeviceId);
-            throw new InvalidOperationException("Invalid or expired pairing code.");
+            _logger.LogWarning("Failed pairing attempt for device {DeviceId}: invalid or expired code.", request.DeviceId);
+
+            // Increment attempt count on any active pending request for auditing/locking
+            foreach (var req in candidateReqs)
+            {
+                req.FailedAttemptCount++;
+                req.LastFailedAttemptAtUtc = DateTime.UtcNow;
+                if (req.FailedAttemptCount >= req.MaxFailedAttempts)
+                {
+                    req.State = AgentPairingRequestState.Locked;
+                    req.LockedAtUtc = DateTime.UtcNow;
+                    _logger.LogWarning("Pairing request {RequestId} reached max failed attempts and is now LOCKED.", req.Id);
+                }
+            }
+
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            throw new InvalidOperationException("Pairing failed or code is no longer valid.");
         }
 
-        matchedReq.ConsumedAtUtc = DateTime.UtcNow;
-        matchedReq.AttemptCount++;
+        if (matchedReq.State != AgentPairingRequestState.Pending || matchedReq.ConsumedAtUtc != null || matchedReq.ExpiresAtUtc <= DateTime.UtcNow)
+        {
+            throw new InvalidOperationException("Pairing failed or code is no longer valid.");
+        }
 
         // Validate protocol version
         if (request.ProtocolVersion != "1.0")
@@ -80,6 +123,10 @@ public class AgentService : IAgentService
             _logger.LogWarning("Rejected pairing for device {DeviceId}: incompatible protocol {ProtocolVersion}", request.DeviceId, request.ProtocolVersion);
             throw new InvalidOperationException($"Unsupported protocol version '{request.ProtocolVersion}'. Supported: 1.0.");
         }
+
+        matchedReq.State = AgentPairingRequestState.Consumed;
+        matchedReq.ConsumedAtUtc = DateTime.UtcNow;
+        matchedReq.ConcurrencyVersion++;
 
         var existingDevice = await _db.AgentDevices.FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId);
         if (existingDevice != null)
@@ -95,6 +142,7 @@ public class AgentService : IAgentService
             existingDevice.CapabilitiesJson = JsonSerializer.Serialize(request.Capabilities);
             existingDevice.LastSeenAtUtc = DateTime.UtcNow;
             existingDevice.State = AgentDeviceState.Active;
+            existingDevice.ConcurrencyVersion++;
         }
         else
         {
@@ -109,15 +157,18 @@ public class AgentService : IAgentService
                 CapabilitiesJson = JsonSerializer.Serialize(request.Capabilities),
                 State = AgentDeviceState.Active,
                 PairedAtUtc = DateTime.UtcNow,
-                LastSeenAtUtc = DateTime.UtcNow
+                LastSeenAtUtc = DateTime.UtcNow,
+                ConcurrencyVersion = 1
             };
             _db.AgentDevices.Add(existingDevice);
         }
 
         await _db.SaveChangesAsync();
 
-        // Issue tokens
-        var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(existingDevice);
+        var tokenFamilyId = Guid.NewGuid().ToString("N");
+        var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(existingDevice, tokenFamilyId);
+
+        await tx.CommitAsync();
 
         _logger.LogInformation("Device {DeviceId} paired successfully for user {OwnerUserId}", existingDevice.DeviceId, existingDevice.OwnerUserId);
 
@@ -140,6 +191,8 @@ public class AgentService : IAgentService
             throw new ArgumentException("DeviceId and RefreshToken are required.");
         }
 
+        using var tx = await _db.Database.BeginTransactionAsync();
+
         var device = await _db.AgentDevices
             .Include(d => d.Credentials)
             .FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId);
@@ -149,31 +202,45 @@ public class AgentService : IAgentService
             throw new InvalidOperationException("Device not found or revoked.");
         }
 
-        var inputHash = HashString(request.RefreshToken);
-        var activeCreds = device.Credentials.Where(c => c.RevokedAtUtc == null).ToList();
+        var inputHash = HashSha256(request.RefreshToken);
+        var activeCreds = device.Credentials.Where(c => c.ConsumedAtUtc == null && c.RevokedAtUtc == null).ToList();
 
-        var matchedCred = activeCreds.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(
-            Encoding.UTF8.GetBytes(c.ProtectedVerifierHash),
-            Encoding.UTF8.GetBytes(inputHash)));
+        AgentCredential? matchedCred = null;
+        foreach (var c in activeCreds)
+        {
+            if (CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(c.ProtectedVerifierHash), Encoding.UTF8.GetBytes(inputHash)))
+            {
+                matchedCred = c;
+                break;
+            }
+        }
 
         if (matchedCred == null)
         {
-            // Check for replay attack: was this token already used/revoked?
+            // Replay Attack Detection: check if token was previously consumed or revoked
             var replayedCred = device.Credentials.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(c.ProtectedVerifierHash),
                 Encoding.UTF8.GetBytes(inputHash)));
 
             if (replayedCred != null)
             {
-                _logger.LogError("REPLAY DETECTED for device {DeviceId}! Revoking all device credentials.", request.DeviceId);
+                _logger.LogError("REPLAY DETECTED for device {DeviceId}, token family {TokenFamilyId}! Revoking entire token family and device.", request.DeviceId, replayedCred.TokenFamilyId);
+
                 device.State = AgentDeviceState.Revoked;
                 device.RevokedAtUtc = DateTime.UtcNow;
-                foreach (var c in device.Credentials)
+                device.ConcurrencyVersion++;
+
+                // Revoke all credentials belonging to the same token family
+                var familyCreds = device.Credentials.Where(c => c.TokenFamilyId == replayedCred.TokenFamilyId || string.IsNullOrWhiteSpace(c.TokenFamilyId)).ToList();
+                foreach (var c in familyCreds)
                 {
                     c.RevokedAtUtc = DateTime.UtcNow;
                     c.IsReplayed = true;
                 }
+
                 await _db.SaveChangesAsync();
+                await tx.CommitAsync();
+
                 throw new InvalidOperationException("Replayed refresh token detected. Device has been revoked for security.");
             }
 
@@ -184,19 +251,21 @@ public class AgentService : IAgentService
         {
             matchedCred.RevokedAtUtc = DateTime.UtcNow;
             await _db.SaveChangesAsync();
+            await tx.CommitAsync();
             throw new InvalidOperationException("Refresh token has expired.");
         }
 
-        // Invalidate old credential
+        // Consume and rotate current credential
+        matchedCred.ConsumedAtUtc = DateTime.UtcNow;
         matchedCred.RevokedAtUtc = DateTime.UtcNow;
-        matchedCred.IsReplayed = true;
+        device.ConcurrencyVersion++;
 
-        // Issue new token pair
-        var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(device, matchedCred.RotationLineage);
+        var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(device, matchedCred.TokenFamilyId, matchedCred.RotationLineage);
 
         await _db.SaveChangesAsync();
+        await tx.CommitAsync();
 
-        _logger.LogInformation("Successfully refreshed token for device {DeviceId}", device.DeviceId);
+        _logger.LogInformation("Successfully refreshed token for device {DeviceId}, family {TokenFamilyId}", device.DeviceId, matchedCred.TokenFamilyId);
 
         return new AgentTokenRefreshResponse
         {
@@ -350,7 +419,7 @@ public class AgentService : IAgentService
         return true;
     }
 
-    private async Task<(string AccessToken, DateTime AccessExpiry, string RefreshToken, DateTime RefreshExpiry)> IssueTokensForDeviceAsync(AgentDevice device, string? existingLineage = null)
+    private async Task<(string AccessToken, DateTime AccessExpiry, string RefreshToken, DateTime RefreshExpiry)> IssueTokensForDeviceAsync(AgentDevice device, string tokenFamilyId, string? existingLineage = null)
     {
         var accessExpiry = DateTime.UtcNow.AddMinutes(15);
         var refreshExpiry = DateTime.UtcNow.AddDays(7);
@@ -364,7 +433,8 @@ public class AgentService : IAgentService
             AgentDeviceId = device.Id,
             DeviceId = device.DeviceId,
             CredentialIdentifier = Guid.NewGuid().ToString("N"),
-            ProtectedVerifierHash = HashString(refreshToken),
+            ProtectedVerifierHash = HashSha256(refreshToken),
+            TokenFamilyId = tokenFamilyId,
             IssuedAtUtc = DateTime.UtcNow,
             ExpiresAtUtc = refreshExpiry,
             RotationLineage = lineage,
@@ -377,15 +447,22 @@ public class AgentService : IAgentService
         return (accessToken, accessExpiry, refreshToken, refreshExpiry);
     }
 
-    private static string GenerateRandomPairingCode()
+    public static string GenerateSixDigitPairingCode()
     {
-        var bytes = new byte[4];
-        RandomNumberGenerator.Fill(bytes);
-        var num = BitConverter.ToUInt32(bytes, 0) % 900000 + 100000;
-        return num.ToString();
+        var val = RandomNumberGenerator.GetInt32(0, 1000000);
+        return val.ToString("D6");
     }
 
-    private static string HashString(string input)
+    public static string ComputeHmacPairingCode(Guid requestId, string code, string pepper)
+    {
+        var normalizedCode = code.Trim();
+        var message = $"{requestId:N}:{normalizedCode}";
+        using var hmac = new HMACSHA256(Encoding.UTF8.GetBytes(pepper));
+        var hash = hmac.ComputeHash(Encoding.UTF8.GetBytes(message));
+        return Convert.ToHexString(hash);
+    }
+
+    public static string HashSha256(string input)
     {
         using var sha = SHA256.Create();
         var bytes = Encoding.UTF8.GetBytes(input);
