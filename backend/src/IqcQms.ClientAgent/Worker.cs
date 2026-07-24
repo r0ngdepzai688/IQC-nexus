@@ -118,17 +118,22 @@ public class Worker : BackgroundService
                             {
                                 try
                                 {
+                                    var currentOpId = $"agt_op_{Guid.NewGuid():N}";
                                     var refResp = await _apiClient.RefreshTokenAsync(new AgentTokenRefreshRequest
                                     {
                                         DeviceId = identity.DeviceId,
-                                        RefreshToken = refreshToken
+                                        RefreshToken = refreshToken,
+                                        RefreshOperationId = currentOpId
                                     }, stoppingToken);
 
-                                    await _credentialStore.SaveCredentialsAsync(refResp.AccessToken, refResp.AccessExpiresAtUtc, refResp.RefreshToken, refResp.RefreshExpiresAtUtc, stoppingToken);
-                                    accessToken = refResp.AccessToken;
-                                    accessExpiry = refResp.AccessExpiresAtUtc;
-                                    refreshToken = refResp.RefreshToken;
-                                    refreshExpiry = refResp.RefreshExpiresAtUtc;
+                                    if (!refResp.IsDuplicateRetry && !string.IsNullOrWhiteSpace(refResp.RefreshToken))
+                                    {
+                                        await _credentialStore.SaveCredentialsAsync(refResp.AccessToken, refResp.AccessExpiresAtUtc, refResp.RefreshToken, refResp.RefreshExpiresAtUtc, stoppingToken);
+                                        accessToken = refResp.AccessToken;
+                                        accessExpiry = refResp.AccessExpiresAtUtc;
+                                        refreshToken = refResp.RefreshToken;
+                                        refreshExpiry = refResp.RefreshExpiresAtUtc;
+                                    }
                                 }
                                 catch (Exception ex)
                                 {

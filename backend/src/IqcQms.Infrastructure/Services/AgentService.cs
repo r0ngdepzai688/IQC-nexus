@@ -166,7 +166,8 @@ public class AgentService : IAgentService
         await _db.SaveChangesAsync();
 
         var tokenFamilyId = Guid.NewGuid().ToString("N");
-        var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(existingDevice, tokenFamilyId);
+        var initialOpId = $"op_pair_{Guid.NewGuid():N}";
+        var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(existingDevice, tokenFamilyId, initialOpId);
 
         await tx.CommitAsync();
 
@@ -190,6 +191,10 @@ public class AgentService : IAgentService
         {
             throw new ArgumentException("DeviceId and RefreshToken are required.");
         }
+
+        var operationId = string.IsNullOrWhiteSpace(request.RefreshOperationId)
+            ? $"op_fallback_{Guid.NewGuid():N}"
+            : request.RefreshOperationId.Trim();
 
         using var tx = await _db.Database.BeginTransactionAsync();
 
@@ -217,21 +222,45 @@ public class AgentService : IAgentService
 
         if (matchedCred == null)
         {
-            // Replay Attack Detection: check if token was previously consumed or revoked
-            var replayedCred = device.Credentials.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(
+            // Replay vs Duplicate Retry Detection: check if token was previously consumed or revoked
+            var consumedCred = device.Credentials.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(c.ProtectedVerifierHash),
                 Encoding.UTF8.GetBytes(inputHash)));
 
-            if (replayedCred != null)
+            if (consumedCred != null)
             {
-                _logger.LogError("REPLAY DETECTED for device {DeviceId}, token family {TokenFamilyId}! Revoking entire token family and device.", request.DeviceId, replayedCred.TokenFamilyId);
+                // Check if this is a concurrent duplicate retry with the SAME RefreshOperationId within grace window (120s)
+                var graceWindowThreshold = DateTime.UtcNow.AddSeconds(-120);
+
+                var duplicateSuccessor = device.Credentials.FirstOrDefault(c =>
+                    c.TokenFamilyId == consumedCred.TokenFamilyId &&
+                    c.RefreshOperationId == operationId &&
+                    c.IssuedAtUtc >= graceWindowThreshold);
+
+                if (duplicateSuccessor != null)
+                {
+                    _logger.LogInformation("DUPLICATE RETRY DETECTED for device {DeviceId}, operation {OperationId}. Safe duplicate handled without revocation.", request.DeviceId, operationId);
+                    await tx.CommitAsync();
+
+                    return new AgentTokenRefreshResponse
+                    {
+                        AccessToken = string.Empty,
+                        AccessExpiresAtUtc = duplicateSuccessor.ExpiresAtUtc,
+                        RefreshToken = string.Empty,
+                        RefreshExpiresAtUtc = duplicateSuccessor.ExpiresAtUtc,
+                        IsDuplicateRetry = true
+                    };
+                }
+
+                // Otherwise: CONFIRMED REPLAY ATTACK (different operation ID or outside grace window)
+                _logger.LogError("CONFIRMED TOKEN REPLAY DETECTED for device {DeviceId}, token family {TokenFamilyId}! Revoking entire token family and device.", request.DeviceId, consumedCred.TokenFamilyId);
 
                 device.State = AgentDeviceState.Revoked;
                 device.RevokedAtUtc = DateTime.UtcNow;
                 device.ConcurrencyVersion++;
 
                 // Revoke all credentials belonging to the same token family
-                var familyCreds = device.Credentials.Where(c => c.TokenFamilyId == replayedCred.TokenFamilyId || string.IsNullOrWhiteSpace(c.TokenFamilyId)).ToList();
+                var familyCreds = device.Credentials.Where(c => c.TokenFamilyId == consumedCred.TokenFamilyId || string.IsNullOrWhiteSpace(c.TokenFamilyId)).ToList();
                 foreach (var c in familyCreds)
                 {
                     c.RevokedAtUtc = DateTime.UtcNow;
@@ -260,19 +289,20 @@ public class AgentService : IAgentService
         matchedCred.RevokedAtUtc = DateTime.UtcNow;
         device.ConcurrencyVersion++;
 
-        var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(device, matchedCred.TokenFamilyId, matchedCred.RotationLineage);
+        var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(device, matchedCred.TokenFamilyId, operationId, matchedCred.RotationLineage);
 
         await _db.SaveChangesAsync();
         await tx.CommitAsync();
 
-        _logger.LogInformation("Successfully refreshed token for device {DeviceId}, family {TokenFamilyId}", device.DeviceId, matchedCred.TokenFamilyId);
+        _logger.LogInformation("Successfully refreshed token for device {DeviceId}, family {TokenFamilyId}, op {OperationId}", device.DeviceId, matchedCred.TokenFamilyId, operationId);
 
         return new AgentTokenRefreshResponse
         {
             AccessToken = accessToken,
             AccessExpiresAtUtc = accessExpiry,
             RefreshToken = newRefreshToken,
-            RefreshExpiresAtUtc = refreshExpiry
+            RefreshExpiresAtUtc = refreshExpiry,
+            IsDuplicateRetry = false
         };
     }
 
@@ -419,7 +449,7 @@ public class AgentService : IAgentService
         return true;
     }
 
-    private async Task<(string AccessToken, DateTime AccessExpiry, string RefreshToken, DateTime RefreshExpiry)> IssueTokensForDeviceAsync(AgentDevice device, string tokenFamilyId, string? existingLineage = null)
+    private async Task<(string AccessToken, DateTime AccessExpiry, string RefreshToken, DateTime RefreshExpiry)> IssueTokensForDeviceAsync(AgentDevice device, string tokenFamilyId, string refreshOperationId, string? existingLineage = null)
     {
         var accessExpiry = DateTime.UtcNow.AddMinutes(15);
         var refreshExpiry = DateTime.UtcNow.AddDays(7);
@@ -435,6 +465,7 @@ public class AgentService : IAgentService
             CredentialIdentifier = Guid.NewGuid().ToString("N"),
             ProtectedVerifierHash = HashSha256(refreshToken),
             TokenFamilyId = tokenFamilyId,
+            RefreshOperationId = refreshOperationId,
             IssuedAtUtc = DateTime.UtcNow,
             ExpiresAtUtc = refreshExpiry,
             RotationLineage = lineage,

@@ -222,6 +222,8 @@ namespace IqcQms.Infrastructure.Data
                 .IsUnique();
             modelBuilder.Entity<AgentCredential>()
                 .HasIndex(c => c.TokenFamilyId);
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => new { c.AgentDeviceId, c.RefreshOperationId });
 
             modelBuilder.Entity<AgentPairingRequest>()
                 .HasIndex(p => p.HashedCode);

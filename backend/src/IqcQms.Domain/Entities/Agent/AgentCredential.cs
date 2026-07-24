@@ -8,6 +8,7 @@ public class AgentCredential
     public string CredentialIdentifier { get; set; } = string.Empty;
     public string ProtectedVerifierHash { get; set; } = string.Empty;
     public string TokenFamilyId { get; set; } = string.Empty;
+    public string RefreshOperationId { get; set; } = string.Empty;
     public DateTime IssuedAtUtc { get; set; } = DateTime.UtcNow;
     public DateTime ExpiresAtUtc { get; set; }
     public DateTime? ConsumedAtUtc { get; set; }
