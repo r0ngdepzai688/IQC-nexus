@@ -1,3 +1,5 @@
+using IqcQms.ClientAgent.Application.Storage;
+
 namespace IqcQms.ClientAgent.Application.Config;
 
 public class AgentOptions
@@ -54,13 +56,27 @@ public class AgentOptions
         AllowedInputRoots = normalizedRoots;
     }
 
-    public bool IsPathAllowed(string filePath)
+    public bool IsPathAllowed(string filePath, IAllowedInputPathValidator? validator = null)
     {
         if (string.IsNullOrWhiteSpace(filePath)) return false;
+        if (validator != null)
+        {
+            return validator.ValidatePath(filePath, AllowedInputRoots).IsAllowed;
+        }
+
         try
         {
-            var fullPath = Path.GetFullPath(filePath);
-            return AllowedInputRoots.Any(root => fullPath.StartsWith(root, StringComparison.OrdinalIgnoreCase));
+            var fullCandidate = Path.GetFullPath(filePath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            foreach (var r in AllowedInputRoots)
+            {
+                var fullRoot = Path.GetFullPath(r).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (fullCandidate.Equals(fullRoot, StringComparison.OrdinalIgnoreCase) ||
+                    fullCandidate.StartsWith(fullRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
         catch
         {

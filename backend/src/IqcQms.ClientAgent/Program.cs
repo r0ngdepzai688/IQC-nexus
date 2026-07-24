@@ -30,9 +30,10 @@ if (agentOptions.EnableCompatibilityWindowsService)
     });
 }
 
-// 1. User-scoped Path Resolver
+// 1. User-scoped Path Resolver & Security Validator
 var pathResolver = new AgentPathResolver(agentOptions.AgentProfile, agentOptions.LocalStorePath);
 builder.Services.AddSingleton<IAgentPathResolver>(pathResolver);
+builder.Services.AddSingleton<IAllowedInputPathValidator, AllowedInputPathValidator>();
 
 // 2. Identity & DPAPI Store
 builder.Services.AddSingleton<WindowsDpapiDeviceIdentityStore>(sp =>
