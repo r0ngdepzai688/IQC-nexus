@@ -388,6 +388,11 @@ public class AgentService : IAgentService
 
     public async Task<NormalizedWorkbookUploadResponse> UploadNormalizedWorkbookAsync(NormalizedWorkbookUploadRequest request)
     {
+        if (string.IsNullOrWhiteSpace(request.DeviceId) || string.IsNullOrWhiteSpace(request.PayloadSubmissionId) || string.IsNullOrWhiteSpace(request.Nonce))
+        {
+            throw new ArgumentException("DeviceId, PayloadSubmissionId, and Nonce are required.");
+        }
+
         var device = await _db.AgentDevices.FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId);
         if (device == null || device.State == AgentDeviceState.Revoked)
         {
@@ -404,15 +409,75 @@ public class AgentService : IAgentService
             throw new ArgumentException("Normalized workbook content is invalid or missing.");
         }
 
-        _logger.LogInformation("Accepted normalized payload from device {DeviceId}, records: {RecordCount}, job: {JobId}",
-            request.DeviceId, request.RecordCount, request.ServerImportJobId);
+        var submissionId = request.PayloadSubmissionId.Trim();
+        var nonce = request.Nonce.Trim();
+        var computedHash = CanonicalPayloadHasher.ComputeCanonicalHash(request);
+        var sourceFingerprint = string.IsNullOrWhiteSpace(request.SourceFingerprint)
+            ? CanonicalPayloadHasher.ComputeSourceFingerprint(request.NormalizedWorkbook)
+            : request.SourceFingerprint.Trim();
+
+        using var tx = await _db.Database.BeginTransactionAsync();
+
+        // Check for duplicate or replay submission under this device
+        var existingSubmission = await _db.AgentPayloadSubmissions
+            .FirstOrDefaultAsync(s => s.AgentDeviceId == device.Id && (s.PayloadSubmissionId == submissionId || s.Nonce == nonce));
+
+        if (existingSubmission != null)
+        {
+            // Case A: Safe Duplicate Retry (same submissionId, same nonce, same hash)
+            if (existingSubmission.PayloadSubmissionId == submissionId && existingSubmission.Nonce == nonce && existingSubmission.CanonicalPayloadHash == computedHash)
+            {
+                await tx.CommitAsync();
+                _logger.LogInformation("Recovered committed upload {UploadId} for duplicate payload retry (submission {SubmissionId})", existingSubmission.UploadId, submissionId);
+                return new NormalizedWorkbookUploadResponse
+                {
+                    UploadId = existingSubmission.UploadId,
+                    ServerImportJobId = existingSubmission.ServerImportJobId,
+                    Status = "Accepted",
+                    IsDuplicateRetry = true,
+                    ReceivedAtUtc = existingSubmission.CreatedAtUtc
+                };
+            }
+
+            // Case B: Submission Mismatch or Nonce Replay Attack
+            await tx.CommitAsync();
+            _logger.LogWarning("Payload submission mismatch/replay detected for device {DeviceId}, submission {SubmissionId}", request.DeviceId, submissionId);
+            throw new InvalidOperationException("Payload submission ID, nonce, or content digest mismatch detected. Submission rejected.");
+        }
+
+        // Case C: First Valid Submission
+        var newUploadId = Guid.NewGuid();
+        var submissionRecord = new AgentPayloadSubmission
+        {
+            AgentDeviceId = device.Id,
+            DeviceId = device.DeviceId,
+            PayloadSubmissionId = submissionId,
+            Nonce = nonce,
+            SourceFingerprint = sourceFingerprint,
+            CanonicalPayloadHash = computedHash,
+            SchemaVersion = request.CanonicalSchemaVersion,
+            ServerImportJobId = request.ServerImportJobId,
+            UploadId = newUploadId,
+            State = AgentPayloadSubmissionState.Accepted,
+            RecordCount = request.RecordCount,
+            CreatedAtUtc = DateTime.UtcNow,
+            ConcurrencyVersion = 1
+        };
+
+        _db.AgentPayloadSubmissions.Add(submissionRecord);
+        await _db.SaveChangesAsync();
+        await tx.CommitAsync();
+
+        _logger.LogInformation("Accepted normalized payload {UploadId} from device {DeviceId}, records: {RecordCount}, job: {JobId}",
+            newUploadId, request.DeviceId, request.RecordCount, request.ServerImportJobId);
 
         return new NormalizedWorkbookUploadResponse
         {
-            UploadId = Guid.NewGuid(),
+            UploadId = newUploadId,
             ServerImportJobId = request.ServerImportJobId,
             Status = "Accepted",
-            ReceivedAtUtc = DateTime.UtcNow
+            IsDuplicateRetry = false,
+            ReceivedAtUtc = submissionRecord.CreatedAtUtc
         };
     }
 
