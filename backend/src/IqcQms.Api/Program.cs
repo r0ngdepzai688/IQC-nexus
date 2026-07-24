@@ -142,6 +142,7 @@ builder.Services.AddScoped<IImportCommitEngine, ImportCommitService>();
 builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
+builder.Services.AddScoped<IqcQms.Application.Services.IAgentService, IqcQms.Infrastructure.Services.AgentService>();
 
 // Register Background Hosted Services outside testing
 if (!builder.Environment.IsEnvironment("Testing"))
