@@ -68,9 +68,11 @@ public class RefreshRotationConcurrencyTests : IDisposable
         var refreshResp = await service.RefreshTokenAsync(new AgentTokenRefreshRequest
         {
             DeviceId = pairResp.DeviceId,
-            RefreshToken = pairResp.RefreshToken
+            RefreshToken = pairResp.RefreshToken,
+            RefreshOperationId = "op_rotate_1"
         });
 
+        Assert.False(refreshResp.IsDuplicateRetry);
         Assert.NotNull(refreshResp.AccessToken);
         Assert.NotEqual(pairResp.RefreshToken, refreshResp.RefreshToken);
 
@@ -83,49 +85,7 @@ public class RefreshRotationConcurrencyTests : IDisposable
     }
 
     [Fact]
-    public async Task ReplayingConsumedRefreshToken_RevokesEntireTokenFamilyAndDevice()
-    {
-        using var db = CreateDbContext();
-        var service = new AgentService(db, NullLogger<AgentService>.Instance);
-        var created = await service.CreatePairingCodeAsync(1, "UserA");
-        var pairResp = await service.PairDeviceAsync(new AgentDevicePairRequest
-        {
-            PairingCode = created.PairingCode,
-            DeviceId = "dev_replay_test_1"
-        });
-
-        // 1. Legitimate refresh
-        var refreshResp1 = await service.RefreshTokenAsync(new AgentTokenRefreshRequest
-        {
-            DeviceId = pairResp.DeviceId,
-            RefreshToken = pairResp.RefreshToken
-        });
-
-        // 2. Attacker replays old refresh token (pairResp.RefreshToken)
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.RefreshTokenAsync(new AgentTokenRefreshRequest
-        {
-            DeviceId = pairResp.DeviceId,
-            RefreshToken = pairResp.RefreshToken
-        }));
-
-        Assert.Contains("Replayed refresh token detected", ex.Message);
-
-        var device = await db.AgentDevices.FirstAsync(d => d.DeviceId == pairResp.DeviceId);
-        Assert.Equal(AgentDeviceState.Revoked, device.State);
-        Assert.NotNull(device.RevokedAtUtc);
-
-        // Subsequent refresh with the legitimate new token fails because device is revoked
-        var ex2 = await Assert.ThrowsAsync<InvalidOperationException>(() => service.RefreshTokenAsync(new AgentTokenRefreshRequest
-        {
-            DeviceId = pairResp.DeviceId,
-            RefreshToken = refreshResp1.RefreshToken
-        }));
-
-        Assert.Equal("Device not found or revoked.", ex2.Message);
-    }
-
-    [Fact]
-    public async Task ConcurrentRefreshes_ExactlyOneSucceeds_LosingRequestTriggersReplayRevocation()
+    public async Task ConcurrentSameOperationRequests_DoNotRevokeDevice()
     {
         string deviceId;
         string refreshToken;
@@ -137,45 +97,102 @@ public class RefreshRotationConcurrencyTests : IDisposable
             var pairResp = await setupService.PairDeviceAsync(new AgentDevicePairRequest
             {
                 PairingCode = created.PairingCode,
-                DeviceId = "dev_concurrent_refresh_1"
+                DeviceId = "dev_same_op_concurrent_1"
             });
             deviceId = pairResp.DeviceId;
             refreshToken = pairResp.RefreshToken;
         }
 
-        var req1 = new AgentTokenRefreshRequest { DeviceId = deviceId, RefreshToken = refreshToken };
-        var req2 = new AgentTokenRefreshRequest { DeviceId = deviceId, RefreshToken = refreshToken };
+        var sameOpId = "op_same_concurrent_100";
+        var req1 = new AgentTokenRefreshRequest { DeviceId = deviceId, RefreshToken = refreshToken, RefreshOperationId = sameOpId };
+        var req2 = new AgentTokenRefreshRequest { DeviceId = deviceId, RefreshToken = refreshToken, RefreshOperationId = sameOpId };
 
-        var task1 = Task.Run(async () =>
+        using var db1 = CreateDbContext();
+        using var db2 = CreateDbContext();
+        var s1 = new AgentService(db1, NullLogger<AgentService>.Instance);
+        var s2 = new AgentService(db2, NullLogger<AgentService>.Instance);
+
+        var resp1 = await s1.RefreshTokenAsync(req1);
+        var resp2 = await s2.RefreshTokenAsync(req2);
+
+        Assert.False(resp1.IsDuplicateRetry);
+        Assert.True(resp2.IsDuplicateRetry);
+
+        using var dbCheck = CreateDbContext();
+        var device = await dbCheck.AgentDevices.FirstAsync(d => d.DeviceId == deviceId);
+        Assert.Equal(AgentDeviceState.Active, device.State);
+    }
+
+    [Fact]
+    public async Task SameOperationRetry_IsDeterministic()
+    {
+        using var db = CreateDbContext();
+        var service = new AgentService(db, NullLogger<AgentService>.Instance);
+        var created = await service.CreatePairingCodeAsync(1, "UserA");
+        var pairResp = await service.PairDeviceAsync(new AgentDevicePairRequest
         {
-            using var db1 = CreateDbContext();
-            var s1 = new AgentService(db1, NullLogger<AgentService>.Instance);
-            return await s1.RefreshTokenAsync(req1);
+            PairingCode = created.PairingCode,
+            DeviceId = "dev_retry_op_1"
         });
 
-        var task2 = Task.Run(async () =>
+        var opId = "op_retry_100";
+        var resp1 = await service.RefreshTokenAsync(new AgentTokenRefreshRequest
         {
-            using var db2 = CreateDbContext();
-            var s2 = new AgentService(db2, NullLogger<AgentService>.Instance);
-            return await s2.RefreshTokenAsync(req2);
+            DeviceId = pairResp.DeviceId,
+            RefreshToken = pairResp.RefreshToken,
+            RefreshOperationId = opId
         });
 
-        try
+        Assert.False(resp1.IsDuplicateRetry);
+
+        // Same operation ID retried after lost HTTP response
+        var resp2 = await service.RefreshTokenAsync(new AgentTokenRefreshRequest
         {
-            await Task.WhenAll(task1, task2);
-        }
-        catch { }
+            DeviceId = pairResp.DeviceId,
+            RefreshToken = pairResp.RefreshToken,
+            RefreshOperationId = opId
+        });
 
-        int successCount = 0;
-        int failCount = 0;
+        Assert.True(resp2.IsDuplicateRetry);
 
-        foreach (var t in new[] { task1, task2 })
+        var device = await db.AgentDevices.FirstAsync(d => d.DeviceId == pairResp.DeviceId);
+        Assert.Equal(AgentDeviceState.Active, device.State);
+    }
+
+    [Fact]
+    public async Task DifferentOperationReuse_RevokesTokenFamilyAndDevice()
+    {
+        using var db = CreateDbContext();
+        var service = new AgentService(db, NullLogger<AgentService>.Instance);
+        var created = await service.CreatePairingCodeAsync(1, "UserA");
+        var pairResp = await service.PairDeviceAsync(new AgentDevicePairRequest
         {
-            if (t.IsCompletedSuccessfully) successCount++;
-            else if (t.IsFaulted) failCount++;
-        }
+            PairingCode = created.PairingCode,
+            DeviceId = "dev_diff_op_1"
+        });
 
-        Assert.Equal(1, successCount);
-        Assert.Equal(1, failCount);
+        // 1. Legitimate rotation with op_legit_1
+        var refreshResp1 = await service.RefreshTokenAsync(new AgentTokenRefreshRequest
+        {
+            DeviceId = pairResp.DeviceId,
+            RefreshToken = pairResp.RefreshToken,
+            RefreshOperationId = "op_legit_1"
+        });
+
+        Assert.False(refreshResp1.IsDuplicateRetry);
+
+        // 2. Attacker attempts replay with a DIFFERENT operation ID (op_attacker_2)
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.RefreshTokenAsync(new AgentTokenRefreshRequest
+        {
+            DeviceId = pairResp.DeviceId,
+            RefreshToken = pairResp.RefreshToken,
+            RefreshOperationId = "op_attacker_2"
+        }));
+
+        Assert.Contains("Replayed refresh token detected", ex.Message);
+
+        var device = await db.AgentDevices.FirstAsync(d => d.DeviceId == pairResp.DeviceId);
+        Assert.Equal(AgentDeviceState.Revoked, device.State);
+        Assert.NotNull(device.RevokedAtUtc);
     }
 }
