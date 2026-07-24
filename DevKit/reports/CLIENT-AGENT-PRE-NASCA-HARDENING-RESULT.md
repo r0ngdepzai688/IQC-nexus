@@ -1,21 +1,22 @@
-# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2B.1)
+# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2B.2)
 
 **Date:** July 24, 2026
-**Status:** PHASE 2A, 2B, & 2B.1 COMPLETED & VERIFIED
+**Status:** PHASE 2A, 2B, 2B.1 & 2B.2 COMPLETED & VERIFIED
 **Branch:** `feature/client-agent-pre-nasca-hardening`
 
 ---
 
-## Phase 2B.1 Objectives & Execution Summary
+## Phase 2B.2 Objectives & Execution Summary
 
-Phase 2B.1 addressed refresh rotation concurrent-duplicate safety to prevent operational security failures where legitimate retries or short network races revoked devices.
+Phase 2B.2 completed the refresh token idempotency contract and lost-response recovery mechanism using AES-256-GCM encrypted recovery envelopes.
 
-| Feature | Design & Hardening | Status | Evidence |
+| Feature | Architecture & Implementation | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| **Refresh Operation ID** | Client generates `RefreshOperationId` per logical attempt | **COMPLETED** | `AgentTokenContracts.cs`, `Worker.cs` |
-| **Duplicate Retry Handling** | Same `RefreshOperationId` within 120s grace window returns safe duplicate response without revoking device | **COMPLETED** | `AgentService.cs`, `RefreshRotationConcurrencyTests.cs` |
-| **Confirmed Replay Protection** | Different `RefreshOperationId` or outside grace window revokes token family and device | **COMPLETED** | `AgentService.cs`, `RefreshRotationConcurrencyTests.cs` |
-| **EF Migration** | `AddRefreshOperationIdToAgentCredential` adds index on `(AgentDeviceId, RefreshOperationId)` | **COMPLETED** | `20260724155936_AddRefreshOperationIdToAgentCredential.cs` |
+| **AES-256-GCM Recovery Envelope** | Encrypts committed rotation response into `AgentRefreshOperationResult` | **COMPLETED** | `EnvelopeEncryptionService.cs`, `AgentService.cs` |
+| **Lost-Response Recovery** | Duplicate retry with same `RefreshOperationId` decrypts and returns exact original `AccessToken` & `RefreshToken` | **COMPLETED** | `RefreshRotationConcurrencyTests.cs` |
+| **Unique DB Constraint** | Unique index on `(AgentDeviceId, RefreshOperationId)` | **COMPLETED** | `AppDbContext.cs`, `20260724161119_AddAgentRefreshOperationResultsTable.cs` |
+| **Client Operation Retention** | Agent preserves `RefreshOperationId` across transport retries | **COMPLETED** | `Worker.cs`, `AgentTokenContracts.cs` |
+| **Confirmed Replay Protection** | Replay with different `RefreshOperationId` or expired envelope (> 120s) revokes device | **COMPLETED** | `AgentService.cs`, `RefreshRotationConcurrencyTests.cs` |
 
 ---
 
