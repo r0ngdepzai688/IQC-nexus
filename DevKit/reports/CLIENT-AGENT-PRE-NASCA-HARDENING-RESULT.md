@@ -1,27 +1,27 @@
-# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2C)
+# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2D)
 
 **Date:** July 24, 2026
-**Status:** PHASE 2A, 2B, 2B.1, 2B.2 & 2C COMPLETED & VERIFIED
+**Status:** PHASE 2A, 2B, 2B.1, 2B.2, 2C & 2D COMPLETED & VERIFIED
 **Branch:** `feature/client-agent-pre-nasca-hardening`
 
 ---
 
-## Phase 2C Objectives & Execution Summary
+## Phase 2D Objectives & Execution Summary
 
-Phase 2C implemented complete input path boundary enforcement and Windows reparse-point resolution.
+Phase 2D completed payload submission idempotency, nonce persistence, canonical SHA-256 payload hashing, and lost-response upload recovery.
 
 | Feature | Architecture & Implementation | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| **Path Security Abstraction** | Created `IAllowedInputPathValidator` and `AllowedInputPathValidator` | **COMPLETED** | `AllowedInputPathValidator.cs`, `IAllowedInputPathValidator.cs` |
-| **Component Reparse Resolution** | Resolves NTFS junctions and symlinks component-by-component to physical targets | **COMPLETED** | `AllowedInputPathValidator.cs`, `AllowedInputPathValidatorTests.cs` |
-| **Separator-Aware Boundary** | Prevents sibling directory prefix collisions (`C:\Allowed2` vs `C:\Allowed`) | **COMPLETED** | `AllowedInputPathValidator.cs` |
-| **Dual Validation (TOCTOU)** | Enqueue-time and processing-time revalidation in `Worker.cs` | **COMPLETED** | `SqliteLocalAgentQueue.cs`, `Worker.cs` |
-| **Device & Stream Hardening** | Rejects `\\.\` device namespaces, alternate data streams (`:`), and non-regular files | **COMPLETED** | `AllowedInputPathValidator.cs` |
+| **Submission Identity** | `PayloadSubmissionId` & `Nonce` persisted in local queue and request contracts | **COMPLETED** | `NormalizedWorkbookContracts.cs`, `SqliteLocalAgentQueue.cs` |
+| **Canonical Payload Hashing** | Server recomputes SHA-256 digest over invariant UTF-8 JSON | **COMPLETED** | `CanonicalPayloadHasher.cs`, `AgentService.cs` |
+| **Atomic Database Acceptance** | Created `AgentPayloadSubmission` table with unique indexes on `(AgentDeviceId, PayloadSubmissionId)` and `(AgentDeviceId, Nonce)` | **COMPLETED** | `AppDbContext.cs`, `20260724164508_AddAgentPayloadSubmissionsTable.cs` |
+| **Duplicate Upload Recovery** | Retries with same `PayloadSubmissionId` & `Nonce` return original `UploadId` with `IsDuplicateRetry = true` | **COMPLETED** | `AgentService.cs`, `PayloadSubmissionIdempotencyTests.cs` |
+| **Replay & Mismatch Protection** | Submissions with mismatched content or cross-device attempts fail fast | **COMPLETED** | `AgentService.cs`, `PayloadSubmissionIdempotencyTests.cs` |
 
 ---
 
 ## Test Verification Totals
 
-- **Client Agent Tests**: **52 Passed / 0 Failed**
-- **Total Backend Tests**: **194 Passed / 0 Failed**
+- **Client Agent Tests**: **57 Passed / 0 Failed**
+- **Total Backend Tests**: **199 Passed / 0 Failed**
 - **win-x64 Publish Build**: **Succeeded with 0 Errors**
