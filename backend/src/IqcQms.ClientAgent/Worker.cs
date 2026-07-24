@@ -254,6 +254,8 @@ public class Worker : BackgroundService
                 {
                     CanonicalSchemaVersion = "1.0",
                     DeviceId = identity.DeviceId,
+                    PayloadSubmissionId = job.PayloadSubmissionId,
+                    Nonce = job.Nonce,
                     ServerImportJobId = job.ServerJobId,
                     ProviderId = provider.Capabilities.ProviderId,
                     ProviderVersion = provider.Capabilities.ProviderVersion,

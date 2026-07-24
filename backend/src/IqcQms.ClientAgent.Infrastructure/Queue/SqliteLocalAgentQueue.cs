@@ -22,6 +22,9 @@ public class LocalJobItem
     public DateTime UpdatedAtUtc { get; set; } = DateTime.UtcNow;
     public string? LastErrorCode { get; set; }
     public string PayloadReference { get; set; } = string.Empty;
+    public string PayloadSubmissionId { get; set; } = $"agt_sub_{Guid.NewGuid():N}";
+    public string Nonce { get; set; } = $"agt_nonce_{Guid.NewGuid():N}";
+    public string SourceFingerprint { get; set; } = string.Empty;
 }
 
 public interface ILocalAgentQueue
@@ -77,7 +80,10 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
                 CreatedAtUtc TEXT NOT NULL,
                 UpdatedAtUtc TEXT NOT NULL,
                 LastErrorCode TEXT,
-                PayloadReference TEXT NOT NULL
+                PayloadReference TEXT NOT NULL,
+                PayloadSubmissionId TEXT,
+                Nonce TEXT,
+                SourceFingerprint TEXT
             );
             CREATE INDEX IF NOT EXISTS IX_Queue_State_Available ON AgentLocalQueue(State, AvailableAtUtc);
             CREATE INDEX IF NOT EXISTS IX_Queue_ServerJobId ON AgentLocalQueue(ServerJobId);
@@ -86,6 +92,26 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
         using var cmd = conn.CreateCommand();
         cmd.CommandText = sql;
         await cmd.ExecuteNonQueryAsync(cancellationToken);
+
+        // Add missing columns for upgrade compatibility
+        try
+        {
+            cmd.CommandText = "ALTER TABLE AgentLocalQueue ADD COLUMN PayloadSubmissionId TEXT;";
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+        try
+        {
+            cmd.CommandText = "ALTER TABLE AgentLocalQueue ADD COLUMN Nonce TEXT;";
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
+        try
+        {
+            cmd.CommandText = "ALTER TABLE AgentLocalQueue ADD COLUMN SourceFingerprint TEXT;";
+            await cmd.ExecuteNonQueryAsync(cancellationToken);
+        }
+        catch { }
 
         await RecoverStaleLeasesAsync(cancellationToken);
     }
@@ -114,7 +140,10 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
             AvailableAtUtc = DateTime.UtcNow,
             CreatedAtUtc = DateTime.UtcNow,
             UpdatedAtUtc = DateTime.UtcNow,
-            PayloadReference = payloadReference ?? string.Empty
+            PayloadReference = payloadReference ?? string.Empty,
+            PayloadSubmissionId = $"agt_sub_{Guid.NewGuid():N}",
+            Nonce = $"agt_nonce_{Guid.NewGuid():N}",
+            SourceFingerprint = string.Empty
         };
 
         using var conn = new SqliteConnection(ConnectionString);
@@ -122,9 +151,9 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
 
         var sql = @"
             INSERT INTO AgentLocalQueue (
-                LocalJobId, ServerJobId, WorkType, State, AttemptCount, MaxAttempts, AvailableAtUtc, CreatedAtUtc, UpdatedAtUtc, PayloadReference
+                LocalJobId, ServerJobId, WorkType, State, AttemptCount, MaxAttempts, AvailableAtUtc, CreatedAtUtc, UpdatedAtUtc, PayloadReference, PayloadSubmissionId, Nonce, SourceFingerprint
             ) VALUES (
-                @LocalJobId, @ServerJobId, @WorkType, @State, @AttemptCount, @MaxAttempts, @AvailableAtUtc, @CreatedAtUtc, @UpdatedAtUtc, @PayloadReference
+                @LocalJobId, @ServerJobId, @WorkType, @State, @AttemptCount, @MaxAttempts, @AvailableAtUtc, @CreatedAtUtc, @UpdatedAtUtc, @PayloadReference, @PayloadSubmissionId, @Nonce, @SourceFingerprint
             );
         ";
 
@@ -140,9 +169,12 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
         cmd.Parameters.AddWithValue("@CreatedAtUtc", item.CreatedAtUtc.ToString("O"));
         cmd.Parameters.AddWithValue("@UpdatedAtUtc", item.UpdatedAtUtc.ToString("O"));
         cmd.Parameters.AddWithValue("@PayloadReference", item.PayloadReference);
+        cmd.Parameters.AddWithValue("@PayloadSubmissionId", item.PayloadSubmissionId);
+        cmd.Parameters.AddWithValue("@Nonce", item.Nonce);
+        cmd.Parameters.AddWithValue("@SourceFingerprint", item.SourceFingerprint);
 
         await cmd.ExecuteNonQueryAsync(cancellationToken);
-        _logger.LogInformation("Enqueued local job {LocalJobId} for server job {ServerJobId}", item.LocalJobId, item.ServerJobId);
+        _logger.LogInformation("Enqueued local job {LocalJobId} for server job {ServerJobId} (submission {PayloadSubmissionId})", item.LocalJobId, item.ServerJobId, item.PayloadSubmissionId);
         return item;
     }
 
@@ -153,7 +185,7 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
         using var tx = conn.BeginTransaction();
 
         var selectSql = @"
-            SELECT LocalJobId, ServerJobId, WorkType, State, AttemptCount, MaxAttempts, AvailableAtUtc, LeaseOwner, LeaseExpiresAtUtc, CreatedAtUtc, UpdatedAtUtc, LastErrorCode, PayloadReference
+            SELECT LocalJobId, ServerJobId, WorkType, State, AttemptCount, MaxAttempts, AvailableAtUtc, LeaseOwner, LeaseExpiresAtUtc, CreatedAtUtc, UpdatedAtUtc, LastErrorCode, PayloadReference, PayloadSubmissionId, Nonce, SourceFingerprint
             FROM AgentLocalQueue
             WHERE State = 'Pending' AND AvailableAtUtc <= @Now
             ORDER BY CreatedAtUtc ASC
@@ -340,7 +372,10 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
             CreatedAtUtc = DateTime.Parse(reader.GetString(9)),
             UpdatedAtUtc = DateTime.Parse(reader.GetString(10)),
             LastErrorCode = reader.IsDBNull(11) ? null : reader.GetString(11),
-            PayloadReference = reader.GetString(12)
+            PayloadReference = reader.GetString(12),
+            PayloadSubmissionId = reader.IsDBNull(13) ? $"agt_sub_{Guid.NewGuid():N}" : reader.GetString(13),
+            Nonce = reader.IsDBNull(14) ? $"agt_nonce_{Guid.NewGuid():N}" : reader.GetString(14),
+            SourceFingerprint = reader.IsDBNull(15) ? string.Empty : reader.GetString(15)
         };
     }
 }
