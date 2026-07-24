@@ -1,6 +1,7 @@
 using IqcQms.ClientAgent.Application.Config;
 using IqcQms.ClientAgent.Application.Identity;
 using IqcQms.ClientAgent.Application.Providers;
+using IqcQms.ClientAgent.Application.Runtime;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.ClientAgent.Infrastructure.Http;
 using IqcQms.ClientAgent.Infrastructure.Queue;
@@ -17,6 +18,7 @@ public class Worker : BackgroundService
     private readonly ILocalAgentQueue _localQueue;
     private readonly IAgentApiClient _apiClient;
     private readonly IClientDataProviderRegistry _providerRegistry;
+    private readonly ISingleInstanceLock _singleInstanceLock;
     private readonly AgentOptions _options;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<Worker> _logger;
@@ -30,6 +32,7 @@ public class Worker : BackgroundService
         ILocalAgentQueue localQueue,
         IAgentApiClient apiClient,
         IClientDataProviderRegistry providerRegistry,
+        ISingleInstanceLock singleInstanceLock,
         IOptions<AgentOptions> options,
         IHostEnvironment environment,
         ILogger<Worker> logger)
@@ -39,6 +42,7 @@ public class Worker : BackgroundService
         _localQueue = localQueue;
         _apiClient = apiClient;
         _providerRegistry = providerRegistry;
+        _singleInstanceLock = singleInstanceLock;
         _options = options.Value;
         _environment = environment;
         _logger = logger;
@@ -46,136 +50,150 @@ public class Worker : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        _logger.LogInformation("IQC Nexus Client Agent starting. Version: 1.0.0, Protocol: 1.0");
+        _logger.LogInformation("IQC Nexus Client Agent starting. Version: 1.0.0, Protocol: 1.0, Profile: {Profile}", _options.AgentProfile);
 
         // Validate options
         _options.Validate(_environment.IsDevelopment() || _environment.IsEnvironment("Testing"));
 
-        await _localQueue.InitializeAsync(stoppingToken);
-
-        var identity = await _identityStore.GetOrCreateIdentityAsync(stoppingToken);
-        var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await _credentialStore.LoadCredentialsAsync(stoppingToken);
-
-        // Attempt pairing if not yet paired and pairing code is supplied
-        if (string.IsNullOrWhiteSpace(refreshToken) && !string.IsNullOrWhiteSpace(_options.PairingCode))
+        // Single-instance enforcement per profile
+        if (!await _singleInstanceLock.TryAcquireAsync(stoppingToken))
         {
-            _logger.LogInformation("Attempting auto-pairing with provided pairing code...");
-            try
-            {
-                var pairReq = new AgentDevicePairRequest
-                {
-                    PairingCode = _options.PairingCode,
-                    DeviceId = identity.DeviceId,
-                    DisplayName = identity.DisplayName,
-                    AgentVersion = "1.0.0",
-                    ProtocolVersion = _options.ProtocolVersion,
-                    Capabilities = GetCurrentCapabilities()
-                };
-                var pairResp = await _apiClient.PairAsync(pairReq, stoppingToken);
-                await _credentialStore.SaveCredentialsAsync(pairResp.AccessToken, pairResp.AccessExpiresAtUtc, pairResp.RefreshToken, pairResp.RefreshExpiresAtUtc, stoppingToken);
-                accessToken = pairResp.AccessToken;
-                accessExpiry = pairResp.AccessExpiresAtUtc;
-                refreshToken = pairResp.RefreshToken;
-                refreshExpiry = pairResp.RefreshExpiresAtUtc;
-                _logger.LogInformation("Auto-pairing successful!");
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Auto-pairing failed. Agent will operate in offline/unpaired state until paired.");
-            }
+            _logger.LogWarning("Another Agent process is already running for profile '{Profile}'. Exiting process.", _options.AgentProfile);
+            return;
         }
 
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
-            try
+            await _localQueue.InitializeAsync(stoppingToken);
+
+            var identity = await _identityStore.GetOrCreateIdentityAsync(stoppingToken);
+            var (accessToken, accessExpiry, refreshToken, refreshExpiry) = await _credentialStore.LoadCredentialsAsync(stoppingToken);
+
+            // Attempt pairing if not yet paired and pairing code is supplied
+            if (string.IsNullOrWhiteSpace(refreshToken) && !string.IsNullOrWhiteSpace(_options.PairingCode))
             {
-                // Ensure valid token if paired
-                if (!string.IsNullOrWhiteSpace(refreshToken))
+                _logger.LogInformation("Attempting auto-pairing with provided pairing code...");
+                try
                 {
-                    if (string.IsNullOrWhiteSpace(accessToken) || accessExpiry < DateTime.UtcNow.AddMinutes(1))
+                    var pairReq = new AgentDevicePairRequest
                     {
-                        if (refreshExpiry < DateTime.UtcNow)
-                        {
-                            _logger.LogWarning("Refresh token expired. Device credentials cleared; re-pairing required.");
-                            await _credentialStore.ClearCredentialsAsync(stoppingToken);
-                            accessToken = null;
-                            refreshToken = null;
-                        }
-                        else
-                        {
-                            try
-                            {
-                                var refResp = await _apiClient.RefreshTokenAsync(new AgentTokenRefreshRequest
-                                {
-                                    DeviceId = identity.DeviceId,
-                                    RefreshToken = refreshToken
-                                }, stoppingToken);
-
-                                await _credentialStore.SaveCredentialsAsync(refResp.AccessToken, refResp.AccessExpiresAtUtc, refResp.RefreshToken, refResp.RefreshExpiresAtUtc, stoppingToken);
-                                accessToken = refResp.AccessToken;
-                                accessExpiry = refResp.AccessExpiresAtUtc;
-                                refreshToken = refResp.RefreshToken;
-                                refreshExpiry = refResp.RefreshExpiresAtUtc;
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Failed to refresh agent session token.");
-                            }
-                        }
-                    }
-                }
-
-                // Send periodic heartbeat
-                if (!string.IsNullOrWhiteSpace(identity.DeviceId))
-                {
-                    var pendingCount = await _localQueue.GetPendingCountAsync(stoppingToken);
-                    var hbReq = new AgentHeartbeatRequest
-                    {
+                        PairingCode = _options.PairingCode,
                         DeviceId = identity.DeviceId,
+                        DisplayName = identity.DisplayName,
                         AgentVersion = "1.0.0",
                         ProtocolVersion = _options.ProtocolVersion,
-                        Status = "Online",
-                        Capabilities = GetCurrentCapabilities(),
-                        SafeQueueCount = pendingCount,
-                        LastCompletedJobUtc = _lastCompletedJobUtc
+                        Capabilities = GetCurrentCapabilities()
                     };
+                    var pairResp = await _apiClient.PairAsync(pairReq, stoppingToken);
+                    await _credentialStore.SaveCredentialsAsync(pairResp.AccessToken, pairResp.AccessExpiresAtUtc, pairResp.RefreshToken, pairResp.RefreshExpiresAtUtc, stoppingToken);
+                    accessToken = pairResp.AccessToken;
+                    accessExpiry = pairResp.AccessExpiresAtUtc;
+                    refreshToken = pairResp.RefreshToken;
+                    refreshExpiry = pairResp.RefreshExpiresAtUtc;
+                    _logger.LogInformation("Auto-pairing successful!");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Auto-pairing failed. Agent will operate in offline/unpaired state until paired.");
+                }
+            }
 
-                    try
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    // Ensure valid token if paired
+                    if (!string.IsNullOrWhiteSpace(refreshToken))
                     {
-                        var hbResp = await _apiClient.SendHeartbeatAsync(hbReq, accessToken, stoppingToken);
-                        _consecutiveHeartbeatFailures = 0;
-
-                        if (hbResp.State == "Revoked")
+                        if (string.IsNullOrWhiteSpace(accessToken) || accessExpiry < DateTime.UtcNow.AddMinutes(1))
                         {
-                            _logger.LogError("Server reported device state REVOKED. Clearing credentials.");
-                            await _credentialStore.ClearCredentialsAsync(stoppingToken);
-                            accessToken = null;
-                            refreshToken = null;
+                            if (refreshExpiry < DateTime.UtcNow)
+                            {
+                                _logger.LogWarning("Refresh token expired. Device credentials cleared; re-pairing required.");
+                                await _credentialStore.ClearCredentialsAsync(stoppingToken);
+                                accessToken = null;
+                                refreshToken = null;
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    var refResp = await _apiClient.RefreshTokenAsync(new AgentTokenRefreshRequest
+                                    {
+                                        DeviceId = identity.DeviceId,
+                                        RefreshToken = refreshToken
+                                    }, stoppingToken);
+
+                                    await _credentialStore.SaveCredentialsAsync(refResp.AccessToken, refResp.AccessExpiresAtUtc, refResp.RefreshToken, refResp.RefreshExpiresAtUtc, stoppingToken);
+                                    accessToken = refResp.AccessToken;
+                                    accessExpiry = refResp.AccessExpiresAtUtc;
+                                    refreshToken = refResp.RefreshToken;
+                                    refreshExpiry = refResp.RefreshExpiresAtUtc;
+                                }
+                                catch (Exception ex)
+                                {
+                                    _logger.LogWarning(ex, "Failed to refresh agent session token.");
+                                }
+                            }
                         }
                     }
-                    catch (Exception ex)
+
+                    // Send periodic heartbeat
+                    if (!string.IsNullOrWhiteSpace(identity.DeviceId))
                     {
-                        _consecutiveHeartbeatFailures++;
-                        _logger.LogWarning(ex, "Heartbeat attempt failed ({FailureCount}).", _consecutiveHeartbeatFailures);
+                        var pendingCount = await _localQueue.GetPendingCountAsync(stoppingToken);
+                        var hbReq = new AgentHeartbeatRequest
+                        {
+                            DeviceId = identity.DeviceId,
+                            AgentVersion = "1.0.0",
+                            ProtocolVersion = _options.ProtocolVersion,
+                            Status = "Online",
+                            Capabilities = GetCurrentCapabilities(),
+                            SafeQueueCount = pendingCount,
+                            LastCompletedJobUtc = _lastCompletedJobUtc
+                        };
+
+                        try
+                        {
+                            var hbResp = await _apiClient.SendHeartbeatAsync(hbReq, accessToken, stoppingToken);
+                            _consecutiveHeartbeatFailures = 0;
+
+                            if (hbResp.State == "Revoked")
+                            {
+                                _logger.LogError("Server reported device state REVOKED. Clearing credentials.");
+                                await _credentialStore.ClearCredentialsAsync(stoppingToken);
+                                accessToken = null;
+                                refreshToken = null;
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            _consecutiveHeartbeatFailures++;
+                            _logger.LogWarning(ex, "Heartbeat attempt failed ({FailureCount}).", _consecutiveHeartbeatFailures);
+                        }
                     }
+
+                    // Process next queue job if leased
+                    await ProcessNextLocalJobAsync(identity, accessToken, stoppingToken);
+
+                    // Heartbeat interval with backoff jitter
+                    var intervalSeconds = CalculateNextIntervalSeconds(_options.HeartbeatIntervalSeconds, _consecutiveHeartbeatFailures);
+                    await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
                 }
-
-                // Process next queue job if leased
-                await ProcessNextLocalJobAsync(identity, accessToken, stoppingToken);
-
-                // Heartbeat interval with backoff jitter
-                var intervalSeconds = CalculateNextIntervalSeconds(_options.HeartbeatIntervalSeconds, _consecutiveHeartbeatFailures);
-                await Task.Delay(TimeSpan.FromSeconds(intervalSeconds), stoppingToken);
+                catch (OperationCanceledException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error in Agent worker loop.");
+                    await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
+                }
             }
-            catch (OperationCanceledException)
-            {
-                break;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error in Agent worker loop.");
-                await Task.Delay(TimeSpan.FromSeconds(5), stoppingToken);
-            }
+        }
+        finally
+        {
+            _singleInstanceLock.Release();
         }
 
         _logger.LogInformation("IQC Nexus Client Agent shutting down gracefully.");
