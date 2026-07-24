@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using IqcQms.ClientAgent.Application.Identity;
+using IqcQms.ClientAgent.Application.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace IqcQms.ClientAgent.Infrastructure.Identity;
@@ -14,11 +15,17 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
     private readonly ILogger<WindowsDpapiDeviceIdentityStore> _logger;
     private static readonly byte[] Entropy = Encoding.UTF8.GetBytes("IqcQmsAgentDeviceIdentityEntropy2026");
 
-    public WindowsDpapiDeviceIdentityStore(string storageDirectory, ILogger<WindowsDpapiDeviceIdentityStore> logger)
+    public WindowsDpapiDeviceIdentityStore(IAgentPathResolver pathResolver, ILogger<WindowsDpapiDeviceIdentityStore> logger)
     {
-        Directory.CreateDirectory(storageDirectory);
-        _identityFilePath = Path.Combine(storageDirectory, "device_identity.dpapi");
-        _credentialsFilePath = Path.Combine(storageDirectory, "device_credentials.dpapi");
+        _identityFilePath = pathResolver.IdentityFilePath;
+        _credentialsFilePath = pathResolver.CredentialsFilePath;
+        _logger = logger;
+    }
+
+    public WindowsDpapiDeviceIdentityStore(string identityFilePath, string credentialsFilePath, ILogger<WindowsDpapiDeviceIdentityStore> logger)
+    {
+        _identityFilePath = identityFilePath;
+        _credentialsFilePath = credentialsFilePath;
         _logger = logger;
     }
 
@@ -29,18 +36,29 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
             try
             {
                 var protectedBytes = await File.ReadAllBytesAsync(_identityFilePath, cancellationToken);
-                var rawBytes = UnprotectData(protectedBytes);
-                var json = Encoding.UTF8.GetString(rawBytes);
-                var identity = JsonSerializer.Deserialize<DeviceIdentity>(json);
-                if (identity != null && !string.IsNullOrWhiteSpace(identity.DeviceId))
+                if (protectedBytes.Length == 0)
                 {
-                    _logger.LogInformation("Loaded existing device identity {ShortDeviceId}", identity.DeviceId[..Math.Min(8, identity.DeviceId.Length)]);
-                    return identity;
+                    _logger.LogWarning("Identity file is empty. Creating new device identity.");
                 }
+                else
+                {
+                    var rawBytes = UnprotectData(protectedBytes);
+                    var json = Encoding.UTF8.GetString(rawBytes);
+                    var identity = JsonSerializer.Deserialize<DeviceIdentity>(json);
+                    if (identity != null && !string.IsNullOrWhiteSpace(identity.DeviceId))
+                    {
+                        _logger.LogInformation("Loaded device identity {ShortDeviceId}", identity.DeviceId[..Math.Min(8, identity.DeviceId.Length)]);
+                        return identity;
+                    }
+                }
+            }
+            catch (CryptographicException ex)
+            {
+                _logger.LogError(ex, "Failed to decrypt device identity protected blob. Blob corrupt or scope mismatch. Re-generating identity.");
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to decrypt device identity. Re-generating identity.");
+                _logger.LogError(ex, "Error reading identity store file. Re-generating identity.");
             }
         }
 
@@ -53,8 +71,9 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
 
         var jsonStr = JsonSerializer.Serialize(newIdentity);
         var bytes = Encoding.UTF8.GetBytes(jsonStr);
-        var encryptedBytes = ProtectData(bytes);
-        await File.WriteAllBytesAsync(_identityFilePath, encryptedBytes, cancellationToken);
+        var protectedBytesToSave = ProtectData(bytes);
+
+        await SaveFileAtomicallyAsync(_identityFilePath, protectedBytesToSave, cancellationToken);
 
         _logger.LogInformation("Generated and saved new device identity {ShortDeviceId}", newIdentity.DeviceId[..Math.Min(8, newIdentity.DeviceId.Length)]);
         return newIdentity;
@@ -79,16 +98,26 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
         var json = JsonSerializer.Serialize(record);
         var bytes = Encoding.UTF8.GetBytes(json);
         var protectedBytes = ProtectData(bytes);
-        await File.WriteAllBytesAsync(_credentialsFilePath, protectedBytes, cancellationToken);
+
+        await SaveFileAtomicallyAsync(_credentialsFilePath, protectedBytes, cancellationToken);
+        _logger.LogInformation("Successfully saved DPAPI protected session credentials.");
     }
 
     public async Task<(string? AccessToken, DateTime AccessExpiry, string? RefreshToken, DateTime RefreshExpiry)> LoadCredentialsAsync(CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(_credentialsFilePath)) return (null, DateTime.MinValue, null, DateTime.MinValue);
+        if (!File.Exists(_credentialsFilePath))
+        {
+            return (null, DateTime.MinValue, null, DateTime.MinValue);
+        }
 
         try
         {
             var protectedBytes = await File.ReadAllBytesAsync(_credentialsFilePath, cancellationToken);
+            if (protectedBytes.Length == 0)
+            {
+                return (null, DateTime.MinValue, null, DateTime.MinValue);
+            }
+
             var rawBytes = UnprotectData(protectedBytes);
             var json = Encoding.UTF8.GetString(rawBytes);
             var record = JsonSerializer.Deserialize<CredentialRecord>(json);
@@ -97,9 +126,13 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
                 return (record.AccessToken, record.AccessExpiry, record.RefreshToken, record.RefreshExpiry);
             }
         }
+        catch (CryptographicException ex)
+        {
+            _logger.LogError(ex, "Failed to decrypt credential blob (CryptographicException). Credentials corrupt or scope mismatch.");
+        }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Failed to load protected credentials.");
+            _logger.LogError(ex, "Error reading protected credential store file.");
         }
 
         return (null, DateTime.MinValue, null, DateTime.MinValue);
@@ -115,19 +148,48 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
     {
         if (OperatingSystem.IsWindows())
         {
+            // Explicitly DataProtectionScope.CurrentUser (NO LocalMachine fallback)
             return ProtectedData.Protect(data, Entropy, DataProtectionScope.CurrentUser);
         }
-        // Fallback for non-Windows platforms/tests: basic XOR obfuscation/passthrough
-        return data;
+
+        throw new PlatformNotSupportedException("Windows DPAPI CurrentUser encryption is only supported on Windows operating systems.");
     }
 
     private static byte[] UnprotectData(byte[] data)
     {
         if (OperatingSystem.IsWindows())
         {
+            // Explicitly DataProtectionScope.CurrentUser (NO LocalMachine fallback)
             return ProtectedData.Unprotect(data, Entropy, DataProtectionScope.CurrentUser);
         }
-        return data;
+
+        throw new PlatformNotSupportedException("Windows DPAPI CurrentUser decryption is only supported on Windows operating systems.");
+    }
+
+    private static async Task SaveFileAtomicallyAsync(string filePath, byte[] data, CancellationToken cancellationToken)
+    {
+        var dir = Path.GetDirectoryName(filePath);
+        if (!string.IsNullOrWhiteSpace(dir)) Directory.CreateDirectory(dir);
+
+        var tempPath = $"{filePath}.{Guid.NewGuid():N}.tmp";
+        try
+        {
+            await using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true))
+            {
+                await fs.WriteAsync(data, cancellationToken);
+                await fs.FlushAsync(cancellationToken);
+            }
+
+            File.Move(tempPath, filePath, overwrite: true);
+        }
+        catch
+        {
+            if (File.Exists(tempPath))
+            {
+                try { File.Delete(tempPath); } catch { }
+            }
+            throw;
+        }
     }
 
     private class CredentialRecord
@@ -136,46 +198,5 @@ public class WindowsDpapiDeviceIdentityStore : IDeviceIdentityStore, ISecureCred
         public DateTime AccessExpiry { get; set; }
         public string RefreshToken { get; set; } = string.Empty;
         public DateTime RefreshExpiry { get; set; }
-    }
-}
-
-public class InMemoryDeviceIdentityStore : IDeviceIdentityStore, ISecureCredentialStore
-{
-    private DeviceIdentity? _identity;
-    private (string? AccessToken, DateTime AccessExpiry, string? RefreshToken, DateTime RefreshExpiry) _credentials;
-
-    public Task<DeviceIdentity> GetOrCreateIdentityAsync(CancellationToken cancellationToken = default)
-    {
-        _identity ??= new DeviceIdentity
-        {
-            DeviceId = $"dev_test_{Guid.NewGuid():N}",
-            DisplayName = "TestDevice",
-            CreatedAtUtc = DateTime.UtcNow
-        };
-        return Task.FromResult(_identity);
-    }
-
-    public Task ResetIdentityAsync(CancellationToken cancellationToken = default)
-    {
-        _identity = null;
-        _credentials = (null, DateTime.MinValue, null, DateTime.MinValue);
-        return Task.CompletedTask;
-    }
-
-    public Task SaveCredentialsAsync(string accessToken, DateTime accessExpiry, string refreshToken, DateTime refreshExpiry, CancellationToken cancellationToken = default)
-    {
-        _credentials = (accessToken, accessExpiry, refreshToken, refreshExpiry);
-        return Task.CompletedTask;
-    }
-
-    public Task<(string? AccessToken, DateTime AccessExpiry, string? RefreshToken, DateTime RefreshExpiry)> LoadCredentialsAsync(CancellationToken cancellationToken = default)
-    {
-        return Task.FromResult(_credentials);
-    }
-
-    public Task ClearCredentialsAsync(CancellationToken cancellationToken = default)
-    {
-        _credentials = (null, DateTime.MinValue, null, DateTime.MinValue);
-        return Task.CompletedTask;
     }
 }
