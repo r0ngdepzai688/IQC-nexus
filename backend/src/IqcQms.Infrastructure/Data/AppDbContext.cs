@@ -76,6 +76,7 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<AgentCredential> AgentCredentials { get; set; }
         public DbSet<AgentPairingRequest> AgentPairingRequests { get; set; }
         public DbSet<AgentRefreshOperationResult> AgentRefreshOperationResults { get; set; }
+        public DbSet<AgentPayloadSubmission> AgentPayloadSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -239,6 +240,18 @@ namespace IqcQms.Infrastructure.Data
             modelBuilder.Entity<AgentRefreshOperationResult>()
                 .HasIndex(r => new { r.AgentDeviceId, r.RefreshOperationId })
                 .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => new { s.AgentDeviceId, s.PayloadSubmissionId })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => new { s.AgentDeviceId, s.Nonce })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .Property(s => s.ConcurrencyVersion)
+                .IsConcurrencyToken();
         }
     }
 }

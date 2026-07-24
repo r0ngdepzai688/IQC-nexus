@@ -30,16 +30,17 @@ public class NormalizedWorkbookUploadRequest
 {
     public string CanonicalSchemaVersion { get; set; } = "1.0";
     public string DeviceId { get; set; } = string.Empty;
+    public string PayloadSubmissionId { get; set; } = string.Empty;
+    public string Nonce { get; set; } = string.Empty;
     public Guid ServerImportJobId { get; set; }
     public string ProviderId { get; set; } = "SyntheticProvider";
     public string ProviderVersion { get; set; } = "1.0.0";
     public string SourceFingerprint { get; set; } = string.Empty;
+    public string CanonicalPayloadHash { get; set; } = string.Empty;
     public NormalizedWorkbook NormalizedWorkbook { get; set; } = new();
     public int RecordCount { get; set; }
     public string DiagnosticsSummary { get; set; } = "Synthetic Normalization Complete";
     public DateTime RequestTimestampUtc { get; set; } = DateTime.UtcNow;
-    public string Nonce { get; set; } = Guid.NewGuid().ToString("N");
-    public string ContentFingerprint { get; set; } = string.Empty;
 }
 
 public class NormalizedWorkbookUploadResponse
@@ -47,5 +48,6 @@ public class NormalizedWorkbookUploadResponse
     public Guid UploadId { get; set; } = Guid.NewGuid();
     public Guid ServerImportJobId { get; set; }
     public string Status { get; set; } = "Accepted";
+    public bool IsDuplicateRetry { get; set; }
     public DateTime ReceivedAtUtc { get; set; } = DateTime.UtcNow;
 }
