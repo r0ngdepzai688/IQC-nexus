@@ -1,5 +1,8 @@
 using System.Data.Common;
+using IqcQms.ClientAgent.Application.Config;
 using IqcQms.ClientAgent.Contracts;
+using IqcQms.ClientAgent.Infrastructure.Queue;
+using IqcQms.Domain.Entities.Agent;
 using IqcQms.Infrastructure.Data;
 using IqcQms.Infrastructure.Security;
 using IqcQms.Infrastructure.Services;
@@ -85,7 +88,7 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
             DeviceId = "dev_sub_test_1"
         });
 
-        var req = CreateSampleRequest(pairResp.DeviceId, "sub_id_100", "nonce_100");
+        var req = CreateSampleRequest(pairResp.DeviceId, "sub_id_100", "nonce_100_123456789");
         var resp = await service.UploadNormalizedWorkbookAsync(req);
 
         Assert.False(resp.IsDuplicateRetry);
@@ -109,7 +112,7 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
             DeviceId = "dev_sub_dup_1"
         });
 
-        var req1 = CreateSampleRequest(pairResp.DeviceId, "sub_id_200", "nonce_200");
+        var req1 = CreateSampleRequest(pairResp.DeviceId, "sub_id_200", "nonce_200_123456789");
 
         // 1. Initial submission
         var resp1 = await service.UploadNormalizedWorkbookAsync(req1);
@@ -126,16 +129,16 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
     }
 
     [Fact]
-    public async Task MissingRequiredFields_ThrowsArgumentException()
+    public async Task MissingRequiredFields_OrShortNonce_ThrowsArgumentException()
     {
         using var db = CreateDbContext();
         var service = new AgentService(db, NullLogger<AgentService>.Instance);
 
-        var reqMissingSubId = CreateSampleRequest("dev_test", "", "nonce_300");
+        var reqMissingSubId = CreateSampleRequest("dev_test", "", "nonce_300_123456789");
         await Assert.ThrowsAsync<ArgumentException>(() => service.UploadNormalizedWorkbookAsync(reqMissingSubId));
 
-        var reqMissingNonce = CreateSampleRequest("dev_test", "sub_300", "");
-        await Assert.ThrowsAsync<ArgumentException>(() => service.UploadNormalizedWorkbookAsync(reqMissingNonce));
+        var reqShortNonce = CreateSampleRequest("dev_test", "sub_300", "short");
+        await Assert.ThrowsAsync<ArgumentException>(() => service.UploadNormalizedWorkbookAsync(reqShortNonce));
     }
 
     [Fact]
@@ -150,11 +153,11 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
             DeviceId = "dev_mismatch_1"
         });
 
-        var req1 = CreateSampleRequest(pairResp.DeviceId, "sub_id_400", "nonce_400");
+        var req1 = CreateSampleRequest(pairResp.DeviceId, "sub_id_400", "nonce_400_123456789");
         await service.UploadNormalizedWorkbookAsync(req1);
 
         // Attacker attempts to reuse sub_id_400 with different content/nonce
-        var reqAttacker = CreateSampleRequest(pairResp.DeviceId, "sub_id_400", "nonce_attacker");
+        var reqAttacker = CreateSampleRequest(pairResp.DeviceId, "sub_id_400", "nonce_attacker_12345678");
         reqAttacker.NormalizedWorkbook.WorkbookName = "ModifiedName.xlsx";
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.UploadNormalizedWorkbookAsync(reqAttacker));
@@ -162,19 +165,97 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
     }
 
     [Fact]
-    public void CanonicalPayloadHasher_ProducesIdenticalHashForEquivalentPayload()
+    public void CanonicalPayloadHasher_ExcludesServerImportJobIdFromDigest()
     {
-        var jobId = Guid.NewGuid();
-        var req1 = CreateSampleRequest("dev1", "sub1", "nonce1");
-        req1.ServerImportJobId = jobId;
+        var canonicalizer = new NormalizedWorkbookCanonicalizer();
+        var req1 = CreateSampleRequest("dev1", "sub1", "nonce1_1234567890");
+        req1.ServerImportJobId = Guid.NewGuid();
 
-        var req2 = CreateSampleRequest("dev1", "sub1", "nonce1");
-        req2.ServerImportJobId = jobId;
+        var req2 = CreateSampleRequest("dev1", "sub1", "nonce1_1234567890");
+        req2.ServerImportJobId = Guid.NewGuid(); // Different server tracking job ID!
 
-        var hash1 = CanonicalPayloadHasher.ComputeCanonicalHash(req1);
-        var hash2 = CanonicalPayloadHasher.ComputeCanonicalHash(req2);
+        var hash1 = CanonicalPayloadHasher.ComputeCanonicalHash(req1, canonicalizer);
+        var hash2 = CanonicalPayloadHasher.ComputeCanonicalHash(req2, canonicalizer);
 
+        // ServerImportJobId variation must NOT alter the canonical request hash!
         Assert.Equal(hash1, hash2);
         Assert.NotEmpty(hash1);
+    }
+
+    [Fact]
+    public async Task LocalQueue_PersistsSubmissionIdentityAcrossFileReopen()
+    {
+        var tempDbDir = Path.Combine(Path.GetTempPath(), $"sqlite_queue_test_{Guid.NewGuid():N}");
+        try
+        {
+            Directory.CreateDirectory(tempDbDir);
+            var testFile = Path.Combine(tempDbDir, "file.xlsx");
+            File.WriteAllText(testFile, "content");
+
+            var options = new AgentOptions { AllowedInputRoots = new List<string> { tempDbDir } };
+            var logger = NullLogger<SqliteLocalAgentQueue>.Instance;
+
+            string submissionId;
+            string nonce;
+            Guid serverJobId = Guid.NewGuid();
+
+            // 1. Enqueue job in instance 1
+            var queue1 = new SqliteLocalAgentQueue(tempDbDir, options, logger);
+            await queue1.InitializeAsync();
+            var item1 = await queue1.EnqueueJobAsync(serverJobId, "SyntheticNormalization", testFile);
+            submissionId = item1.PayloadSubmissionId;
+            nonce = item1.Nonce;
+            Assert.NotEmpty(submissionId);
+            Assert.NotEmpty(nonce);
+
+            // 2. Re-open database file in instance 2 (simulating Agent process restart)
+            var queue2 = new SqliteLocalAgentQueue(tempDbDir, options, logger);
+            await queue2.InitializeAsync();
+            var leasedItem = await queue2.AcquireNextLeaseAsync("worker-1", TimeSpan.FromMinutes(2));
+
+            Assert.NotNull(leasedItem);
+            Assert.Equal(serverJobId, leasedItem.ServerJobId);
+            Assert.Equal(submissionId, leasedItem.PayloadSubmissionId);
+            Assert.Equal(nonce, leasedItem.Nonce);
+        }
+        finally
+        {
+            if (Directory.Exists(tempDbDir))
+            {
+                try { Directory.Delete(tempDbDir, true); } catch { }
+            }
+        }
+    }
+
+    [Fact]
+    public async Task ReplayTombstone_PreventsResubmissionAfterArchival()
+    {
+        using var db = CreateDbContext();
+        var service = new AgentService(db, NullLogger<AgentService>.Instance);
+        var created = await service.CreatePairingCodeAsync(1, "UserA");
+        var pairResp = await service.PairDeviceAsync(new AgentDevicePairRequest
+        {
+            PairingCode = created.PairingCode,
+            DeviceId = "dev_tombstone_1"
+        });
+
+        // Add tombstone record
+        var device = await db.AgentDevices.FirstAsync(d => d.DeviceId == pairResp.DeviceId);
+        db.AgentPayloadReplayTombstones.Add(new AgentPayloadReplayTombstone
+        {
+            AgentDeviceId = device.Id,
+            DeviceId = device.DeviceId,
+            PayloadSubmissionId = "archived_sub_1",
+            Nonce = "archived_nonce_123456789",
+            CanonicalPayloadHash = "hash_123",
+            AcceptedAtUtc = DateTime.UtcNow.AddDays(-10),
+            TombstoneExpiresAtUtc = DateTime.UtcNow.AddDays(30)
+        });
+        await db.SaveChangesAsync();
+
+        var req = CreateSampleRequest(pairResp.DeviceId, "archived_sub_1", "archived_nonce_123456789");
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.UploadNormalizedWorkbookAsync(req));
+
+        Assert.Contains("tombstone", ex.Message);
     }
 }
