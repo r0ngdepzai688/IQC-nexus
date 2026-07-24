@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\IqcQms.Domain\IqcQms.Domain.csproj" />
+    <ProjectReference Include="..\IqcQms.ClientAgent.Contracts\IqcQms.ClientAgent.Contracts.csproj" />
   </ItemGroup>
 
   <ItemGroup>

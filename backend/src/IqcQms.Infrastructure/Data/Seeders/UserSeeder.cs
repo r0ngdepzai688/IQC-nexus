@@ -71,7 +71,11 @@ namespace IqcQms.Infrastructure.Data.Seeders
                             PlatformPermissions.ImportCreate,
                             PlatformPermissions.ImportReview,
                             PlatformPermissions.ImportCommit,
-                            PlatformPermissions.DownloadView
+                            PlatformPermissions.DownloadView,
+                            PlatformPermissions.AgentPair,
+                            PlatformPermissions.AgentView,
+                            PlatformPermissions.AgentRevoke,
+                            PlatformPermissions.AgentAdmin
                         })
                     };
                     context.Roles.Add(defaultRole);

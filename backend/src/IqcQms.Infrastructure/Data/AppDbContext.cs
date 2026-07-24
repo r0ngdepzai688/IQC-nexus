@@ -8,6 +8,7 @@ using IqcQms.Domain.Entities.Chat;
 using IqcQms.Domain.Entities.Tasks;
 using IqcQms.Domain.Entities.NewModels;
 using IqcQms.Domain.Entities.DataHub;
+using IqcQms.Domain.Entities.Agent;
 
 namespace IqcQms.Infrastructure.Data
 {
@@ -69,6 +70,11 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<PersistentImportCommitReceipt> PersistentImportCommitReceipts { get; set; }
         public DbSet<PersistentImportWorkItem> PersistentImportWorkItems { get; set; }
         public DbSet<PersistentImportOutboxMessage> PersistentImportOutboxMessages { get; set; }
+
+        // Agent Client Module
+        public DbSet<AgentDevice> AgentDevices { get; set; }
+        public DbSet<AgentCredential> AgentCredentials { get; set; }
+        public DbSet<AgentPairingRequest> AgentPairingRequests { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -190,6 +196,32 @@ namespace IqcQms.Infrastructure.Data
 
             modelBuilder.Entity<PersistentImportOutboxMessage>()
                 .HasIndex(o => new { o.IsDispatched, o.OccurredAtUtc });
+
+            // Agent Client Module Indexes & Constraints
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.DeviceId)
+                .IsUnique();
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.OwnerUserId);
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.State);
+
+            modelBuilder.Entity<AgentCredential>()
+                .HasOne(c => c.Device)
+                .WithMany(d => d.Credentials)
+                .HasForeignKey(c => c.AgentDeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.DeviceId);
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.CredentialIdentifier)
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.HashedCode);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.OwnerUserId);
         }
     }
 }

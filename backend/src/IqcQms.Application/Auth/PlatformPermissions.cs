@@ -13,10 +13,15 @@ public static class PlatformPermissions
     public const string UserManage = "user.manage";
     public const string RoleManage = "role.manage";
     public const string AuditView = "audit.view";
+    public const string AgentPair = "agent.pair";
+    public const string AgentView = "agent.view";
+    public const string AgentRevoke = "agent.revoke";
+    public const string AgentAdmin = "agent.admin";
 
     public static readonly IReadOnlyList<string> All =
     [
         DashboardView, ImportView, ImportCreate, ImportReview, ImportCommit,
-        ImportAdmin, DownloadView, DownloadManage, UserManage, RoleManage, AuditView
+        ImportAdmin, DownloadView, DownloadManage, UserManage, RoleManage, AuditView,
+        AgentPair, AgentView, AgentRevoke, AgentAdmin
     ];
 }
