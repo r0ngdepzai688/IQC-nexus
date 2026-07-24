@@ -1,15 +1,27 @@
-# IQC Nexus Client Agent — Device Pairing Protocol
+# IQC Nexus Client Agent — Pairing Security & State Machine
 
 ## Overview
 
-Device pairing establishes a trusted relationship between an installed Windows Client Agent and an IQC Nexus user account without requiring static credentials or passwords stored on the client machine.
+The Client Agent pairing process allows a physical device to establish initial trust with the IQC Nexus platform.
 
-## Conceptual Protocol Flow
+## Security Features
 
-1. **Code Creation**: An authorized Portal user generates a short-lived 6-digit pairing code via `POST /api/agent-pairing-requests`.
-2. **Display**: Portal displays code ONCE with a 10-minute expiry countdown.
-3. **Storage**: Server stores SHA256/BCrypt hash of the pairing code (`HashedCode`).
-4. **Agent Submission**: User inputs code into Agent config (`--AgentOptions:PairingCode=XXXXXX`). Agent calls `POST /api/agent-devices/pair`.
-5. **Validation**: Server verifies code using constant-time comparison, marks code consumed, and registers the device.
-6. **Token Issuance**: Server returns short-lived Access Token (15 min) and Refresh Token (7 days).
-7. **Client Protection**: Agent encrypts received tokens using DPAPI and stores them locally.
+1. **6-Digit Secure Code Generation**: Generated using `RandomNumberGenerator.GetInt32(0, 1000000)` with leading zeroes (`D6`).
+2. **Server-Side HMAC-SHA256 Hashing**: Pairing codes are NEVER stored in plaintext. They are protected using HMAC-SHA256 with a server-side pepper secret (`requestId:code`).
+3. **Persisted Attempt Tracking & Brute-Force Locking**:
+   - `FailedAttemptCount` is incremented in the database on every invalid pairing attempt.
+   - Max attempts: 5.
+   - Reaching 5 failed attempts locks the request (`State = Locked`, `LockedAtUtc`).
+4. **Endpoint Rate Limiting**: `POST /api/agent-devices/pair` is protected with ASP.NET Core fixed-window rate limiting (5 requests/minute).
+5. **Generic Error Responses**: Failed attempts return generic errors (`"Pairing failed or code is no longer valid."`) to prevent timing or status leakage.
+6. **Atomic Single-Use Consumption**: EF Core optimistic concurrency tokens (`ConcurrencyVersion`) and database transactions guarantee that concurrent pairing attempts with the same code result in exactly ONE successful registration.
+
+## Pairing State Machine
+
+```
+   [ Create ] ──> Pending ───( 5 Failed Attempts )──> Locked
+                    │
+                    ├───( Valid Match )────────────> Consumed
+                    │
+                    └───( Expiry > 10m )───────────> Expired
+```

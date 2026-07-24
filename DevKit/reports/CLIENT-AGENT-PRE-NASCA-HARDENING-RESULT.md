@@ -1,30 +1,29 @@
-# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2A)
+# Milestone Result: Client Agent Pre-NASCA Hardening (Phase 2B)
 
-**Date:** July 24, 2026  
-**Status:** PHASE 2A COMPLETED & VERIFIED  
-**Branch:** `feature/client-agent-pre-nasca-hardening`  
+**Date:** July 24, 2026
+**Status:** PHASE 2A & 2B COMPLETED & VERIFIED
+**Branch:** `feature/client-agent-pre-nasca-hardening`
 
 ---
 
-## Phase 2A Objectives & Execution Summary
+## Phase 2B Objectives & Execution Summary
 
-Phase 2A focused on transitioning the Client Agent hosting model to interactive per-user execution, adding single-instance enforcement, hardening DPAPI storage under `DataProtectionScope.CurrentUser`, implementing user-scoped path resolution, and providing per-user logon startup registration.
+Phase 2B implemented pairing code brute-force protection, persisted attempt tracking, HMAC-SHA256 secret hashing with server-side pepper, atomic single-use pairing consumption, atomic refresh token rotation, token family replay revocation, and EF Core concurrency tokens (`IsConcurrencyToken()`).
 
-| Milestone Phase | Implementation | Status | Evidence |
+| Milestone Phase | Feature | Status | Evidence |
 | :--- | :--- | :--- | :--- |
-| **Phase 1: Assessment Correction** | Reclassified Hosting Model to `ARCHITECTURE MISMATCH` | **COMPLETED** | `DevKit/reports/CLIENT-AGENT-PRE-NASCA-HARDENING-ASSESSMENT.md` |
-| **Phase 2: Interactive Hosting** | Removed default Windows Service registration from startup path | **COMPLETED** | `Program.cs`, `Worker.cs` |
-| **Phase 3: Single-Instance Lock** | Per-profile Mutex lock (`WindowsSingleInstanceLock`) | **COMPLETED** | `ISingleInstanceLock`, `SingleInstanceLockTests.cs` |
-| **Phase 4: User-Scoped Paths** | Profile path resolver (`AgentPathResolver`) | **COMPLETED** | `IAgentPathResolver`, `AgentPathResolverTests.cs` |
-| **Phase 5: DPAPI Hardening** | `DataProtectionScope.CurrentUser` & atomic writes | **COMPLETED** | `WindowsDpapiDeviceIdentityStore.cs`, `DpapiStoreHardeningTests.cs` |
-| **Phase 6: Startup Registration** | Per-user HKCU Run registration abstraction | **COMPLETED** | `IUserStartupRegistration.cs`, `UserStartupRegistrationTests.cs` |
-| **Phase 7: Configuration Hardening** | Startup validation for profile & HTTPS | **COMPLETED** | `AgentOptions.cs`, `AgentHostingConfigurationTests.cs` |
-| **Phase 8: Documentation** | Updated docs and result reports | **COMPLETED** | `docs/client-agent/*`, `DevKit/reports/*` |
+| **Phase 2B.1** | 6-Digit Secure Code Generation & HMAC-SHA256 Pepper Hashing | **COMPLETED** | `AgentService.cs`, `PairingSecurityTests.cs` |
+| **Phase 2B.2** | Pairing Attempt Throttling & Lockout (Max 5 Attempts) | **COMPLETED** | `AgentPairingRequest.cs`, `AgentDevicesController.cs` |
+| **Phase 2B.3** | Atomic Pairing Consumption & EF Concurrency Token Mapping | **COMPLETED** | `AppDbContext.cs`, `PairingSecurityTests.cs` |
+| **Phase 2B.4** | High-Entropy Refresh Token Hashing & Token Family Lineage | **COMPLETED** | `AgentCredential.cs`, `RefreshRotationConcurrencyTests.cs` |
+| **Phase 2B.5** | Atomic Token Rotation & Replay Family Revocation Policy | **COMPLETED** | `AgentService.cs`, `RefreshRotationConcurrencyTests.cs` |
+| **Phase 2B.6** | EF Migration `HardenAgentPairingAndCredentials` | **COMPLETED** | `20260724164637_HardenAgentPairingAndCredentials.cs` |
+| **Phase 2B.7** | Concurrency & Security Documentation | **COMPLETED** | `docs/client-agent/PAIRING.md`, `AUTHENTICATION.md` |
 
 ---
 
 ## Test Verification Totals
 
-- **Client Agent Unit Tests**: **34 Passed / 0 Failed**
-- **Total Backend Tests**: **176 Passed / 0 Failed**
+- **Client Agent Tests**: **43 Passed / 0 Failed** (includes 9 new security & concurrency tests)
+- **Total Backend Tests**: **185 Passed / 0 Failed**
 - **win-x64 Publish Build**: **Succeeded with 0 Errors**
