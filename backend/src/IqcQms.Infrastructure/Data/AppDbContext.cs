@@ -205,6 +205,9 @@ namespace IqcQms.Infrastructure.Data
                 .HasIndex(d => d.OwnerUserId);
             modelBuilder.Entity<AgentDevice>()
                 .HasIndex(d => d.State);
+            modelBuilder.Entity<AgentDevice>()
+                .Property(d => d.ConcurrencyVersion)
+                .IsConcurrencyToken();
 
             modelBuilder.Entity<AgentCredential>()
                 .HasOne(c => c.Device)
@@ -217,11 +220,18 @@ namespace IqcQms.Infrastructure.Data
             modelBuilder.Entity<AgentCredential>()
                 .HasIndex(c => c.CredentialIdentifier)
                 .IsUnique();
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.TokenFamilyId);
 
             modelBuilder.Entity<AgentPairingRequest>()
                 .HasIndex(p => p.HashedCode);
             modelBuilder.Entity<AgentPairingRequest>()
                 .HasIndex(p => p.OwnerUserId);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.State);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .Property(p => p.ConcurrencyVersion)
+                .IsConcurrencyToken();
         }
     }
 }
