@@ -77,6 +77,7 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<AgentPairingRequest> AgentPairingRequests { get; set; }
         public DbSet<AgentRefreshOperationResult> AgentRefreshOperationResults { get; set; }
         public DbSet<AgentPayloadSubmission> AgentPayloadSubmissions { get; set; }
+        public DbSet<AgentPayloadReplayTombstone> AgentPayloadReplayTombstones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -252,6 +253,14 @@ namespace IqcQms.Infrastructure.Data
             modelBuilder.Entity<AgentPayloadSubmission>()
                 .Property(s => s.ConcurrencyVersion)
                 .IsConcurrencyToken();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => new { t.AgentDeviceId, t.PayloadSubmissionId })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => new { t.AgentDeviceId, t.Nonce })
+                .IsUnique();
         }
     }
 }

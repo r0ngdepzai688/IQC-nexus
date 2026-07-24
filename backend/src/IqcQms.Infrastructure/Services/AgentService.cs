@@ -20,22 +20,25 @@ public class AgentService : IAgentService
     private readonly AppDbContext _db;
     private readonly AgentSecurityOptions _securityOptions;
     private readonly IEnvelopeEncryptionService _encryptionService;
+    private readonly INormalizedWorkbookCanonicalizer _canonicalizer;
     private readonly ILogger<AgentService> _logger;
 
     public AgentService(
         AppDbContext db,
         IOptions<AgentSecurityOptions> securityOptions,
         IEnvelopeEncryptionService encryptionService,
+        INormalizedWorkbookCanonicalizer canonicalizer,
         ILogger<AgentService> logger)
     {
         _db = db;
         _securityOptions = securityOptions.Value;
         _encryptionService = encryptionService;
+        _canonicalizer = canonicalizer;
         _logger = logger;
     }
 
     public AgentService(AppDbContext db, ILogger<AgentService> logger)
-        : this(db, Options.Create(new AgentSecurityOptions()), new EnvelopeEncryptionService(Options.Create(new AgentSecurityOptions())), logger)
+        : this(db, Options.Create(new AgentSecurityOptions()), new EnvelopeEncryptionService(Options.Create(new AgentSecurityOptions())), new NormalizedWorkbookCanonicalizer(), logger)
     {
     }
 
@@ -393,6 +396,11 @@ public class AgentService : IAgentService
             throw new ArgumentException("DeviceId, PayloadSubmissionId, and Nonce are required.");
         }
 
+        if (request.Nonce.Length < 16)
+        {
+            throw new ArgumentException("Nonce must be at least 16 characters / 128 bits.");
+        }
+
         var device = await _db.AgentDevices.FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId);
         if (device == null || device.State == AgentDeviceState.Revoked)
         {
@@ -411,20 +419,19 @@ public class AgentService : IAgentService
 
         var submissionId = request.PayloadSubmissionId.Trim();
         var nonce = request.Nonce.Trim();
-        var computedHash = CanonicalPayloadHasher.ComputeCanonicalHash(request);
+        var computedHash = CanonicalPayloadHasher.ComputeCanonicalHash(request, _canonicalizer);
         var sourceFingerprint = string.IsNullOrWhiteSpace(request.SourceFingerprint)
-            ? CanonicalPayloadHasher.ComputeSourceFingerprint(request.NormalizedWorkbook)
+            ? _canonicalizer.ComputeSourceFingerprint(request.NormalizedWorkbook)
             : request.SourceFingerprint.Trim();
 
         using var tx = await _db.Database.BeginTransactionAsync();
 
-        // Check for duplicate or replay submission under this device
+        // 1. Check for active existing submission
         var existingSubmission = await _db.AgentPayloadSubmissions
             .FirstOrDefaultAsync(s => s.AgentDeviceId == device.Id && (s.PayloadSubmissionId == submissionId || s.Nonce == nonce));
 
         if (existingSubmission != null)
         {
-            // Case A: Safe Duplicate Retry (same submissionId, same nonce, same hash)
             if (existingSubmission.PayloadSubmissionId == submissionId && existingSubmission.Nonce == nonce && existingSubmission.CanonicalPayloadHash == computedHash)
             {
                 await tx.CommitAsync();
@@ -439,13 +446,23 @@ public class AgentService : IAgentService
                 };
             }
 
-            // Case B: Submission Mismatch or Nonce Replay Attack
             await tx.CommitAsync();
             _logger.LogWarning("Payload submission mismatch/replay detected for device {DeviceId}, submission {SubmissionId}", request.DeviceId, submissionId);
             throw new InvalidOperationException("Payload submission ID, nonce, or content digest mismatch detected. Submission rejected.");
         }
 
-        // Case C: First Valid Submission
+        // 2. Check for archived replay tombstone
+        var tombstone = await _db.AgentPayloadReplayTombstones
+            .FirstOrDefaultAsync(t => t.AgentDeviceId == device.Id && (t.PayloadSubmissionId == submissionId || t.Nonce == nonce));
+
+        if (tombstone != null)
+        {
+            await tx.CommitAsync();
+            _logger.LogWarning("Replay tombstone hit for submission {SubmissionId}, device {DeviceId}", submissionId, request.DeviceId);
+            throw new InvalidOperationException("Payload submission ID or nonce has expired and is archived as a tombstone. Re-submission rejected.");
+        }
+
+        // 3. First Submission attempt with DbUpdateException race handling
         var newUploadId = Guid.NewGuid();
         var submissionRecord = new AgentPayloadSubmission
         {
@@ -464,21 +481,47 @@ public class AgentService : IAgentService
             ConcurrencyVersion = 1
         };
 
-        _db.AgentPayloadSubmissions.Add(submissionRecord);
-        await _db.SaveChangesAsync();
-        await tx.CommitAsync();
-
-        _logger.LogInformation("Accepted normalized payload {UploadId} from device {DeviceId}, records: {RecordCount}, job: {JobId}",
-            newUploadId, request.DeviceId, request.RecordCount, request.ServerImportJobId);
-
-        return new NormalizedWorkbookUploadResponse
+        try
         {
-            UploadId = newUploadId,
-            ServerImportJobId = request.ServerImportJobId,
-            Status = "Accepted",
-            IsDuplicateRetry = false,
-            ReceivedAtUtc = submissionRecord.CreatedAtUtc
-        };
+            _db.AgentPayloadSubmissions.Add(submissionRecord);
+            await _db.SaveChangesAsync();
+            await tx.CommitAsync();
+
+            _logger.LogInformation("Accepted normalized payload {UploadId} from device {DeviceId}, records: {RecordCount}, job: {JobId}",
+                newUploadId, request.DeviceId, request.RecordCount, request.ServerImportJobId);
+
+            return new NormalizedWorkbookUploadResponse
+            {
+                UploadId = newUploadId,
+                ServerImportJobId = request.ServerImportJobId,
+                Status = "Accepted",
+                IsDuplicateRetry = false,
+                ReceivedAtUtc = submissionRecord.CreatedAtUtc
+            };
+        }
+        catch (DbUpdateException ex)
+        {
+            await tx.RollbackAsync();
+            _logger.LogWarning(ex, "Concurrent insert conflict for submission {SubmissionId}, resolving via unique-constraint check", submissionId);
+
+            var raceSubmission = await _db.AgentPayloadSubmissions
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.AgentDeviceId == device.Id && (s.PayloadSubmissionId == submissionId || s.Nonce == nonce));
+
+            if (raceSubmission != null && raceSubmission.PayloadSubmissionId == submissionId && raceSubmission.Nonce == nonce && raceSubmission.CanonicalPayloadHash == computedHash)
+            {
+                return new NormalizedWorkbookUploadResponse
+                {
+                    UploadId = raceSubmission.UploadId,
+                    ServerImportJobId = raceSubmission.ServerImportJobId,
+                    Status = "Accepted",
+                    IsDuplicateRetry = true,
+                    ReceivedAtUtc = raceSubmission.CreatedAtUtc
+                };
+            }
+
+            throw new InvalidOperationException("Payload submission ID, nonce, or content digest mismatch detected during concurrent conflict. Submission rejected.");
+        }
     }
 
     public async Task<List<AgentDeviceDto>> GetDevicesAsync()
