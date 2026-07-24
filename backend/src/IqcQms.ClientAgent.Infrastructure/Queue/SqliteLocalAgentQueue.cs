@@ -1,5 +1,7 @@
 using System.Data;
 using IqcQms.ClientAgent.Application.Config;
+using IqcQms.ClientAgent.Application.Storage;
+using IqcQms.ClientAgent.Infrastructure.Storage;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
@@ -37,14 +39,21 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
 {
     private readonly string _dbPath;
     private readonly AgentOptions _options;
+    private readonly IAllowedInputPathValidator _pathValidator;
     private readonly ILogger<SqliteLocalAgentQueue> _logger;
 
-    public SqliteLocalAgentQueue(string dbDirectory, AgentOptions options, ILogger<SqliteLocalAgentQueue> logger)
+    public SqliteLocalAgentQueue(string dbDirectory, AgentOptions options, IAllowedInputPathValidator pathValidator, ILogger<SqliteLocalAgentQueue> logger)
     {
         Directory.CreateDirectory(dbDirectory);
         _dbPath = Path.Combine(dbDirectory, "agent_queue.db");
         _options = options;
+        _pathValidator = pathValidator;
         _logger = logger;
+    }
+
+    public SqliteLocalAgentQueue(string dbDirectory, AgentOptions options, ILogger<SqliteLocalAgentQueue> logger)
+        : this(dbDirectory, options, new AllowedInputPathValidator(), logger)
+    {
     }
 
     private string ConnectionString => $"Data Source={_dbPath}";
@@ -84,10 +93,14 @@ public class SqliteLocalAgentQueue : ILocalAgentQueue
     public async Task<LocalJobItem> EnqueueJobAsync(Guid serverJobId, string workType, string payloadReference, CancellationToken cancellationToken = default)
     {
         // Enforce allowed root validation on payload reference
-        if (!string.IsNullOrWhiteSpace(payloadReference) && !_options.IsPathAllowed(payloadReference))
+        if (!string.IsNullOrWhiteSpace(payloadReference))
         {
-            _logger.LogWarning("Rejected payload reference path {Path} outside allowed roots.", payloadReference);
-            throw new InvalidOperationException($"Payload reference path '{payloadReference}' is not within configured allowed roots.");
+            var valResult = _pathValidator.ValidatePath(payloadReference, _options.AllowedInputRoots);
+            if (!valResult.IsAllowed)
+            {
+                _logger.LogWarning("Rejected payload reference path outside allowed roots (Reason: {Reason}).", valResult.Reason);
+                throw new InvalidOperationException($"Payload reference path is not allowed (Reason: {valResult.Reason}).");
+            }
         }
 
         var item = new LocalJobItem

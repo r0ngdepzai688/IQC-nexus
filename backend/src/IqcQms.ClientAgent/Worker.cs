@@ -2,6 +2,7 @@ using IqcQms.ClientAgent.Application.Config;
 using IqcQms.ClientAgent.Application.Identity;
 using IqcQms.ClientAgent.Application.Providers;
 using IqcQms.ClientAgent.Application.Runtime;
+using IqcQms.ClientAgent.Application.Storage;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.ClientAgent.Infrastructure.Http;
 using IqcQms.ClientAgent.Infrastructure.Queue;
@@ -19,6 +20,7 @@ public class Worker : BackgroundService
     private readonly IAgentApiClient _apiClient;
     private readonly IClientDataProviderRegistry _providerRegistry;
     private readonly ISingleInstanceLock _singleInstanceLock;
+    private readonly IAllowedInputPathValidator _pathValidator;
     private readonly AgentOptions _options;
     private readonly IHostEnvironment _environment;
     private readonly ILogger<Worker> _logger;
@@ -33,6 +35,7 @@ public class Worker : BackgroundService
         IAgentApiClient apiClient,
         IClientDataProviderRegistry providerRegistry,
         ISingleInstanceLock singleInstanceLock,
+        IAllowedInputPathValidator pathValidator,
         IOptions<AgentOptions> options,
         IHostEnvironment environment,
         ILogger<Worker> logger)
@@ -43,6 +46,7 @@ public class Worker : BackgroundService
         _apiClient = apiClient;
         _providerRegistry = providerRegistry;
         _singleInstanceLock = singleInstanceLock;
+        _pathValidator = pathValidator;
         _options = options.Value;
         _environment = environment;
         _logger = logger;
@@ -218,6 +222,18 @@ public class Worker : BackgroundService
             {
                 await _localQueue.FailJobAsync(job.LocalJobId, "PROVIDER_NOT_FOUND", TimeSpan.FromSeconds(30), stoppingToken);
                 return;
+            }
+
+            // Processing-time Dual Path Re-Validation
+            if (!string.IsNullOrWhiteSpace(job.PayloadReference))
+            {
+                var valResult = _pathValidator.ValidatePath(job.PayloadReference, _options.AllowedInputRoots);
+                if (!valResult.IsAllowed)
+                {
+                    _logger.LogWarning("Processing-time path security rejection for job {LocalJobId}: {Reason}", job.LocalJobId, valResult.Reason);
+                    await _localQueue.FailJobAsync(job.LocalJobId, $"PATH_REJECTION_{valResult.Reason}", TimeSpan.FromMinutes(5), stoppingToken);
+                    return;
+                }
             }
 
             var normResult = await provider.NormalizeAsync(new ClientNormalizationRequest
