@@ -87,6 +87,13 @@ builder.Services.AddRateLimiter(options =>
         limiter.QueueLimit = 0;
         limiter.AutoReplenishment = true;
     });
+    options.AddFixedWindowLimiter("agent-pair", limiter =>
+    {
+        limiter.PermitLimit = builder.Environment.IsEnvironment("Testing") ? 10_000 : 5;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+        limiter.AutoReplenishment = true;
+    });
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 

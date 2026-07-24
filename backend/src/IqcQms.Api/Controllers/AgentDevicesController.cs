@@ -33,6 +33,7 @@ public class AgentDevicesController : ControllerBase
     }
 
     [HttpPost("agent-devices/pair")]
+    [Microsoft.AspNetCore.RateLimiting.EnableRateLimiting("agent-pair")]
     [AllowAnonymous]
     public async Task<ActionResult<AgentDevicePairResponse>> PairDevice([FromBody] AgentDevicePairRequest request)
     {
