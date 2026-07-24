@@ -75,6 +75,7 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<AgentDevice> AgentDevices { get; set; }
         public DbSet<AgentCredential> AgentCredentials { get; set; }
         public DbSet<AgentPairingRequest> AgentPairingRequests { get; set; }
+        public DbSet<AgentRefreshOperationResult> AgentRefreshOperationResults { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -234,6 +235,10 @@ namespace IqcQms.Infrastructure.Data
             modelBuilder.Entity<AgentPairingRequest>()
                 .Property(p => p.ConcurrencyVersion)
                 .IsConcurrencyToken();
+
+            modelBuilder.Entity<AgentRefreshOperationResult>()
+                .HasIndex(r => new { r.AgentDeviceId, r.RefreshOperationId })
+                .IsUnique();
         }
     }
 }

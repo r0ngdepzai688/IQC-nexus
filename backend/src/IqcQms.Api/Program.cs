@@ -149,6 +149,8 @@ builder.Services.AddScoped<IImportCommitEngine, ImportCommitService>();
 builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
+builder.Services.Configure<IqcQms.Infrastructure.Security.AgentSecurityOptions>(builder.Configuration.GetSection("AgentSecurityOptions"));
+builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IEnvelopeEncryptionService, IqcQms.Infrastructure.Security.EnvelopeEncryptionService>();
 builder.Services.AddScoped<IqcQms.Application.Services.IAgentService, IqcQms.Infrastructure.Services.AgentService>();
 
 // Register Background Hosted Services outside testing

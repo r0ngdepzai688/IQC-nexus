@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using IqcQms.Application.Services;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.Domain.Entities.Agent;
@@ -14,19 +15,27 @@ namespace IqcQms.Infrastructure.Services;
 
 public class AgentService : IAgentService
 {
+    private static readonly Regex ValidOperationIdRegex = new(@"^[a-zA-Z0-9_-]{8,64}$", RegexOptions.Compiled);
+
     private readonly AppDbContext _db;
     private readonly AgentSecurityOptions _securityOptions;
+    private readonly IEnvelopeEncryptionService _encryptionService;
     private readonly ILogger<AgentService> _logger;
 
-    public AgentService(AppDbContext db, IOptions<AgentSecurityOptions> securityOptions, ILogger<AgentService> logger)
+    public AgentService(
+        AppDbContext db,
+        IOptions<AgentSecurityOptions> securityOptions,
+        IEnvelopeEncryptionService encryptionService,
+        ILogger<AgentService> logger)
     {
         _db = db;
         _securityOptions = securityOptions.Value;
+        _encryptionService = encryptionService;
         _logger = logger;
     }
 
     public AgentService(AppDbContext db, ILogger<AgentService> logger)
-        : this(db, Options.Create(new AgentSecurityOptions()), logger)
+        : this(db, Options.Create(new AgentSecurityOptions()), new EnvelopeEncryptionService(Options.Create(new AgentSecurityOptions())), logger)
     {
     }
 
@@ -192,9 +201,12 @@ public class AgentService : IAgentService
             throw new ArgumentException("DeviceId and RefreshToken are required.");
         }
 
-        var operationId = string.IsNullOrWhiteSpace(request.RefreshOperationId)
-            ? $"op_fallback_{Guid.NewGuid():N}"
-            : request.RefreshOperationId.Trim();
+        if (string.IsNullOrWhiteSpace(request.RefreshOperationId) || !ValidOperationIdRegex.IsMatch(request.RefreshOperationId.Trim()))
+        {
+            throw new ArgumentException("RefreshOperationId is required and must be a valid identifier (8-64 alphanumeric chars, hyphens, underscores).");
+        }
+
+        var operationId = request.RefreshOperationId.Trim();
 
         using var tx = await _db.Database.BeginTransactionAsync();
 
@@ -222,44 +234,46 @@ public class AgentService : IAgentService
 
         if (matchedCred == null)
         {
-            // Replay vs Duplicate Retry Detection: check if token was previously consumed or revoked
+            // Check for duplicate retry vs confirmed replay attack
             var consumedCred = device.Credentials.FirstOrDefault(c => CryptographicOperations.FixedTimeEquals(
                 Encoding.UTF8.GetBytes(c.ProtectedVerifierHash),
                 Encoding.UTF8.GetBytes(inputHash)));
 
             if (consumedCred != null)
             {
-                // Check if this is a concurrent duplicate retry with the SAME RefreshOperationId within grace window (120s)
-                var graceWindowThreshold = DateTime.UtcNow.AddSeconds(-120);
+                var envelope = await _db.AgentRefreshOperationResults
+                    .FirstOrDefaultAsync(r => r.AgentDeviceId == device.Id && r.RefreshOperationId == operationId);
 
-                var duplicateSuccessor = device.Credentials.FirstOrDefault(c =>
-                    c.TokenFamilyId == consumedCred.TokenFamilyId &&
-                    c.RefreshOperationId == operationId &&
-                    c.IssuedAtUtc >= graceWindowThreshold);
-
-                if (duplicateSuccessor != null)
+                if (envelope != null)
                 {
-                    _logger.LogInformation("DUPLICATE RETRY DETECTED for device {DeviceId}, operation {OperationId}. Safe duplicate handled without revocation.", request.DeviceId, operationId);
-                    await tx.CommitAsync();
-
-                    return new AgentTokenRefreshResponse
+                    if (envelope.ExpiresAtUtc < DateTime.UtcNow)
                     {
-                        AccessToken = string.Empty,
-                        AccessExpiresAtUtc = duplicateSuccessor.ExpiresAtUtc,
-                        RefreshToken = string.Empty,
-                        RefreshExpiresAtUtc = duplicateSuccessor.ExpiresAtUtc,
-                        IsDuplicateRetry = true
-                    };
+                        await tx.CommitAsync();
+                        throw new InvalidOperationException("Recovery window expired for this operation. Please re-authenticate or re-pair.");
+                    }
+
+                    try
+                    {
+                        var recoveredResponse = _encryptionService.DecryptResponse(envelope.EncryptedPayload, envelope.Nonce, envelope.Tag, device.DeviceId, envelope.TokenFamilyId, operationId);
+                        recoveredResponse.IsDuplicateRetry = true;
+
+                        await tx.CommitAsync();
+                        _logger.LogInformation("Recovered exact original committed response for duplicate retry request (operation {OperationId})", operationId);
+                        return recoveredResponse;
+                    }
+                    catch (CryptographicException ex)
+                    {
+                        _logger.LogError(ex, "Failed to decrypt idempotency recovery envelope for operation {OperationId}", operationId);
+                    }
                 }
 
-                // Otherwise: CONFIRMED REPLAY ATTACK (different operation ID or outside grace window)
+                // Otherwise: CONFIRMED REPLAY ATTACK (different operation ID or un-enveloped replay)
                 _logger.LogError("CONFIRMED TOKEN REPLAY DETECTED for device {DeviceId}, token family {TokenFamilyId}! Revoking entire token family and device.", request.DeviceId, consumedCred.TokenFamilyId);
 
                 device.State = AgentDeviceState.Revoked;
                 device.RevokedAtUtc = DateTime.UtcNow;
                 device.ConcurrencyVersion++;
 
-                // Revoke all credentials belonging to the same token family
                 var familyCreds = device.Credentials.Where(c => c.TokenFamilyId == consumedCred.TokenFamilyId || string.IsNullOrWhiteSpace(c.TokenFamilyId)).ToList();
                 foreach (var c in familyCreds)
                 {
@@ -291,12 +305,7 @@ public class AgentService : IAgentService
 
         var (accessToken, accessExpiry, newRefreshToken, refreshExpiry) = await IssueTokensForDeviceAsync(device, matchedCred.TokenFamilyId, operationId, matchedCred.RotationLineage);
 
-        await _db.SaveChangesAsync();
-        await tx.CommitAsync();
-
-        _logger.LogInformation("Successfully refreshed token for device {DeviceId}, family {TokenFamilyId}, op {OperationId}", device.DeviceId, matchedCred.TokenFamilyId, operationId);
-
-        return new AgentTokenRefreshResponse
+        var responseToReturn = new AgentTokenRefreshResponse
         {
             AccessToken = accessToken,
             AccessExpiresAtUtc = accessExpiry,
@@ -304,6 +313,32 @@ public class AgentService : IAgentService
             RefreshExpiresAtUtc = refreshExpiry,
             IsDuplicateRetry = false
         };
+
+        // Encrypt and persist short-lived recovery envelope
+        var (ciphertext, nonce, tag) = _encryptionService.EncryptResponse(responseToReturn, device.DeviceId, matchedCred.TokenFamilyId, operationId);
+
+        var recoveryEnvelope = new AgentRefreshOperationResult
+        {
+            AgentDeviceId = device.Id,
+            DeviceId = device.DeviceId,
+            TokenFamilyId = matchedCred.TokenFamilyId,
+            RefreshOperationId = operationId,
+            EncryptedPayload = ciphertext,
+            Nonce = nonce,
+            Tag = tag,
+            KeyVersion = 1,
+            CreatedAtUtc = DateTime.UtcNow,
+            ExpiresAtUtc = DateTime.UtcNow.AddSeconds(120)
+        };
+
+        _db.AgentRefreshOperationResults.Add(recoveryEnvelope);
+        await _db.SaveChangesAsync();
+
+        await tx.CommitAsync();
+
+        _logger.LogInformation("Successfully refreshed token for device {DeviceId}, family {TokenFamilyId}, op {OperationId}", device.DeviceId, matchedCred.TokenFamilyId, operationId);
+
+        return responseToReturn;
     }
 
     public async Task<AgentHeartbeatResponse> HeartbeatAsync(AgentHeartbeatRequest request)
