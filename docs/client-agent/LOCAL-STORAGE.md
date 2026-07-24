@@ -1,11 +1,23 @@
-# IQC Nexus Client Agent — Local Durable Queue & Storage
+# IQC Nexus Client Agent — User-Scoped Local Storage & DPAPI
 
-## Storage Specification
+## User-Scoped Data Directory
 
-1. **Device Identity**: Stored in `%LocalAppData%\IqcQmsAgent\device_identity.dpapi` protected via Windows DPAPI `CurrentUser` scope.
-2. **Device Credentials**: Stored in `%LocalAppData%\IqcQmsAgent\device_credentials.dpapi` protected via Windows DPAPI `CurrentUser` scope.
-3. **Local Job Queue**: SQLite database at `%LocalAppData%\IqcQmsAgent\agent_queue.db`.
+All runtime storage resolves under the current user's Local Application Data directory:
 
-## Allowed Root Enforcements
+`%LOCALAPPDATA%\IQC Nexus\ClientAgent\<profile>`
 
-Local queue payload references MUST be contained within `AgentOptions.AllowedInputRoots`. Absolute file paths outside these roots (such as `C:\Windows`, `C:\Users\Admin`) are rejected during queue enqueueing.
+### Directory Structure
+
+```
+%LOCALAPPDATA%\IQC Nexus\ClientAgent\<profile>\
+├── device_identity.dpapi     (Protected via DPAPI CurrentUser)
+├── device_credentials.dpapi  (Protected via DPAPI CurrentUser)
+├── agent_queue.db            (Local SQLite Durable Job Queue)
+├── agent_runtime.lock        (Single-instance runtime lock metadata)
+└── logs\                     (Agent log files)
+```
+
+## Security Hardening
+1. **DPAPI CurrentUser Scope**: Explicitly uses `DataProtectionScope.CurrentUser`. No `LocalMachine` or plaintext fallback.
+2. **Atomic Writes**: Writes to `.tmp` file, flushes, and moves to target location (`File.Move(..., overwrite: true)`).
+3. **Profile Path Traversal Protection**: Profile names are sanitized and validated against `^[a-zA-Z0-9_-]+$`. Path traversal sequences (`..`, `/`, `\`) are strictly rejected.
