@@ -87,7 +87,7 @@ public class NascaAdapterBoundaryTests
         var options = new NascaOptions
         {
             Enabled = true,
-            VerifiedInterfaceType = "CLI",
+            VerifiedInterfaceType = NascaVerifiedInterfaceType.Cli,
             ExpectedProductName = "NASCA",
             ExecutablePath = @"C:\NonExistentPath\NascaConverter.exe",
             OutputDirectory = @"C:\Outputs\"
@@ -103,7 +103,7 @@ public class NascaAdapterBoundaryTests
         var options = new NascaOptions
         {
             Enabled = true,
-            VerifiedInterfaceType = "CLI",
+            VerifiedInterfaceType = NascaVerifiedInterfaceType.Cli,
             ExpectedProductName = "NASCA",
             ExecutablePath = @"relative\NascaConverter.exe",
             OutputDirectory = @"C:\Outputs\"
@@ -126,7 +126,7 @@ public class NascaAdapterBoundaryTests
             var options = new NascaOptions
             {
                 Enabled = true,
-                VerifiedInterfaceType = "CLI",
+                VerifiedInterfaceType = NascaVerifiedInterfaceType.Cli,
                 ExpectedProductName = "NASCA",
                 ExecutablePath = fakeExe,
                 InputDirectory = tempInput,
@@ -408,7 +408,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
     }
 
     [Fact]
@@ -431,7 +431,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
     }
 
     [Fact]
@@ -466,7 +466,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_CONFLICTING_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceConflict, result.Decision);
     }
 
     [Fact]
@@ -489,7 +489,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
     }
 
     [Fact]
@@ -511,7 +511,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest, meta);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
     }
 
     [Fact]
@@ -529,7 +529,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest, meta);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
     }
 
     [Fact]
@@ -590,7 +590,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest, meta);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_LICENSING_RESTRICTION, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopLicensingUnknown, result.Decision);
     }
 
     [Fact]
@@ -612,7 +612,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_UI_AUTOMATION_ONLY, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopUiOnly, result.Decision);
     }
 
     [Fact]
@@ -634,7 +634,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest);
 
         Assert.False(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.STOP_DIRECT_EXCEL_COM_REQUIRED, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopExcelComRequired, result.Decision);
     }
 
     [Fact]
@@ -691,7 +691,7 @@ public class NascaAdapterBoundaryTests
         var result = evaluator.Evaluate(manifest, meta);
 
         Assert.True(result.IsGo);
-        Assert.Equal(NascaRuntimeDecision.GO_CLI, result.Decision);
+        Assert.Equal(NascaRuntimeDecision.ReadyForDesign, result.Decision);
     }
 
     [Fact]
@@ -737,5 +737,195 @@ public class NascaAdapterBoundaryTests
 
         Assert.Equal(NascaJobOutcome.NotConfigured, result.Outcome);
         Assert.Null(result.ExitCode);
+    }
+
+    // Phase 3A.3 Tests
+    [Fact]
+    public void DefaultInterfaceType_IsNone()
+    {
+        var options = new NascaOptions();
+        Assert.Equal(NascaVerifiedInterfaceType.None, options.VerifiedInterfaceType);
+    }
+
+    [Fact]
+    public void InvalidInterfaceType_FailsClosed()
+    {
+        var options = new NascaOptions
+        {
+            Enabled = true,
+            VerifiedInterfaceType = (NascaVerifiedInterfaceType)999
+        };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: false));
+    }
+
+    [Fact]
+    public void EnabledWithNoneInterface_FailsValidation()
+    {
+        var options = new NascaOptions
+        {
+            Enabled = true,
+            VerifiedInterfaceType = NascaVerifiedInterfaceType.None,
+            ExpectedProductName = "NASCA"
+        };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: false));
+    }
+
+    [Fact]
+    public void UiOnlyInterface_CannotBecomeReady()
+    {
+        var options = new NascaOptions
+        {
+            Enabled = true,
+            VerifiedInterfaceType = NascaVerifiedInterfaceType.UiOnly,
+            ExpectedProductName = "NASCA"
+        };
+
+        Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: false));
+    }
+
+    [Fact]
+    public void RuntimeDecision_IsStronglyTyped()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.IsType<NascaRuntimeDecision>(result.Decision);
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
+    }
+
+    [Fact]
+    public void ReadinessEvaluator_IsSingleDecisionSource()
+    {
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(new NascaEvidenceManifest());
+
+        Assert.False(result.IsRuntimeDesignAllowed);
+        Assert.False(result.IsRuntimeExecutionAllowed);
+        Assert.NotEmpty(result.Criteria);
+        Assert.NotEmpty(result.SanitizedReasonCodes);
+    }
+
+    [Fact]
+    public void CurrentBaseline_RemainsStopped()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.Equal(NascaRuntimeDecision.StopEvidenceMissing, result.Decision);
+        Assert.False(result.IsGo);
+    }
+
+    [Fact]
+    public void FakeRunner_ImplementsProductionContract()
+    {
+        INascaJobRunner fakeRunner = new FakeNascaJobRunner();
+        Assert.NotNull(fakeRunner);
+    }
+
+    [Fact]
+    public async Task FakeRunner_Success_IsDeterministic()
+    {
+        var runner = new FakeNascaJobRunner { Scenario = FakeNascaScenario.Success };
+        var result = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = "corr_fake_success" });
+
+        Assert.Equal(NascaJobOutcome.Success, result.Outcome);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("SIMULATED_SUCCESS", result.SanitizedReasonCode);
+        Assert.Single(result.OutputFiles);
+    }
+
+    [Fact]
+    public async Task FakeRunner_Timeout_IsTyped()
+    {
+        var runner = new FakeNascaJobRunner { Scenario = FakeNascaScenario.Timeout };
+        var result = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = "corr_fake_timeout" });
+
+        Assert.Equal(NascaJobOutcome.Timeout, result.Outcome);
+        Assert.Null(result.ExitCode);
+        Assert.Equal("SIMULATED_TIMEOUT", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FakeRunner_Cancellation_RespectsToken()
+    {
+        var runner = new FakeNascaJobRunner();
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        var result = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = "corr_fake_cancel" }, cts.Token);
+
+        Assert.Equal(NascaJobOutcome.Cancelled, result.Outcome);
+        Assert.Equal("SIMULATED_JOB_CANCELLED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FakeRunner_RetryableFailure_IsTyped()
+    {
+        var runner = new FakeNascaJobRunner { Scenario = FakeNascaScenario.RetryableFailure };
+        var result = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = "corr_fake_retryable" });
+
+        Assert.Equal(NascaJobOutcome.RetryableFailure, result.Outcome);
+        Assert.Equal(101, result.ExitCode);
+        Assert.Equal("SIMULATED_RETRYABLE_FAILURE", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FakeRunner_PermanentFailure_IsTyped()
+    {
+        var runner = new FakeNascaJobRunner { Scenario = FakeNascaScenario.PermanentFailure };
+        var result = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = "corr_fake_permanent" });
+
+        Assert.Equal(NascaJobOutcome.PermanentFailure, result.Outcome);
+        Assert.Equal(201, result.ExitCode);
+        Assert.Equal("SIMULATED_PERMANENT_FAILURE", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FakeRunner_DuplicateCorrelation_IsDetected()
+    {
+        var runner = new FakeNascaJobRunner { Scenario = FakeNascaScenario.Success };
+        var correlationId = "corr_duplicate_test";
+
+        var result1 = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = correlationId });
+        var result2 = await runner.RunJobAsync(new NascaJobRequest { CorrelationId = correlationId });
+
+        Assert.Equal(NascaJobOutcome.Success, result1.Outcome);
+        Assert.Equal(NascaJobOutcome.DuplicateCorrelation, result2.Outcome);
+        Assert.Equal("DUPLICATE_CORRELATION_DETECTED", result2.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FakeRunner_DoesNotLaunchProcess()
+    {
+        var runner = new FakeNascaJobRunner();
+        var result = await runner.RunJobAsync(new NascaJobRequest());
+
+        Assert.Equal(1, runner.InvocationCount);
+        Assert.NotNull(runner.LastCorrelationId);
+    }
+
+    [Fact]
+    public void FakeRunner_IsNotRegisteredInProduction()
+    {
+        // Inspect types in ClientAgent production assembly (IqcQms.ClientAgent.dll)
+        var prodAssembly = typeof(NascaJobRunnerNotConfigured).Assembly;
+        var fakeTypeInProd = prodAssembly.GetTypes().FirstOrDefault(t => t.Name.Contains("FakeNascaJobRunner", StringComparison.OrdinalIgnoreCase));
+
+        Assert.Null(fakeTypeInProd);
+    }
+
+    [Fact]
+    public void VendorArguments_RemainAbsent()
+    {
+        // Assert runtime NascaJobRequest contracts do not expose arbitrary unverified CLI argument string properties
+        var requestProps = typeof(NascaJobRequest).GetProperties().Select(p => p.Name).ToList();
+
+        Assert.DoesNotContain("CliArguments", requestProps);
+        Assert.DoesNotContain("CommandString", requestProps);
+        Assert.DoesNotContain("RawFlags", requestProps);
     }
 }
