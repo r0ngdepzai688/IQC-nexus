@@ -1,22 +1,14 @@
-# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A.1)
+# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A.2)
 
 ## Overview
 
-Phase 3A.1 refines the NASCA integration architecture to enforce strict evidence-based verification. All Phase 3A proposed assumptions (such as executable names, command-line arguments, and output file formats) are explicitly classified as **Proposed / Unknown** until confirmed by operator evidence.
+Phase 3A.2 introduces formal evidence intake ([NASCA-EVIDENCE-MANIFEST.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-EVIDENCE-MANIFEST.md)), trust validation, and an explicit runtime readiness matrix ([NASCA-RUNTIME-READINESS.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-RUNTIME-READINESS.md)).
 
-## Evidence-Based Classification Summary
+## Runtime Integration Decision
 
-- **Adapter Boundary Interface (`INascaJobRunner`)**: **Verified / Complete** (Defined in `NascaJobContracts.cs`).
-- **Disabled Scaffolding (`NascaJobRunnerNotConfigured`)**: **Verified / Complete** (Fails safely when `NascaOptions.Enabled = false`).
-- **Read-Only Metadata Inspector (`INascaInstallationInspector`)**: **Verified / Complete** (Inspects file version metadata of explicitly configured paths without process execution).
-- **Executable Filename (`NascaConverter.exe`)**: **Proposed / Unverified** (Pending operator evidence).
-- **CLI Arguments (`--input`, `--output-dir`, `--format json`)**: **Proposed / Unverified** (Pending vendor documentation).
-- **Watched Output Directory**: **Proposed / Unverified** (Pending vendor documentation).
-- **Standalone Engine vs Office Dependency**: **Unknown** (Pending vendor documentation).
+**DECISION: STOP_INCOMPLETE_EVIDENCE**
 
-## Hard Security Boundaries
-
-1. **No Process Launch in Discovery Phases**: `Process.Start` is NEVER invoked.
-2. **No Arbitrary Disk or Registry Scanning**: Inspector checks ONLY the explicitly configured absolute path.
-3. **No Excel COM Automation**: Office interop assemblies are strictly prohibited.
-4. **Disabled by Default**: `NascaOptions.Enabled` defaults to `false`.
+- **Disabled State**: `NascaOptions.Enabled` defaults to `false`. If enabled without verified vendor evidence (`VerifiedInterfaceType = "None"`), configuration validation fails fast at application startup.
+- **Disabled Scaffolding**: `INascaJobRunner` uses `NascaJobRunnerNotConfigured`, returning `SanitizedReasonCode = "NASCA_NOT_CONFIGURED"`.
+- **Zero Process Execution**: No `Process.Start` calls exist in Client Agent or NASCA adapter scaffolding.
+- **Zero Office Interop**: `Microsoft.Office.Interop.Excel` remains strictly unreferenced.

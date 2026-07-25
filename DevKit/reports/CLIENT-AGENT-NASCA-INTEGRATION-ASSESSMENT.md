@@ -1,28 +1,26 @@
-# Client Agent NASCA Integration Assessment (Phase 3A.1 Verification)
+# Client Agent NASCA Integration Assessment (Phase 3A.2 Readiness Decision)
 
 **Date:** July 25, 2026
-**Status:** Phase 3A.1 Vendor Interface Verification & Discovery Correction Complete
+**Status:** Phase 3A.2 Evidence Intake, Trust Validation, and Runtime Go/No-Go Decision Complete
 **Branch:** `feature/client-agent-nasca-integration`
 
 ---
 
-## 1. Phase 3A Fact Classification Matrix
+## Executive Summary & Runtime Decision
 
-| Statement / Claim | Phase 3A Initial Status | Phase 3A.1 Corrected Classification | Verification Evidence Needed |
-| :--- | :--- | :--- | :--- |
-| `INascaJobRunner` & `NascaJobRunnerNotConfigured` | Implemented | **Verified / Implemented** | Code & Unit Tests |
-| `INascaInstallationInspector` Read-Only Metadata | Implemented | **Verified / Implemented** | Code & Unit Tests |
-| `NascaOptions` Configuration Contract | Implemented | **Verified / Implemented** | Code & Unit Tests |
-| Executable Name `NascaConverter.exe` | Stated as Fact | **Proposed / Unverified** | Operator Checklist Item #4 |
-| CLI Flags `--input`, `--output-dir`, `--format json` | Stated as Fact | **Proposed / Unverified** | Vendor Manual / Item #8 |
-| Watched Output Directory Handoff | Stated as Fact | **Proposed / Unverified** | Vendor Manual / Item #10 |
-| Standalone Engine vs Excel Dependency | Stated as Fact | **Unknown** | Vendor Manual / Item #15 |
-| Bitness & Installation Path (`%LocalAppData%`) | Stated as Fact | **Unknown** | Operator Checklist Items #5, #6 |
+> [!CAUTION]
+> **RUNTIME INTEGRATION DECISION: STOP_INCOMPLETE_EVIDENCE**
+>
+> Due to missing official vendor documentation and unverified operator claims, the Client Agent runtime issues a **STOP** decision for NASCA process execution.
+>
+> `NascaOptions.Enabled` defaults to `false`. If enabled when `VerifiedInterfaceType` is `"None"`, configuration validation fails fast at application startup. Zero processes are executed (`Process.Start` is completely absent), and Office interop assemblies are completely unreferenced.
 
 ---
 
-## 2. Abstraction Boundaries & Verification Proof
+## Evidence Provenance Summary
 
-- **No Process Execution**: Zero `Process.Start` calls exist in Client Agent runtime or NASCA adapter scaffolding.
-- **Read-Only Inspector**: `INascaInstallationInspector` reads file version metadata from explicit configured paths without searching PATH or scanning registry.
-- **Excel COM Exclusion**: `EXCEL-COM-DECISION.md` explicitly bans `Microsoft.Office.Interop.Excel`.
+- **Vendor Documentation**: Missing
+- **Vendor Signed Binary Metadata**: Missing
+- **Operator Confirmed Claims**: Missing / Unapproved
+- **Approved Command Help Output**: Missing
+- **Current Manifest**: [NASCA-EVIDENCE-MANIFEST.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-EVIDENCE-MANIFEST.md)

@@ -1,29 +1,13 @@
-# IQC Nexus Client Agent — NASCA Operations Runbook (Phase 3A.1)
+# IQC Nexus Client Agent — NASCA Operations Runbook (Phase 3A.2 Revision)
 
-## Configuration Contract
+## Operational Decision: STOP_INCOMPLETE_EVIDENCE
 
-```json
-{
-  "NascaOptions": {
-    "Enabled": false,
-    "ExecutablePath": "C:\\Program Files\\NASCA\\Nasca.exe",
-    "WorkingDirectory": "C:\\Program Files\\NASCA\\",
-    "InputDirectory": "C:\\IqcQmsInputs\\",
-    "OutputDirectory": "C:\\IqcQmsOutputs\\",
-    "TimeoutSeconds": 60,
-    "MaximumConcurrentJobs": 1,
-    "ExpectedProductName": "",
-    "ExpectedPublisher": "",
-    "AllowedProductVersions": [],
-    "RequireAuthenticodeSignature": false
-  }
-}
-```
+The Client Agent runtime will NOT execute NASCA binaries until all 17 criteria in [NASCA-RUNTIME-READINESS.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-RUNTIME-READINESS.md) have status `Pass`.
 
-## Operator Verification Steps
+## Evidence Intake Protocol
 
-Before setting `Enabled: true` in production:
-1. Complete all items in [NASCA-EVIDENCE-CHECKLIST.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-EVIDENCE-CHECKLIST.md).
-2. Configure `ExecutablePath` and `OutputDirectory` as absolute paths.
-3. Confirm `ExecutablePath` does not reside inside a writable input directory.
-4. Verify `INascaInstallationInspector` returns `SanitizedReasonCode = "METADATA_INSPECTED"` for target binary.
+To register evidence for future integration phases:
+1. Obtain official vendor integration manual or vendor-signed binary metadata.
+2. Ingest evidence metadata into [NASCA-EVIDENCE-MANIFEST.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-EVIDENCE-MANIFEST.md).
+3. Re-evaluate readiness using `NascaReadinessEvaluator`.
+4. Ensure `NascaOptions.Enabled` is set to `true` ONLY after decision evaluates to `GO_CLI` or `GO_WATCHED_FOLDER`.
