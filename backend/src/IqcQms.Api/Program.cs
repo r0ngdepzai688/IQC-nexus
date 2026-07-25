@@ -150,9 +150,12 @@ builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrat
 builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
 builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
 builder.Services.Configure<IqcQms.Infrastructure.Security.AgentSecurityOptions>(builder.Configuration.GetSection("AgentSecurityOptions"));
+builder.Services.Configure<IqcQms.Infrastructure.Config.AgentPayloadRetentionOptions>(builder.Configuration.GetSection("AgentPayloadRetentionOptions"));
 builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IEnvelopeEncryptionService, IqcQms.Infrastructure.Security.EnvelopeEncryptionService>();
 builder.Services.AddSingleton<IqcQms.Infrastructure.Security.INormalizedWorkbookCanonicalizer, IqcQms.Infrastructure.Security.NormalizedWorkbookCanonicalizer>();
+builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IRelationalConstraintViolationClassifier, IqcQms.Infrastructure.Security.RelationalConstraintViolationClassifier>();
 builder.Services.AddScoped<IqcQms.Application.Services.IAgentService, IqcQms.Infrastructure.Services.AgentService>();
+builder.Services.AddScoped<IqcQms.Application.Services.IAgentPayloadRetentionService, IqcQms.Infrastructure.Services.AgentPayloadRetentionService>();
 
 // Register Background Hosted Services outside testing
 if (!builder.Environment.IsEnvironment("Testing"))

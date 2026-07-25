@@ -251,6 +251,9 @@ namespace IqcQms.Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => s.CreatedAtUtc);
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
                 .Property(s => s.ConcurrencyVersion)
                 .IsConcurrencyToken();
 
@@ -261,6 +264,9 @@ namespace IqcQms.Infrastructure.Data
             modelBuilder.Entity<AgentPayloadReplayTombstone>()
                 .HasIndex(t => new { t.AgentDeviceId, t.Nonce })
                 .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => t.TombstoneExpiresAtUtc);
         }
     }
 }
