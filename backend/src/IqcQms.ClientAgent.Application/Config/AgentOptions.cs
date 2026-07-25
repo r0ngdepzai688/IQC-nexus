@@ -17,12 +17,12 @@ public class AgentOptions
 
     public void Validate(bool isDevelopmentOrTesting = false)
     {
-        if (string.IsNullOrWhiteSpace(ServerBaseUrl))
+        if (string.IsNullOrWhiteSpace(ServerBaseUrl) || !Uri.TryCreate(ServerBaseUrl, UriKind.Absolute, out var parsedUri))
         {
-            throw new InvalidOperationException("AgentOptions:ServerBaseUrl is required.");
+            throw new InvalidOperationException("AgentOptions:ServerBaseUrl must be a valid absolute URI.");
         }
 
-        if (!isDevelopmentOrTesting && !ServerBaseUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
+        if (!isDevelopmentOrTesting && !string.Equals(parsedUri.Scheme, "https", StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException("AgentOptions:ServerBaseUrl MUST use HTTPS in non-development environment.");
         }
@@ -43,12 +43,46 @@ public class AgentOptions
             HeartbeatIntervalSeconds = 30;
         }
 
-        // Normalize allowed roots
-        var normalizedRoots = new List<string>();
-        foreach (var root in AllowedInputRoots)
+        if (!isDevelopmentOrTesting)
         {
-            if (!string.IsNullOrWhiteSpace(root))
+            if (AllowedInputRoots == null || AllowedInputRoots.Count == 0)
             {
+                throw new InvalidOperationException("AgentOptions:AllowedInputRoots MUST be non-empty in production.");
+            }
+        }
+
+        var normalizedRoots = new List<string>();
+        if (AllowedInputRoots != null)
+        {
+            foreach (var root in AllowedInputRoots)
+            {
+                if (string.IsNullOrWhiteSpace(root))
+                {
+                    if (!isDevelopmentOrTesting)
+                        throw new InvalidOperationException("AgentOptions:AllowedInputRoots contains blank or empty entry.");
+                    continue;
+                }
+
+                if (!isDevelopmentOrTesting)
+                {
+                    if (!Path.IsPathRooted(root))
+                    {
+                        throw new InvalidOperationException($"Configured AllowedInputRoot '{root}' must be an absolute path in production.");
+                    }
+
+                    var rootPath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                    var rootDirectoryInfo = new DirectoryInfo(rootPath);
+                    if (rootDirectoryInfo.Parent == null || rootPath.EndsWith(":") || rootPath.Length <= 3)
+                    {
+                        throw new InvalidOperationException($"Root drive '{root}' is not permitted as AllowedInputRoot in production.");
+                    }
+
+                    if (!Directory.Exists(rootPath))
+                    {
+                        throw new InvalidOperationException($"Configured AllowedInputRoot '{rootPath}' does not exist or is inaccessible.");
+                    }
+                }
+
                 var full = Path.GetFullPath(root);
                 normalizedRoots.Add(full);
             }
