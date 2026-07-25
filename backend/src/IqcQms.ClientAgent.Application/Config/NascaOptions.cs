@@ -10,11 +10,12 @@ public class NascaOptions
     public int TimeoutSeconds { get; set; } = 60;
     public int MaximumConcurrentJobs { get; set; } = 1;
 
-    // Phase 3A.1 Identity & Verification Fields
+    // Phase 3A.1 & 3A.2 Identity & Verification Fields
     public string ExpectedProductName { get; set; } = string.Empty;
     public string ExpectedPublisher { get; set; } = string.Empty;
     public List<string> AllowedProductVersions { get; set; } = new();
     public bool RequireAuthenticodeSignature { get; set; } = false;
+    public string VerifiedInterfaceType { get; set; } = "None";
 
     public void Validate(bool isProduction = false)
     {
@@ -22,6 +23,11 @@ public class NascaOptions
         {
             // When disabled, no executable or path validation is required
             return;
+        }
+
+        if (VerifiedInterfaceType == "None" || string.IsNullOrWhiteSpace(ExpectedProductName))
+        {
+            throw new InvalidOperationException("NascaOptions: Cannot enable NASCA integration when vendor interface evidence is incomplete (Runtime Decision: STOP_INCOMPLETE_EVIDENCE).");
         }
 
         if (TimeoutSeconds <= 0 || TimeoutSeconds > 600)
