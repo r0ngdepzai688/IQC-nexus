@@ -1,31 +1,23 @@
-# Client Agent Pre-NASCA Hardening Assessment (Phase 2D.1 & 2D.2)
+# Client Agent Pre-NASCA Hardening Assessment (Final Release Readiness)
 
 **Date:** July 25, 2026
-**Status:** Phase 2D.2 Implementation & Verification Complete
+**Status:** All Phases 2A through 2E Implementation & Verification Complete
 **Branch:** `feature/client-agent-pre-nasca-hardening`
-**Scope:** Relational Concurrency Proof, Constraint Classification, Atomic Downstream Rollback, Typed Security Errors, and Retention Operations
+**Scope:** Final Pre-NASCA Release Readiness, Migration Verification, Hosted Worker Execution, Fail-Closed Security, and End-to-End Recovery Scenarios
 
 ---
 
-## Phase 2D.1 & 2D.2 Inspection Findings Matrix
+## Phase 2E Inspection Findings & Verification Matrix
 
-| # | Inspection Item | Phase 2D.1 Status | Phase 2D.2 Resolved Status |
+| # | Inspection / Verification Area | Initial Inspection Finding | Final Resolved Implementation & Proof |
 | :- | :--- | :--- | :--- |
-| 1 | **`ServerImportJobId` in Digest** | Excluded from `CanonicalPayloadHash` | Binds strictly client identity parameters; ignores server tracking GUIDs |
-| 2 | **Relational DB Provider** | SQLite in-memory & file DB | SQLite (`Microsoft.EntityFrameworkCore.Sqlite`) used across unit/integration environments |
-| 3 | **Relational Concurrency Proof** | Unverified | Proved via multi-threaded `Task.WhenAll` across separate `DbContext` instances over relational DB |
-| 4 | **Unique-Constraint Classification** | Indiscriminate `DbUpdateException` catch | Provider-aware `IRelationalConstraintViolationClassifier` inspects extended DB error codes |
-| 5 | **Downstream Transaction Rollback** | Separate calls | Same-transaction boundary for `AgentPayloadSubmission` and `PersistentImportJob` with fault injection rollback proof |
-| 6 | **Typed Security Errors** | Generic `InvalidOperationException` | Exposes typed domain exceptions (`PayloadSubmissionMismatchException`, `PayloadNonceReplayException`, `PayloadReplayTombstoneException`) mapped to HTTP 409/400/404 |
-| 7 | **Retention Operations** | Schema & tombstone table created | `AgentPayloadRetentionService` with `AgentPayloadRetentionOptions` (90d full / 365d tombstone) and atomic cleanup transactions |
-| 8 | **Cleanup Expiration Indexes** | Missing indexes | Additive EF migration `20260725100000_AddPayloadRetentionIndexes` added indexes on `CreatedAtUtc` & `TombstoneExpiresAtUtc` |
-
----
-
-## Completed Architectural Implementation (Phase 2D.2)
-
-1. **Relational Concurrency Proof**: Verified overlapping concurrent requests produce exactly 1 `AgentPayloadSubmission` and 1 downstream `PersistentImportJob`.
-2. **Provider-Aware Classifier**: `IRelationalConstraintViolationClassifier` prevents non-unique DB errors (FK, null constraint, connection drops) from false duplicate classification.
-3. **Atomic Downstream Rollback**: Proved via fault injection that any failure prior to transaction commit rolls back both submission and downstream job records.
-4. **Typed API Security Errors**: Mapped typed security exceptions through API pipeline to return generic, sanitized responses without leaking nonces, digests, or paths.
-5. **Retention Cleanup Transactions**: Atomic batch cleanup creates tombstones before deleting full submission records, ensuring fail-safe idempotency.
+| 1 | **Hosted Maintenance Services** | `AgentPayloadRetentionService` was Scoped, but lacked a hosted background worker | `AgentPayloadRetentionBackgroundWorker` registered as `AddHostedService` in `Program.cs` |
+| 2 | **Refresh Recovery Envelope Cleanup** | Missing cleanup for expired recovery envelopes | Added `CleanupExpiredRefreshOperationResultsAsync` in `AgentPayloadRetentionService` |
+| 3 | **Fail-Closed Security Config** | Production mode allowed blank or weak default pepper/envelope keys | `AgentSecurityOptions.Validate()` and `AgentOptions.Validate()` throw `InvalidOperationException` in `Production` environment |
+| 4 | **EF Migration Verification** | Unverified clean and upgrade paths | `MigrationVerificationTests.cs` proves clean database migration and legacy upgrade preservation |
+| 5 | **Missing Migration Designer Metadata** | `20260725100000_AddPayloadRetentionIndexes.Designer.cs` missing | Created `.Designer.cs` with `[Migration("20260725100000_AddPayloadRetentionIndexes")]` metadata |
+| 6 | **Deterministic Path Reparse Tests** | Symlink tests caught `UnauthorizedAccessException` and silently passed | Introduced `IFileSystemResolver` abstraction in `AllowedInputPathValidator` with 7 deterministic unit tests |
+| 7 | **End-to-End Recovery Scenarios** | Process restart recovery unproven | `EndToEndAgentRecoveryScenarioTests.cs` proves Scenario A (lost refresh), Scenario B (lost payload), and Scenario C (path change) |
+| 8 | **Secret Redaction Audit** | Unverified log redaction | `SecretRedactionAuditTests.cs` verifies sentinel secrets never leak in logs or API responses |
+| 9 | **Time Provider Abstraction** | System clock called directly | Introduced `IAgentTimeProvider` and `SystemAgentTimeProvider` for controllable time injection |
+| 10 | **Publish Output & Packaging** | Packaging unverified | Published `win-x64` executable verified: 0 NASCA or Excel COM assemblies present |

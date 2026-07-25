@@ -1,23 +1,12 @@
-# IQC Nexus Client Agent — User-Scoped Local Storage & DPAPI
+# IQC Nexus Client Agent — Local Storage & DPAPI Security
 
-## User-Scoped Data Directory
+## Storage Locations
 
-All runtime storage resolves under the current user's Local Application Data directory:
+- **Data Directory**: `%LocalAppData%\IqcQmsAgent\` per logged-in Windows user.
+- **Identity File**: `%LocalAppData%\IqcQmsAgent\device_identity.dpapi` protected by Windows DPAPI (`DataProtectionScope.CurrentUser`).
+- **Local Queue Database**: `%LocalAppData%\IqcQmsAgent\local_queue.db` (SQLite database storing queue items).
 
-`%LOCALAPPDATA%\IQC Nexus\ClientAgent\<profile>`
+## Single Instance Lock & HKCU Startup
 
-### Directory Structure
-
-```
-%LOCALAPPDATA%\IQC Nexus\ClientAgent\<profile>\
-├── device_identity.dpapi     (Protected via DPAPI CurrentUser)
-├── device_credentials.dpapi  (Protected via DPAPI CurrentUser)
-├── agent_queue.db            (Local SQLite Durable Job Queue)
-├── agent_runtime.lock        (Single-instance runtime lock metadata)
-└── logs\                     (Agent log files)
-```
-
-## Security Hardening
-1. **DPAPI CurrentUser Scope**: Explicitly uses `DataProtectionScope.CurrentUser`. No `LocalMachine` or plaintext fallback.
-2. **Atomic Writes**: Writes to `.tmp` file, flushes, and moves to target location (`File.Move(..., overwrite: true)`).
-3. **Profile Path Traversal Protection**: Profile names are sanitized and validated against `^[a-zA-Z0-9_-]+$`. Path traversal sequences (`..`, `/`, `\`) are strictly rejected.
+- **Single Instance Lock**: Win32 Mutex `Global\IqcQmsClientAgent_<Profile>_<UserSID>` enforces a single active Client Agent process per logged-in user session.
+- **Startup Registration**: Windows HKCU Run key `HKCU\Software\Microsoft\Windows\CurrentVersion\Run` registers `IqcQms.ClientAgent.exe` for automatic user session startup.

@@ -10,9 +10,14 @@
 6. **No Plaintext Credential Persistence**: DPAPI encryption on Windows; SHA256/BCrypt on server.
 7. **No Arbitrary Remote Command Execution**: Agent does not execute shell scripts or inbound commands.
 
-## Payload Security & Replay Prevention
+## Production Configuration Fail-Closed Security
 
-1. **Typed Security Errors**: Security conflicts emit typed exceptions (`PayloadSubmissionMismatchException`, `PayloadNonceReplayException`, `PayloadReplayTombstoneException`) mapped to generic HTTP 409 Conflict bodies.
-2. **No Data Leakage in API Errors**: Error responses return deterministic status codes and generic messages without exposing nonces, hashes, file names, device IDs, or internal paths.
-3. **Provider-Aware Classification**: Non-unique database errors (FK failures, connection errors) are never misclassified as idempotency retries or security replays.
-4. **Replay Tombstones**: Dual-tier retention ensures compact tombstones protect against replay attacks after full submission records are cleaned up.
+1. **Pairing Pepper**: Must be explicitly configured with a strong secret (at least 16 chars). Default fallback is rejected in `Production`.
+2. **Envelope Encryption Key**: Must be explicitly configured with at least 256 bits (32 bytes) of key entropy. Default key is rejected in `Production`.
+3. **Allowed Input Roots**: Must be non-empty, rooted absolute paths, and cannot be root drive (`C:\`) or non-existent directories in `Production`.
+4. **Server Base URL**: Must be a valid absolute URI using HTTPS in `Production`.
+
+## Redaction & Error Masking
+
+1. **Secret Redaction**: Access tokens, refresh tokens, pairing codes, pairing peppers, envelope keys, and workbook cell values are never emitted in logs or exception messages.
+2. **Sanitized Public Responses**: Expected security conflicts return generic HTTP 409 Conflict, 400 Bad Request, or 404 Not Found bodies without leaking nonces, digests, device IDs, or internal file paths.
