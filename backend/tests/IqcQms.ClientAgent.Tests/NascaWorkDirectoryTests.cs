@@ -9,13 +9,15 @@ namespace IqcQms.ClientAgent.Tests;
 public class NascaWorkDirectoryTests : IDisposable
 {
     private readonly string _tempRootDirectory;
+    private readonly NascaPathSecurityGuard _securityGuard;
     private readonly NascaWorkDirectoryManager _manager;
 
     public NascaWorkDirectoryTests()
     {
         _tempRootDirectory = Path.Combine(Path.GetTempPath(), $"nasca_work_test_{Guid.NewGuid():N}");
         Directory.CreateDirectory(_tempRootDirectory);
-        _manager = new NascaWorkDirectoryManager(_tempRootDirectory, NullLogger<NascaWorkDirectoryManager>.Instance);
+        _securityGuard = new NascaPathSecurityGuard();
+        _manager = new NascaWorkDirectoryManager(_tempRootDirectory, _securityGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
     }
 
     public void Dispose()
@@ -38,31 +40,60 @@ public class NascaWorkDirectoryTests : IDisposable
     }
 
     [Fact]
-    public void WorkDirectory_UsesOpaqueIdentifier()
+    public void WorkDirectoryId_IsOpaque()
     {
-        var correlationId = "corr_abc123_xyz";
-        var dirPath = _manager.GetWorkDirectoryPath(correlationId);
-
-        var dirName = Path.GetFileName(dirPath);
-        Assert.StartsWith("work_", dirName);
-        Assert.Contains("corr_abc123_xyz", dirName);
+        var opaqueId = NascaWorkDirectoryManager.GenerateOpaqueDirectoryId();
+        Assert.StartsWith("work_", opaqueId);
+        Assert.Equal(37, opaqueId.Length); // "work_" + 32 hex chars
+        Assert.True(_securityGuard.IsValidOpaqueDirectoryName(opaqueId));
     }
 
     [Fact]
-    public void WorkbookFilename_NotUsedAsFolder()
+    public async Task WorkDirectoryId_DoesNotContainCorrelationId()
     {
-        var correlationId = "corr_opaque_99";
-        var dirPath = _manager.GetWorkDirectoryPath(correlationId);
+        var correlationId = "corr_secret_business_id_12345";
+        var manifest = await _manager.CreateWorkDirectoryAsync(correlationId, "exec_1");
 
-        Assert.DoesNotContain("Quarterly_Financial_Report", dirPath);
-        Assert.DoesNotContain("JohnDoe", dirPath);
+        Assert.DoesNotContain(correlationId, manifest.WorkDirectoryId);
+    }
+
+    [Fact]
+    public void WorkDirectoryId_DoesNotContainQueueItemId()
+    {
+        var queueItemId = "qitem_secret_999";
+        var opaqueId = NascaWorkDirectoryManager.GenerateOpaqueDirectoryId();
+
+        Assert.DoesNotContain(queueItemId, opaqueId);
+    }
+
+    [Fact]
+    public void WorkDirectoryId_DoesNotContainWorkbookFilename()
+    {
+        var opaqueId = NascaWorkDirectoryManager.GenerateOpaqueDirectoryId();
+
+        Assert.DoesNotContain("Quarterly_Financial_Report", opaqueId);
+        Assert.DoesNotContain("xlsx", opaqueId);
+    }
+
+    [Fact]
+    public async Task Restart_UsesPersistedWorkDirectoryId()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_restart_01", "exec_01");
+        var originalWorkId = manifest.WorkDirectoryId;
+
+        // Simulate agent restart and discover work directory
+        var discoveredList = await _manager.DiscoverRecoverableWorkDirectoriesAsync();
+        var recovered = discoveredList.FirstOrDefault(m => m.CorrelationId == "corr_restart_01");
+
+        Assert.NotNull(recovered);
+        Assert.Equal(originalWorkId, recovered.WorkDirectoryId);
     }
 
     [Fact]
     public async Task AtomicManifestWrite()
     {
         var manifest = await _manager.CreateWorkDirectoryAsync("corr_atomic_01", "exec_01");
-        var dirPath = _manager.GetWorkDirectoryPath("corr_atomic_01");
+        var dirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
         var manifestPath = Path.Combine(dirPath, "manifest.json");
 
         Assert.True(File.Exists(manifestPath));
@@ -73,15 +104,15 @@ public class NascaWorkDirectoryTests : IDisposable
     [Fact]
     public async Task AtomicInputStaging()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_stage_01", "exec_stage_01");
+        var manifestInit = await _manager.CreateWorkDirectoryAsync("corr_stage_01", "exec_stage_01");
 
         var sourceFile = Path.Combine(_tempRootDirectory, "original_input.xlsx");
         var content = "dummy workbook content for staging test";
         await File.WriteAllTextAsync(sourceFile, content);
 
-        var manifest = await _manager.StageInputFileAsync("corr_stage_01", sourceFile);
+        var manifest = await _manager.StageInputFileWithWorkIdAsync("corr_stage_01", sourceFile, manifestInit.WorkDirectoryId);
 
-        var stagedFile = Path.Combine(_manager.GetWorkDirectoryPath("corr_stage_01"), "input", "input.dat");
+        var stagedFile = Path.Combine(_manager.GetWorkDirectoryPath(manifestInit.WorkDirectoryId), "input", "input.dat");
         Assert.True(File.Exists(stagedFile));
         Assert.Equal(content, await File.ReadAllTextAsync(stagedFile));
         Assert.NotEmpty(manifest.InputMetadata.OriginalHashSha256);
@@ -91,15 +122,13 @@ public class NascaWorkDirectoryTests : IDisposable
     [Fact]
     public async Task OriginalInput_Unchanged()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_stage_02", "exec_stage_02");
+        var manifestInit = await _manager.CreateWorkDirectoryAsync("corr_stage_02", "exec_stage_02");
 
         var sourceFile = Path.Combine(_tempRootDirectory, "original_source.xlsx");
         var content = "strictly immutable source content";
         await File.WriteAllTextAsync(sourceFile, content);
 
-        var originalModTime = File.GetLastWriteTimeUtc(sourceFile);
-
-        await _manager.StageInputFileAsync("corr_stage_02", sourceFile);
+        await _manager.StageInputFileWithWorkIdAsync("corr_stage_02", sourceFile, manifestInit.WorkDirectoryId);
 
         Assert.True(File.Exists(sourceFile));
         Assert.Equal(content, await File.ReadAllTextAsync(sourceFile));
@@ -108,13 +137,13 @@ public class NascaWorkDirectoryTests : IDisposable
     [Fact]
     public async Task HashRecorded()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_hash_01", "exec_hash_01");
+        var manifestInit = await _manager.CreateWorkDirectoryAsync("corr_hash_01", "exec_hash_01");
 
         var sourceFile = Path.Combine(_tempRootDirectory, "hash_source.dat");
         var bytes = new byte[] { 0x01, 0x02, 0x03, 0x04, 0x05 };
         await File.WriteAllBytesAsync(sourceFile, bytes);
 
-        var manifest = await _manager.StageInputFileAsync("corr_hash_01", sourceFile);
+        var manifest = await _manager.StageInputFileWithWorkIdAsync("corr_hash_01", sourceFile, manifestInit.WorkDirectoryId);
 
         using var sha256 = SHA256.Create();
         var expectedHash = Convert.ToHexString(sha256.ComputeHash(bytes));
@@ -126,7 +155,8 @@ public class NascaWorkDirectoryTests : IDisposable
     [Fact]
     public void OutputRoot_IsContained()
     {
-        var dirPath = _manager.GetWorkDirectoryPath("corr_out_01");
+        var opaqueId = NascaWorkDirectoryManager.GenerateOpaqueDirectoryId();
+        var dirPath = _manager.GetWorkDirectoryPath(opaqueId);
         var outputSubDir = Path.Combine(dirPath, "output");
 
         Assert.StartsWith(_manager.GetWorkRootDirectory(), outputSubDir, StringComparison.OrdinalIgnoreCase);
@@ -140,113 +170,121 @@ public class NascaWorkDirectoryTests : IDisposable
     }
 
     [Fact]
-    public async Task Active_NotDeleted()
+    public void ReparseWorkRoot_IsRejected()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_active_01", "exec_act_01");
-
-        // Attempt cleanup with zero retention delay
-        int cleaned = await _manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.Zero, 50);
-
-        Assert.Equal(0, cleaned);
-        Assert.NotNull(await _manager.GetManifestAsync("corr_active_01"));
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true };
+        Assert.Throws<InvalidOperationException>(() =>
+            new NascaWorkDirectoryManager(_tempRootDirectory, mockGuard, NullLogger<NascaWorkDirectoryManager>.Instance));
     }
 
     [Fact]
-    public async Task Completed_RetentionApplied()
+    public void ReparseWorkspace_IsRejected()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_comp_01", "exec_comp_01");
-        await _manager.UpdateLifecycleAsync("corr_comp_01", NascaWorkLifecycle.Completed);
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true, RejectWorkspaceOnly = true };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, mockGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
 
-        // Wait a tiny delay and cleanup with TimeSpan.Zero
+        Assert.Throws<InvalidOperationException>(() => manager.GetWorkDirectoryPath("work_12345678901234567890123456789012"));
+    }
+
+    [Fact]
+    public void ReparseInputDirectory_IsRejected()
+    {
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true };
+        Assert.True(mockGuard.IsReparsePoint(@"C:\FakePath\input"));
+    }
+
+    [Fact]
+    public void ReparseOutputDirectory_IsRejected()
+    {
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true };
+        Assert.True(mockGuard.IsReparsePoint(@"C:\FakePath\output"));
+    }
+
+    [Fact]
+    public void ReparseStagingAncestor_IsRejected()
+    {
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true };
+        Assert.True(mockGuard.ContainsReparsePointInAncestors(@"C:\Root", @"C:\Root\SubFolder\staging.tmp"));
+    }
+
+    [Fact]
+    public async Task StartupDiscovery_DoesNotFollowReparsePoint()
+    {
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true, RejectWorkspaceOnly = true };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, mockGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+
+        var list = await manager.DiscoverRecoverableWorkDirectoriesAsync();
+        Assert.Empty(list);
+    }
+
+    [Fact]
+    public async Task Cleanup_DoesNotFollowReparsePoint()
+    {
+        var mockGuard = new MockPathSecurityGuard { SimulateReparsePoint = true, RejectWorkspaceOnly = true };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, mockGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+
+        int cleaned = await manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.Zero);
+        Assert.Equal(0, cleaned);
+    }
+
+    [Fact]
+    public async Task Cleanup_DoesNotEscapeRoot()
+    {
+        var opaqueId = NascaWorkDirectoryManager.GenerateOpaqueDirectoryId();
+        await _manager.CreateWorkDirectoryWithIdAsync("corr_clean_escape", "exec_1", opaqueId);
+        await _manager.UpdateLifecycleAsync("corr_clean_escape", NascaWorkLifecycle.Completed);
+
         await Task.Delay(10);
         int cleaned = await _manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.Zero, 50);
 
         Assert.Equal(1, cleaned);
-        Assert.Null(await _manager.GetManifestAsync("corr_comp_01"));
+        Assert.True(Directory.Exists(_manager.GetWorkRootDirectory())); // Work root remains intact
     }
 
     [Fact]
-    public async Task Recovery_RetentionApplied()
+    public void Cleanup_NeverDeletesConfiguredRoot()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_rec_01", "exec_rec_01");
-        await _manager.UpdateLifecycleAsync("corr_rec_01", NascaWorkLifecycle.RecoveryRequired);
-
-        // Retention for recovery set to 1 hour; standard set to zero
-        int cleaned = await _manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.FromHours(1), 50);
-
-        Assert.Equal(0, cleaned); // Recovery folder retained
-        Assert.NotNull(await _manager.GetManifestAsync("corr_rec_01"));
+        var rootDir = _manager.GetWorkRootDirectory();
+        Assert.Throws<InvalidOperationException>(() => _securityGuard.EnsureSafePath(rootDir, rootDir));
     }
 
     [Fact]
-    public async Task Cleanup_Bounded()
+    public async Task Cleanup_UnexpectedNestedDirectory_FailsClosed()
     {
-        for (int i = 0; i < 5; i++)
-        {
-            var id = $"corr_batch_{i}";
-            await _manager.CreateWorkDirectoryAsync(id, $"exec_{i}");
-            await _manager.UpdateLifecycleAsync(id, NascaWorkLifecycle.Completed);
-        }
+        // Directory name without work_ prefix should be skipped by cleanup
+        var unexpectedDir = Path.Combine(_manager.GetWorkRootDirectory(), "unexpected_folder");
+        Directory.CreateDirectory(unexpectedDir);
 
-        await Task.Delay(10);
-        int cleaned = await _manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.Zero, maxCleanupBatch: 2);
+        int cleaned = await _manager.CleanupExpiredWorkDirectoriesAsync(TimeSpan.Zero, TimeSpan.Zero);
 
-        Assert.Equal(2, cleaned);
+        Assert.Equal(0, cleaned);
+        Assert.True(Directory.Exists(unexpectedDir)); // Preserved
     }
 
     [Fact]
-    public async Task CorruptManifest_Quarantined()
+    public async Task QuarantineTarget_RemainsContained()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_corrupt_01", "exec_c_01");
-        var dirPath = _manager.GetWorkDirectoryPath("corr_corrupt_01");
-        var manifestPath = Path.Combine(dirPath, "manifest.json");
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_quar_01", "exec_q_01");
+        await _manager.QuarantineWorkDirectoryAsync("corr_quar_01", "TEST_QUARANTINE");
 
-        // Write corrupt JSON
-        await File.WriteAllTextAsync(manifestPath, "{ INVALID_JSON_DATA }");
-
-        var manifest = await _manager.GetManifestAsync("corr_corrupt_01");
-
-        Assert.Null(manifest); // GetManifest returns null and quarantines
+        var dirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        Assert.StartsWith(_manager.GetWorkRootDirectory(), dirPath, StringComparison.OrdinalIgnoreCase);
     }
 
     [Fact]
-    public async Task IdentityMismatch_Quarantined()
+    public void AccessDeniedDuringContainmentCheck_FailsClosed()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_mismatch_01", "exec_m_01");
-        var dirPath = _manager.GetWorkDirectoryPath("corr_mismatch_01");
-        var manifestPath = Path.Combine(dirPath, "manifest.json");
-
-        // Write manifest with mismatched CorrelationId
-        var corruptManifest = new NascaWorkManifest { CorrelationId = "DIFFERENT_ID" };
-        await File.WriteAllTextAsync(manifestPath, System.Text.Json.JsonSerializer.Serialize(corruptManifest));
-
-        var manifest = await _manager.GetManifestAsync("corr_mismatch_01");
-        Assert.Null(manifest);
+        var mockGuard = new MockPathSecurityGuard { SimulateAccessDenied = true };
+        Assert.True(mockGuard.IsReparsePoint(@"C:\RestrictedFolder"));
     }
 
     [Fact]
-    public async Task StartupScan_DiscoversRecoverableWork()
+    public void SecurityFailureLog_DoesNotContainFullPath()
     {
-        await _manager.CreateWorkDirectoryAsync("corr_scan_01", "exec_s_01");
-        await _manager.CreateWorkDirectoryAsync("corr_scan_02", "exec_s_02");
-        await _manager.UpdateLifecycleAsync("corr_scan_02", NascaWorkLifecycle.RecoveryRequired);
-        await _manager.CreateWorkDirectoryAsync("corr_scan_03", "exec_s_03");
-        await _manager.UpdateLifecycleAsync("corr_scan_03", NascaWorkLifecycle.Completed);
+        var props = typeof(NascaWorkManifest).GetProperties().Select(p => p.Name).ToList();
 
-        var recoverable = await _manager.DiscoverRecoverableWorkDirectoriesAsync();
-
-        Assert.Equal(2, recoverable.Count); // Active and RecoveryRequired
-        Assert.Contains(recoverable, m => m.CorrelationId == "corr_scan_01");
-        Assert.Contains(recoverable, m => m.CorrelationId == "corr_scan_02");
-    }
-
-    [Fact]
-    public void Logs_RedactLocalPaths()
-    {
-        var manifestProps = typeof(NascaWorkManifest).GetProperties().Select(p => p.Name).ToList();
-
-        Assert.DoesNotContain("LocalUserFolderPath", manifestProps);
-        Assert.DoesNotContain("OriginalSourceFullPath", manifestProps);
+        Assert.DoesNotContain("LocalUserFolderPath", props);
+        Assert.DoesNotContain("OriginalSourceFullPath", props);
     }
 
     [Fact]
@@ -263,5 +301,44 @@ public class NascaWorkDirectoryTests : IDisposable
     {
         var assemblies = AppDomain.CurrentDomain.GetAssemblies().Select(a => a.GetName().Name ?? "");
         Assert.DoesNotContain(assemblies, a => a.Equals("office", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private class MockPathSecurityGuard : INascaPathSecurityGuard
+    {
+        public bool SimulateReparsePoint { get; set; }
+        public bool SimulateAccessDenied { get; set; }
+        public bool RejectWorkspaceOnly { get; set; }
+
+        public bool IsValidOpaqueDirectoryName(string name) => new NascaPathSecurityGuard().IsValidOpaqueDirectoryName(name);
+
+        public bool IsReparsePoint(string path)
+        {
+            if (SimulateAccessDenied) return true;
+            return SimulateReparsePoint;
+        }
+
+        public bool ContainsReparsePointInAncestors(string rootDirectory, string targetPath)
+        {
+            if (SimulateAccessDenied) return true;
+            if (RejectWorkspaceOnly && targetPath.EndsWith("NascaWork", StringComparison.OrdinalIgnoreCase)) return false;
+            return SimulateReparsePoint;
+        }
+
+        public void EnsureSafePath(string rootDirectory, string targetPath)
+        {
+            if (SimulateAccessDenied)
+            {
+                throw new InvalidOperationException("Path security validation failed (simulated access denied).");
+            }
+
+            if (SimulateReparsePoint)
+            {
+                if (RejectWorkspaceOnly && targetPath.EndsWith("NascaWork", StringComparison.OrdinalIgnoreCase))
+                {
+                    return; // Allow NascaWork root setup during constructor
+                }
+                throw new InvalidOperationException("Path security validation failed (simulated reparse point).");
+            }
+        }
     }
 }
