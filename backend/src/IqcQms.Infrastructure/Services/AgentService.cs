@@ -5,6 +5,8 @@ using System.Text.RegularExpressions;
 using IqcQms.Application.Services;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.Domain.Entities.Agent;
+using IqcQms.Domain.Entities.DataHub;
+using IqcQms.Domain.Exceptions;
 using IqcQms.Infrastructure.Data;
 using IqcQms.Infrastructure.Security;
 using Microsoft.EntityFrameworkCore;
@@ -21,7 +23,28 @@ public class AgentService : IAgentService
     private readonly AgentSecurityOptions _securityOptions;
     private readonly IEnvelopeEncryptionService _encryptionService;
     private readonly INormalizedWorkbookCanonicalizer _canonicalizer;
+    private readonly IRelationalConstraintViolationClassifier _classifier;
     private readonly ILogger<AgentService> _logger;
+
+    public Func<AgentPayloadSubmission, Task>? TestHookBeforeDownstreamAdd { get; set; }
+    public Func<AgentPayloadSubmission, Task>? TestHookBeforeSaveChanges { get; set; }
+    public Func<AgentPayloadSubmission, Task>? TestHookBeforeCommit { get; set; }
+
+    public AgentService(
+        AppDbContext db,
+        IOptions<AgentSecurityOptions> securityOptions,
+        IEnvelopeEncryptionService encryptionService,
+        INormalizedWorkbookCanonicalizer canonicalizer,
+        IRelationalConstraintViolationClassifier classifier,
+        ILogger<AgentService> logger)
+    {
+        _db = db;
+        _securityOptions = securityOptions.Value;
+        _encryptionService = encryptionService;
+        _canonicalizer = canonicalizer;
+        _classifier = classifier;
+        _logger = logger;
+    }
 
     public AgentService(
         AppDbContext db,
@@ -29,16 +52,12 @@ public class AgentService : IAgentService
         IEnvelopeEncryptionService encryptionService,
         INormalizedWorkbookCanonicalizer canonicalizer,
         ILogger<AgentService> logger)
+        : this(db, securityOptions, encryptionService, canonicalizer, new RelationalConstraintViolationClassifier(), logger)
     {
-        _db = db;
-        _securityOptions = securityOptions.Value;
-        _encryptionService = encryptionService;
-        _canonicalizer = canonicalizer;
-        _logger = logger;
     }
 
     public AgentService(AppDbContext db, ILogger<AgentService> logger)
-        : this(db, Options.Create(new AgentSecurityOptions()), new EnvelopeEncryptionService(Options.Create(new AgentSecurityOptions())), new NormalizedWorkbookCanonicalizer(), logger)
+        : this(db, Options.Create(new AgentSecurityOptions()), new EnvelopeEncryptionService(Options.Create(new AgentSecurityOptions())), new NormalizedWorkbookCanonicalizer(), new RelationalConstraintViolationClassifier(), logger)
     {
     }
 
@@ -393,28 +412,28 @@ public class AgentService : IAgentService
     {
         if (string.IsNullOrWhiteSpace(request.DeviceId) || string.IsNullOrWhiteSpace(request.PayloadSubmissionId) || string.IsNullOrWhiteSpace(request.Nonce))
         {
-            throw new ArgumentException("DeviceId, PayloadSubmissionId, and Nonce are required.");
+            throw new PayloadSubmissionValidationException("DeviceId, PayloadSubmissionId, and Nonce are required.", reasonCode: "MISSING_REQUIRED_FIELDS");
         }
 
         if (request.Nonce.Length < 16)
         {
-            throw new ArgumentException("Nonce must be at least 16 characters / 128 bits.");
+            throw new PayloadSubmissionValidationException("Nonce must be at least 16 characters / 128 bits.", reasonCode: "INVALID_NONCE_LENGTH");
         }
 
         var device = await _db.AgentDevices.FirstOrDefaultAsync(d => d.DeviceId == request.DeviceId);
         if (device == null || device.State == AgentDeviceState.Revoked)
         {
-            throw new InvalidOperationException("Device not registered or revoked.");
+            throw new PayloadSubmissionOwnershipException("Device not registered or revoked.", reasonCode: "DEVICE_UNAUTHORIZED");
         }
 
         if (request.CanonicalSchemaVersion != "1.0")
         {
-            throw new InvalidOperationException($"Unsupported schema version '{request.CanonicalSchemaVersion}'.");
+            throw new PayloadSubmissionValidationException($"Unsupported schema version '{request.CanonicalSchemaVersion}'.", reasonCode: "UNSUPPORTED_SCHEMA");
         }
 
         if (request.NormalizedWorkbook == null || string.IsNullOrWhiteSpace(request.NormalizedWorkbook.WorkbookName))
         {
-            throw new ArgumentException("Normalized workbook content is invalid or missing.");
+            throw new PayloadSubmissionValidationException("Normalized workbook content is invalid or missing.", reasonCode: "INVALID_WORKBOOK_CONTENT");
         }
 
         var submissionId = request.PayloadSubmissionId.Trim();
@@ -448,7 +467,11 @@ public class AgentService : IAgentService
 
             await tx.CommitAsync();
             _logger.LogWarning("Payload submission mismatch/replay detected for device {DeviceId}, submission {SubmissionId}", request.DeviceId, submissionId);
-            throw new InvalidOperationException("Payload submission ID, nonce, or content digest mismatch detected. Submission rejected.");
+            if (existingSubmission.Nonce == nonce && existingSubmission.PayloadSubmissionId != submissionId)
+            {
+                throw new PayloadNonceReplayException("Payload nonce replay detected.", reasonCode: "NONCE_REPLAY");
+            }
+            throw new PayloadSubmissionMismatchException("Payload submission ID or content digest mismatch detected.", reasonCode: "SUBMISSION_MISMATCH");
         }
 
         // 2. Check for archived replay tombstone
@@ -459,10 +482,10 @@ public class AgentService : IAgentService
         {
             await tx.CommitAsync();
             _logger.LogWarning("Replay tombstone hit for submission {SubmissionId}, device {DeviceId}", submissionId, request.DeviceId);
-            throw new InvalidOperationException("Payload submission ID or nonce has expired and is archived as a tombstone. Re-submission rejected.");
+            throw new PayloadReplayTombstoneException("Payload submission ID or nonce has expired and is archived as a tombstone.", reasonCode: "TOMBSTONE_HIT");
         }
 
-        // 3. First Submission attempt with DbUpdateException race handling
+        // 3. First Submission attempt with DbUpdateException race handling and downstream job creation in SAME transaction
         var newUploadId = Guid.NewGuid();
         var submissionRecord = new AgentPayloadSubmission
         {
@@ -484,7 +507,46 @@ public class AgentService : IAgentService
         try
         {
             _db.AgentPayloadSubmissions.Add(submissionRecord);
+
+            if (TestHookBeforeDownstreamAdd != null)
+            {
+                await TestHookBeforeDownstreamAdd(submissionRecord);
+            }
+
+            if (request.ServerImportJobId != Guid.Empty)
+            {
+                var jobIdStr = request.ServerImportJobId.ToString();
+                var existingJob = await _db.PersistentImportJobs.FirstOrDefaultAsync(j => j.JobId == jobIdStr);
+                if (existingJob == null)
+                {
+                    var downstreamJob = new PersistentImportJob
+                    {
+                        JobId = jobIdStr,
+                        OwnerUserId = device.OwnerUserId.ToString(),
+                        State = "Accepted",
+                        SourceKind = request.ProviderId ?? "AgentWorkbook",
+                        SourceDisplayName = request.NormalizedWorkbook?.WorkbookName ?? "AgentUpload.xlsx",
+                        NormalizedContentFingerprint = sourceFingerprint,
+                        MappedRecordCount = request.RecordCount,
+                        CreatedAt = DateTimeOffset.UtcNow,
+                        UpdatedAt = DateTimeOffset.UtcNow
+                    };
+                    _db.PersistentImportJobs.Add(downstreamJob);
+                }
+            }
+
+            if (TestHookBeforeSaveChanges != null)
+            {
+                await TestHookBeforeSaveChanges(submissionRecord);
+            }
+
             await _db.SaveChangesAsync();
+
+            if (TestHookBeforeCommit != null)
+            {
+                await TestHookBeforeCommit(submissionRecord);
+            }
+
             await tx.CommitAsync();
 
             _logger.LogInformation("Accepted normalized payload {UploadId} from device {DeviceId}, records: {RecordCount}, job: {JobId}",
@@ -502,25 +564,49 @@ public class AgentService : IAgentService
         catch (DbUpdateException ex)
         {
             await tx.RollbackAsync();
-            _logger.LogWarning(ex, "Concurrent insert conflict for submission {SubmissionId}, resolving via unique-constraint check", submissionId);
+            _db.ChangeTracker.Clear();
+
+            if (!_classifier.IsUniqueConstraintViolation(ex))
+            {
+                _logger.LogError(ex, "Non-unique database error encountered during payload submission for {SubmissionId}; preserved without duplicate classification", submissionId);
+                throw;
+            }
+
+            _logger.LogWarning(ex, "Concurrent unique-constraint conflict for submission {SubmissionId}, resolving via unique-constraint check", submissionId);
 
             var raceSubmission = await _db.AgentPayloadSubmissions
                 .AsNoTracking()
                 .FirstOrDefaultAsync(s => s.AgentDeviceId == device.Id && (s.PayloadSubmissionId == submissionId || s.Nonce == nonce));
 
-            if (raceSubmission != null && raceSubmission.PayloadSubmissionId == submissionId && raceSubmission.Nonce == nonce && raceSubmission.CanonicalPayloadHash == computedHash)
+            if (raceSubmission != null)
             {
-                return new NormalizedWorkbookUploadResponse
+                if (raceSubmission.PayloadSubmissionId == submissionId && raceSubmission.Nonce == nonce && raceSubmission.CanonicalPayloadHash == computedHash)
                 {
-                    UploadId = raceSubmission.UploadId,
-                    ServerImportJobId = raceSubmission.ServerImportJobId,
-                    Status = "Accepted",
-                    IsDuplicateRetry = true,
-                    ReceivedAtUtc = raceSubmission.CreatedAtUtc
-                };
+                    return new NormalizedWorkbookUploadResponse
+                    {
+                        UploadId = raceSubmission.UploadId,
+                        ServerImportJobId = raceSubmission.ServerImportJobId,
+                        Status = "Accepted",
+                        IsDuplicateRetry = true,
+                        ReceivedAtUtc = raceSubmission.CreatedAtUtc
+                    };
+                }
+
+                if (raceSubmission.Nonce == nonce && raceSubmission.PayloadSubmissionId != submissionId)
+                {
+                    throw new PayloadNonceReplayException("Payload nonce replay detected during concurrent race conflict.", reasonCode: "CONCURRENT_NONCE_REPLAY");
+                }
+
+                throw new PayloadSubmissionMismatchException("Payload submission ID or content digest mismatch detected during concurrent conflict.", reasonCode: "CONCURRENT_SUBMISSION_MISMATCH");
             }
 
-            throw new InvalidOperationException("Payload submission ID, nonce, or content digest mismatch detected during concurrent conflict. Submission rejected.");
+            throw new PayloadSubmissionMismatchException("Payload unique constraint collision detected without matching record.", reasonCode: "CONCURRENT_UNIQUE_COLLISION");
+        }
+        catch
+        {
+            await tx.RollbackAsync();
+            _db.ChangeTracker.Clear();
+            throw;
         }
     }
 

@@ -2,6 +2,7 @@ using System.Security.Claims;
 using IqcQms.Application.Auth;
 using IqcQms.Application.Services;
 using IqcQms.ClientAgent.Contracts;
+using IqcQms.Domain.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -100,6 +101,21 @@ public class AgentDevicesController : ControllerBase
         {
             var response = await _agentService.UploadNormalizedWorkbookAsync(request);
             return Ok(response);
+        }
+        catch (PayloadSubmissionValidationException ex)
+        {
+            _logger.LogWarning("Payload submission validation error for device {DeviceId}: {ReasonCode}", deviceId, ex.ReasonCode);
+            return BadRequest(new { Message = "Invalid payload submission request." });
+        }
+        catch (PayloadSubmissionOwnershipException ex)
+        {
+            _logger.LogWarning("Payload submission ownership error for device {DeviceId}: {ReasonCode}", deviceId, ex.ReasonCode);
+            return NotFound(new { Message = "Device or payload submission not found." });
+        }
+        catch (PayloadSubmissionSecurityException ex)
+        {
+            _logger.LogWarning("Payload submission security conflict for device {DeviceId}: {ReasonCode}", deviceId, ex.ReasonCode);
+            return Conflict(new { Message = "Payload submission conflict detected." });
         }
         catch (InvalidOperationException ex)
         {

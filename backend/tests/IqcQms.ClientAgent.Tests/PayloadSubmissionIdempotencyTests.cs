@@ -3,6 +3,7 @@ using IqcQms.ClientAgent.Application.Config;
 using IqcQms.ClientAgent.Contracts;
 using IqcQms.ClientAgent.Infrastructure.Queue;
 using IqcQms.Domain.Entities.Agent;
+using IqcQms.Domain.Exceptions;
 using IqcQms.Infrastructure.Data;
 using IqcQms.Infrastructure.Security;
 using IqcQms.Infrastructure.Services;
@@ -129,16 +130,16 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
     }
 
     [Fact]
-    public async Task MissingRequiredFields_OrShortNonce_ThrowsArgumentException()
+    public async Task MissingRequiredFields_OrShortNonce_ThrowsPayloadSubmissionValidationException()
     {
         using var db = CreateDbContext();
         var service = new AgentService(db, NullLogger<AgentService>.Instance);
 
         var reqMissingSubId = CreateSampleRequest("dev_test", "", "nonce_300_123456789");
-        await Assert.ThrowsAsync<ArgumentException>(() => service.UploadNormalizedWorkbookAsync(reqMissingSubId));
+        await Assert.ThrowsAsync<PayloadSubmissionValidationException>(() => service.UploadNormalizedWorkbookAsync(reqMissingSubId));
 
         var reqShortNonce = CreateSampleRequest("dev_test", "sub_300", "short");
-        await Assert.ThrowsAsync<ArgumentException>(() => service.UploadNormalizedWorkbookAsync(reqShortNonce));
+        await Assert.ThrowsAsync<PayloadSubmissionValidationException>(() => service.UploadNormalizedWorkbookAsync(reqShortNonce));
     }
 
     [Fact]
@@ -160,8 +161,8 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
         var reqAttacker = CreateSampleRequest(pairResp.DeviceId, "sub_id_400", "nonce_attacker_12345678");
         reqAttacker.NormalizedWorkbook.WorkbookName = "ModifiedName.xlsx";
 
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.UploadNormalizedWorkbookAsync(reqAttacker));
-        Assert.Contains("mismatch detected", ex.Message);
+        var ex = await Assert.ThrowsAsync<PayloadSubmissionMismatchException>(() => service.UploadNormalizedWorkbookAsync(reqAttacker));
+        Assert.Equal("SUBMISSION_MISMATCH", ex.ReasonCode);
     }
 
     [Fact]
@@ -254,8 +255,8 @@ public class PayloadSubmissionIdempotencyTests : IDisposable
         await db.SaveChangesAsync();
 
         var req = CreateSampleRequest(pairResp.DeviceId, "archived_sub_1", "archived_nonce_123456789");
-        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => service.UploadNormalizedWorkbookAsync(req));
+        var ex = await Assert.ThrowsAsync<PayloadReplayTombstoneException>(() => service.UploadNormalizedWorkbookAsync(req));
 
-        Assert.Contains("tombstone", ex.Message);
+        Assert.Equal("TOMBSTONE_HIT", ex.ReasonCode);
     }
 }
