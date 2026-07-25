@@ -6,6 +6,13 @@ public enum NascaJobOutcome
     NotConfigured,
     InvalidInput,
     Timeout,
+    Cancelled,
+    RetryableFailure,
+    PermanentFailure,
+    OutputMissing,
+    InvalidOutput,
+    SimulatedCrash,
+    DuplicateCorrelation,
     ProcessError,
     ValidationFailed
 }

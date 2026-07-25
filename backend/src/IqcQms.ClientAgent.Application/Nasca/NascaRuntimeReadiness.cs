@@ -10,13 +10,17 @@ public enum ReadinessStatus
 
 public enum NascaRuntimeDecision
 {
-    STOP_INCOMPLETE_EVIDENCE,
-    STOP_UI_AUTOMATION_ONLY,
-    STOP_DIRECT_EXCEL_COM_REQUIRED,
-    STOP_LICENSING_RESTRICTION,
-    STOP_CONFLICTING_EVIDENCE,
-    GO_CLI,
-    GO_WATCHED_FOLDER
+    ReadyForDesign,
+    StopEvidenceMissing,
+    StopEvidenceConflict,
+    StopLicensingUnknown,
+    StopLicensingProhibited,
+    StopUiOnly,
+    StopExcelComRequired,
+    StopPublisherMismatch,
+    StopVersionUnsupported,
+    StopArchitectureUnknown,
+    StopOutputCorrelationUnknown
 }
 
 public class ReadinessCheckItem
@@ -28,9 +32,12 @@ public class ReadinessCheckItem
 
 public class NascaRuntimeReadinessResult
 {
-    public NascaRuntimeDecision Decision { get; set; } = NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE;
-    public bool IsGo => Decision == NascaRuntimeDecision.GO_CLI || Decision == NascaRuntimeDecision.GO_WATCHED_FOLDER;
-    public List<ReadinessCheckItem> ReadinessMatrix { get; set; } = new();
+    public NascaRuntimeDecision Decision { get; set; } = NascaRuntimeDecision.StopEvidenceMissing;
+    public bool IsGo => IsRuntimeDesignAllowed;
+    public bool IsRuntimeDesignAllowed => Decision == NascaRuntimeDecision.ReadyForDesign;
+    public bool IsRuntimeExecutionAllowed => false; // Real process execution is ALWAYS false in pre-production Phase 3
+    public List<ReadinessCheckItem> Criteria { get; set; } = new();
+    public List<string> SanitizedReasonCodes { get; set; } = new();
     public string SanitizedSummary { get; set; } = string.Empty;
 }
 
@@ -38,11 +45,12 @@ public class NascaReadinessEvaluator
 {
     public NascaRuntimeReadinessResult Evaluate(NascaEvidenceManifest manifest, NascaInstallationMetadata? binaryMetadata = null)
     {
-        var matrix = new List<ReadinessCheckItem>();
+        var criteria = new List<ReadinessCheckItem>();
+        var reasonCodes = new List<string>();
 
         // 1. Product Identity
         var hasProductName = manifest.Items.Any(i => i.ApprovedForUse && !string.IsNullOrWhiteSpace(i.ProductName) && i.SourceClassification == SourceClassification.VendorDocumentation);
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "ProductIdentityKnown",
             Status = hasProductName ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -51,7 +59,7 @@ public class NascaReadinessEvaluator
 
         // 2. Executable Identity
         var hasExeIdentity = binaryMetadata != null && binaryMetadata.FileExists && !string.IsNullOrWhiteSpace(binaryMetadata.ProductName);
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "ExecutableIdentityKnown",
             Status = hasExeIdentity ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -60,7 +68,7 @@ public class NascaReadinessEvaluator
 
         // 3. Publisher Policy
         var hasPublisher = binaryMetadata != null && !string.IsNullOrWhiteSpace(binaryMetadata.Publisher);
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "PublisherPolicyKnown",
             Status = hasPublisher ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -69,7 +77,7 @@ public class NascaReadinessEvaluator
 
         // 4. Version Policy
         var hasVersion = manifest.Items.Any(i => i.ApprovedForUse && !string.IsNullOrWhiteSpace(i.ProductVersion));
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "VersionPolicyKnown",
             Status = hasVersion ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -78,7 +86,7 @@ public class NascaReadinessEvaluator
 
         // 5. Architecture
         var hasArch = binaryMetadata != null && !string.IsNullOrWhiteSpace(binaryMetadata.Architecture);
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "ArchitectureKnown",
             Status = hasArch ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -87,7 +95,7 @@ public class NascaReadinessEvaluator
 
         // 6. Interface Documented
         var hasInterface = manifest.Items.Any(i => i.ApprovedForUse && (i.EvidenceType == EvidenceType.VendorDocumentation || i.EvidenceType == EvidenceType.ApprovedCommandHelpOutput));
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "InterfaceDocumented",
             Status = hasInterface ? ReadinessStatus.Pass : ReadinessStatus.Fail,
@@ -100,63 +108,66 @@ public class NascaReadinessEvaluator
         var hasLicensing = manifest.Items.Any(i => i.ApprovedForUse && i.SanitizedNotes.Contains("LICENSED_FOR_AUTOMATION", StringComparison.OrdinalIgnoreCase));
         var hasConflict = manifest.Items.Any(i => i.VerificationStatus == EvidenceVerificationStatus.Conflicting);
 
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "NoUiAutomationRequired",
             Status = !hasUiOnly ? ReadinessStatus.Pass : ReadinessStatus.Fail,
             Details = !hasUiOnly ? "No UI automation required." : "UI automation required - REJECTED."
         });
 
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "ExcelDependencyAcceptable",
             Status = !hasDirectCom ? ReadinessStatus.Pass : ReadinessStatus.Fail,
             Details = !hasDirectCom ? "No direct Excel COM required." : "Direct Excel COM required - REJECTED."
         });
 
-        matrix.Add(new ReadinessCheckItem
+        criteria.Add(new ReadinessCheckItem
         {
             Name = "LicensingPermitsAutomation",
             Status = hasLicensing ? ReadinessStatus.Pass : ReadinessStatus.Fail,
             Details = hasLicensing ? "Automation explicitly licensed." : "Licensing permission unverified or unknown."
         });
 
-        // Determine Decision
+        // Determine Strongly Typed Runtime Decision
         NascaRuntimeDecision decision;
         if (hasConflict)
         {
-            decision = NascaRuntimeDecision.STOP_CONFLICTING_EVIDENCE;
+            decision = NascaRuntimeDecision.StopEvidenceConflict;
+            reasonCodes.Add("EVIDENCE_CONFLICT_DETECTED");
         }
         else if (hasUiOnly)
         {
-            decision = NascaRuntimeDecision.STOP_UI_AUTOMATION_ONLY;
+            decision = NascaRuntimeDecision.StopUiOnly;
+            reasonCodes.Add("UI_AUTOMATION_PROHIBITED");
         }
         else if (hasDirectCom)
         {
-            decision = NascaRuntimeDecision.STOP_DIRECT_EXCEL_COM_REQUIRED;
+            decision = NascaRuntimeDecision.StopExcelComRequired;
+            reasonCodes.Add("EXCEL_COM_PROHIBITED");
         }
         else if (!hasProductName || !hasInterface || !hasExeIdentity)
         {
-            decision = NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE;
+            decision = NascaRuntimeDecision.StopEvidenceMissing;
+            reasonCodes.Add("MISSING_VENDOR_EVIDENCE");
         }
         else if (!hasLicensing)
         {
-            decision = NascaRuntimeDecision.STOP_LICENSING_RESTRICTION;
-        }
-        else if (manifest.Items.Any(i => i.SanitizedNotes.Contains("WATCHED_FOLDER_DOCUMENTED", StringComparison.OrdinalIgnoreCase)))
-        {
-            decision = NascaRuntimeDecision.GO_WATCHED_FOLDER;
+            decision = NascaRuntimeDecision.StopLicensingUnknown;
+            reasonCodes.Add("UNVERIFIED_LICENSING_PERMISSION");
         }
         else
         {
-            decision = NascaRuntimeDecision.GO_CLI;
+            decision = NascaRuntimeDecision.ReadyForDesign;
+            reasonCodes.Add("READINESS_GO_FOR_DESIGN");
         }
 
         return new NascaRuntimeReadinessResult
         {
             Decision = decision,
-            ReadinessMatrix = matrix,
-            SanitizedSummary = $"Runtime decision: {decision}. Matched {matrix.Count(m => m.Status == ReadinessStatus.Pass)} / {matrix.Count} readiness criteria."
+            Criteria = criteria,
+            SanitizedReasonCodes = reasonCodes,
+            SanitizedSummary = $"Runtime decision: {decision}. Matched {criteria.Count(m => m.Status == ReadinessStatus.Pass)} / {criteria.Count} criteria."
         };
     }
 }

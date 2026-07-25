@@ -1,3 +1,5 @@
+using IqcQms.ClientAgent.Application.Nasca;
+
 namespace IqcQms.ClientAgent.Application.Config;
 
 public class NascaOptions
@@ -10,12 +12,12 @@ public class NascaOptions
     public int TimeoutSeconds { get; set; } = 60;
     public int MaximumConcurrentJobs { get; set; } = 1;
 
-    // Phase 3A.1 & 3A.2 Identity & Verification Fields
+    // Phase 3A.1 & 3A.2 & 3A.3 Strongly Typed Identity & Verification Fields
     public string ExpectedProductName { get; set; } = string.Empty;
     public string ExpectedPublisher { get; set; } = string.Empty;
     public List<string> AllowedProductVersions { get; set; } = new();
     public bool RequireAuthenticodeSignature { get; set; } = false;
-    public string VerifiedInterfaceType { get; set; } = "None";
+    public NascaVerifiedInterfaceType VerifiedInterfaceType { get; set; } = NascaVerifiedInterfaceType.None;
 
     public void Validate(bool isProduction = false)
     {
@@ -25,9 +27,16 @@ public class NascaOptions
             return;
         }
 
-        if (VerifiedInterfaceType == "None" || string.IsNullOrWhiteSpace(ExpectedProductName))
+        if (!Enum.IsDefined(typeof(NascaVerifiedInterfaceType), VerifiedInterfaceType))
         {
-            throw new InvalidOperationException("NascaOptions: Cannot enable NASCA integration when vendor interface evidence is incomplete (Runtime Decision: STOP_INCOMPLETE_EVIDENCE).");
+            throw new InvalidOperationException($"NascaOptions: Invalid VerifiedInterfaceType enum value '{VerifiedInterfaceType}'.");
+        }
+
+        if (VerifiedInterfaceType == NascaVerifiedInterfaceType.None ||
+            VerifiedInterfaceType == NascaVerifiedInterfaceType.UiOnly ||
+            string.IsNullOrWhiteSpace(ExpectedProductName))
+        {
+            throw new InvalidOperationException($"NascaOptions: Cannot enable NASCA integration when vendor interface is '{VerifiedInterfaceType}' or evidence is incomplete (Runtime Decision: StopEvidenceMissing).");
         }
 
         if (TimeoutSeconds <= 0 || TimeoutSeconds > 600)
