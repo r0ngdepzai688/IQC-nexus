@@ -137,4 +137,23 @@ public class AgentPayloadRetentionService : IAgentPayloadRetentionService
 
         return expiredTombstones.Count;
     }
+
+    public async Task<int> CleanupExpiredRefreshOperationResultsAsync(CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        var expiredEnvelopes = await _db.AgentRefreshOperationResults
+            .Where(r => r.ExpiresAtUtc < now)
+            .OrderBy(r => r.ExpiresAtUtc)
+            .Take(_options.CleanupBatchSize)
+            .ToListAsync(cancellationToken);
+
+        if (expiredEnvelopes.Count > 0)
+        {
+            _db.AgentRefreshOperationResults.RemoveRange(expiredEnvelopes);
+            await _db.SaveChangesAsync(cancellationToken);
+            _logger.LogInformation("Purged {Count} expired refresh operation recovery envelopes.", expiredEnvelopes.Count);
+        }
+
+        return expiredEnvelopes.Count;
+    }
 }

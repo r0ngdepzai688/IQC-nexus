@@ -154,6 +154,7 @@ builder.Services.Configure<IqcQms.Infrastructure.Config.AgentPayloadRetentionOpt
 builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IEnvelopeEncryptionService, IqcQms.Infrastructure.Security.EnvelopeEncryptionService>();
 builder.Services.AddSingleton<IqcQms.Infrastructure.Security.INormalizedWorkbookCanonicalizer, IqcQms.Infrastructure.Security.NormalizedWorkbookCanonicalizer>();
 builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IRelationalConstraintViolationClassifier, IqcQms.Infrastructure.Security.RelationalConstraintViolationClassifier>();
+builder.Services.AddSingleton<IqcQms.Application.Services.IAgentTimeProvider, IqcQms.Infrastructure.Services.SystemAgentTimeProvider>();
 builder.Services.AddScoped<IqcQms.Application.Services.IAgentService, IqcQms.Infrastructure.Services.AgentService>();
 builder.Services.AddScoped<IqcQms.Application.Services.IAgentPayloadRetentionService, IqcQms.Infrastructure.Services.AgentPayloadRetentionService>();
 
@@ -162,6 +163,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
 {
     builder.Services.AddHostedService<ImportCommitBackgroundWorker>();
     builder.Services.AddHostedService<ImportOutboxBackgroundWorker>();
+    builder.Services.AddHostedService<IqcQms.Infrastructure.Services.AgentPayloadRetentionBackgroundWorker>();
 }
 
 builder.Services.AddAuthentication(options =>
