@@ -49,54 +49,164 @@ public class NascaOutputValidatorTests : IDisposable
         Assert.Equal(500 * 1024 * 1024, options.MaximumTotalOutputSizeBytes);
     }
 
-    [Fact]
-    public void InvalidMaximumFileCount_FailsValidation()
-    {
-        var options = new NascaOutputValidationOptions { MaximumFileCount = -1 };
-        Assert.Throws<InvalidOperationException>(() => options.Validate());
-    }
-
-    [Fact]
-    public void InvalidMaximumTotalSize_FailsValidation()
+    [Theory]
+    [InlineData(1, 0, 1, 1, 0)]
+    [InlineData(1000, 50, 1024 * 1024 * 1024L, 5 * 1024 * 1024 * 1024L, 5)]
+    public void Options_ExactAcceptedBoundaries_PassValidation(
+        int maxFiles, int maxDirs, long maxSingleSize, long maxTotalSize, int maxDepth)
     {
         var options = new NascaOutputValidationOptions
         {
-            MaximumSingleFileSizeBytes = 100,
-            MaximumTotalOutputSizeBytes = 10 // Total size smaller than single file
-        };
-        Assert.Throws<InvalidOperationException>(() => options.Validate());
-    }
-
-    [Fact]
-    public void InvalidStabilityWindow_FailsValidation()
-    {
-        var options = new NascaOutputValidationOptions
-        {
-            StabilityWindow = TimeSpan.FromSeconds(20),
+            MaximumFileCount = maxFiles,
+            MaximumDirectoryCount = maxDirs,
+            MaximumSingleFileSizeBytes = maxSingleSize,
+            MaximumTotalOutputSizeBytes = maxTotalSize,
+            MaximumDirectoryDepth = maxDepth,
+            StabilityPollingInterval = TimeSpan.FromMilliseconds(100),
+            StabilityWindow = TimeSpan.FromSeconds(1),
             ValidationTimeout = TimeSpan.FromSeconds(10)
         };
+
+        options.Validate();
+    }
+
+    [Theory]
+    [InlineData(0, 0, 100, 100, 0)] // FileCount below 1
+    [InlineData(1001, 0, 100, 100, 0)] // FileCount above 1000
+    [InlineData(10, -1, 100, 100, 0)] // DirectoryCount below 0
+    [InlineData(10, 51, 100, 100, 0)] // DirectoryCount above 50
+    [InlineData(10, 0, 0, 100, 0)] // SingleFileSize <= 0
+    [InlineData(10, 0, 1024 * 1024 * 1024L + 1, 2 * 1024 * 1024 * 1024L, 0)] // SingleFileSize > 1GB
+    [InlineData(10, 0, 100, 0, 0)] // TotalOutputSize <= 0
+    [InlineData(10, 0, 100, 5 * 1024 * 1024 * 1024L + 1, 0)] // TotalOutputSize > 5GB
+    [InlineData(10, 0, 200, 199, 0)] // TotalOutputSize < SingleFileSize
+    [InlineData(10, 0, 100, 100, -1)] // DirectoryDepth < 0
+    [InlineData(10, 0, 100, 100, 6)] // DirectoryDepth > 5
+    public void Options_ImmediatelyOutsideBoundaries_FailValidation(
+        int maxFiles, int maxDirs, long maxSingleSize, long maxTotalSize, int maxDepth)
+    {
+        var options = new NascaOutputValidationOptions
+        {
+            MaximumFileCount = maxFiles,
+            MaximumDirectoryCount = maxDirs,
+            MaximumSingleFileSizeBytes = maxSingleSize,
+            MaximumTotalOutputSizeBytes = maxTotalSize,
+            MaximumDirectoryDepth = maxDepth
+        };
+
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
 
     [Fact]
-    public void PollingIntervalGreaterThanTimeout_FailsValidation()
+    public void PollingIntervalEqualOrGreaterThanTimeout_FailsValidation()
     {
-        var options = new NascaOutputValidationOptions
+        var equalOptions = new NascaOutputValidationOptions
+        {
+            StabilityPollingInterval = TimeSpan.FromSeconds(10),
+            ValidationTimeout = TimeSpan.FromSeconds(10)
+        };
+        Assert.Throws<InvalidOperationException>(() => equalOptions.Validate());
+
+        var greaterOptions = new NascaOutputValidationOptions
         {
             StabilityPollingInterval = TimeSpan.FromSeconds(15),
             ValidationTimeout = TimeSpan.FromSeconds(10)
         };
+        Assert.Throws<InvalidOperationException>(() => greaterOptions.Validate());
+    }
+
+    [Fact]
+    public void StabilityWindowEqualOrGreaterThanTimeout_FailsValidation()
+    {
+        var equalOptions = new NascaOutputValidationOptions
+        {
+            StabilityWindow = TimeSpan.FromSeconds(10),
+            ValidationTimeout = TimeSpan.FromSeconds(10)
+        };
+        Assert.Throws<InvalidOperationException>(() => equalOptions.Validate());
+
+        var greaterOptions = new NascaOutputValidationOptions
+        {
+            StabilityWindow = TimeSpan.FromSeconds(20),
+            ValidationTimeout = TimeSpan.FromSeconds(10)
+        };
+        Assert.Throws<InvalidOperationException>(() => greaterOptions.Validate());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-100)]
+    public void ZeroOrNegativePollingInterval_FailsValidation(int ms)
+    {
+        var options = new NascaOutputValidationOptions
+        {
+            StabilityPollingInterval = TimeSpan.FromMilliseconds(ms),
+            ValidationTimeout = TimeSpan.FromSeconds(10)
+        };
+        Assert.Throws<InvalidOperationException>(() => options.Validate());
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void ZeroOrNegativeValidationTimeout_FailsValidation(int seconds)
+    {
+        var options = new NascaOutputValidationOptions
+        {
+            ValidationTimeout = TimeSpan.FromSeconds(seconds)
+        };
         Assert.Throws<InvalidOperationException>(() => options.Validate());
     }
 
     [Fact]
-    public void OverflowRiskConfiguration_FailsValidation()
+    public async Task ValidateOutputAsync_InvalidOptions_ReturnsUnknownFailureWithSanitizedReasonCode()
     {
-        var options = new NascaOutputValidationOptions
+        var req = new NascaOutputValidationRequest
         {
-            MaximumSingleFileSizeBytes = 10 * 1024 * 1024 * 1024L // Exceeds 1 GB
+            CorrelationId = "corr_inv_opts",
+            ExecutionId = "exec_inv_opts",
+            WorkDirectoryId = "work_inv_opts",
+            OutputRoot = @"C:\safe\output",
+            Options = new NascaOutputValidationOptions { MaximumFileCount = -1 }
         };
-        Assert.Throws<InvalidOperationException>(() => options.Validate());
+
+        var result = await _validator.ValidateOutputAsync(req);
+
+        Assert.Equal(NascaOutputValidationOutcome.UnknownFailure, result.Outcome);
+        Assert.Equal("INVALID_VALIDATION_OPTIONS", result.SanitizedReasonCode);
+        Assert.False(result.IsValid);
+    }
+
+    [Fact]
+    public async Task ValidateOutputAsync_InvalidOptions_PerformsNoFilesystemOrTimerOperations()
+    {
+        var trackingWorkManager = new TrackingWorkDirectoryManager();
+        var trackingTimeProvider = new TrackingTimeProvider();
+        var validator = new NascaOutputValidator(
+            trackingWorkManager,
+            _securityGuard,
+            NullLogger<NascaOutputValidator>.Instance,
+            trackingTimeProvider);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_no_ops",
+            ExecutionId = "exec_no_ops",
+            WorkDirectoryId = "work_no_ops",
+            OutputRoot = @"C:\nonexistent_path_that_must_not_be_accessed",
+            Options = new NascaOutputValidationOptions { MaximumFileCount = 0 } // Invalid option
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+
+        Assert.Equal(NascaOutputValidationOutcome.UnknownFailure, result.Outcome);
+        Assert.Equal("INVALID_VALIDATION_OPTIONS", result.SanitizedReasonCode);
+
+        // Prove no manifest lookup / work dir access occurred
+        Assert.False(trackingWorkManager.GetManifestCalled);
+
+        // Prove no timer creation occurred
+        Assert.False(trackingTimeProvider.CreateTimerCalled);
     }
 
     // Identity and Containment Tests
@@ -123,7 +233,7 @@ public class NascaOutputValidatorTests : IDisposable
             }
         };
 
-        var result = await _validator.ValidateOutputAsync(req);
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
         Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
         Assert.True(result.IsValid);
     }
@@ -586,19 +696,7 @@ public class NascaOutputValidatorTests : IDisposable
             }
         };
 
-        var resultTask = _validator.ValidateOutputAsync(req);
-
-        // Await the timer registration signal so we know the polling loop has reached Task.Delay before advancing fake time.
-        await _timeProvider.WaitForTimerScheduledAsync();
-
-        // Advance in polling-sized increments (do not assert timer count; scheduling is an implementation detail).
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(20));
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(20));
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(20));
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(20));
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(20));
-
-        var result = await resultTask;
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
         Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
     }
 
@@ -655,10 +753,7 @@ public class NascaOutputValidatorTests : IDisposable
             }
         };
 
-        var resultTask = _validator.ValidateOutputAsync(req);
-        await _timeProvider.WaitForTimerScheduledAsync();
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
-        var result = await resultTask;
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
         Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
         Assert.Single(result.Descriptors);
 
@@ -688,10 +783,7 @@ public class NascaOutputValidatorTests : IDisposable
             }
         };
 
-        var resultTask = _validator.ValidateOutputAsync(req);
-        await _timeProvider.WaitForTimerScheduledAsync();
-        _timeProvider.Advance(TimeSpan.FromMilliseconds(10));
-        var result = await resultTask;
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
         Assert.Single(result.Descriptors);
         Assert.DoesNotContain(_tempRootDirectory, result.Descriptors[0].RelativePath);
         Assert.StartsWith("output/", result.Descriptors[0].RelativePath);
@@ -783,45 +875,95 @@ public class NascaOutputValidatorTests : IDisposable
         }
     }
 
+    private static async Task<NascaOutputValidationResult> RunValidationWithDeterministicTimeOrchestrationAsync(
+        NascaOutputValidator validator,
+        NascaOutputValidationRequest request,
+        TestTimeProvider timeProvider,
+        int maxPollingSteps = 20)
+    {
+        var validationTask = validator.ValidateOutputAsync(request);
+
+        for (int step = 1; step <= maxPollingSteps; step++)
+        {
+            if (validationTask.IsCompleted)
+            {
+                break;
+            }
+
+            var timerSignal = timeProvider.WaitForTimerScheduledAsync(step);
+            var completed = await Task.WhenAny(validationTask, timerSignal);
+
+            if (completed == validationTask || validationTask.IsCompleted)
+            {
+                break;
+            }
+
+            timeProvider.Advance(request.Options.StabilityPollingInterval);
+            await Task.Yield();
+        }
+
+        return await validationTask;
+    }
+
     private class TestTimeProvider : TimeProvider
     {
         private readonly object _sync = new();
         private DateTimeOffset _now = DateTimeOffset.UtcNow;
         private readonly List<ScheduledTimer> _timers = new();
         private int _scheduledCount;
-        private readonly TaskCompletionSource _timerScheduledTcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly List<(int TargetCount, TaskCompletionSource Tcs)> _waiters = new();
 
         public override DateTimeOffset GetUtcNow()
         {
             lock (_sync) return _now;
         }
 
-        public Task WaitForTimerScheduledAsync()
+        public Task WaitForTimerScheduledAsync(int minimumScheduledCount = 1)
         {
+            TaskCompletionSource tcs;
             lock (_sync)
             {
-                if (_scheduledCount > 0 || _timers.Any(t => !t.IsDisposed && t.NextFireUtc != DateTimeOffset.MaxValue))
+                if (_scheduledCount >= minimumScheduledCount)
                 {
                     return Task.CompletedTask;
                 }
-                return _timerScheduledTcs.Task;
+
+                tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _waiters.Add((minimumScheduledCount, tcs));
             }
+            return tcs.Task;
         }
 
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             var timer = new ScheduledTimer(this, callback, state, dueTime, period);
-            TaskCompletionSource? toComplete = null;
+            List<TaskCompletionSource>? toComplete = null;
             lock (_sync)
             {
                 _timers.Add(timer);
                 if (dueTime != Timeout.InfiniteTimeSpan)
                 {
                     _scheduledCount++;
-                    toComplete = _timerScheduledTcs;
+                    for (int i = _waiters.Count - 1; i >= 0; i--)
+                    {
+                        if (_scheduledCount >= _waiters[i].TargetCount)
+                        {
+                            toComplete ??= new List<TaskCompletionSource>();
+                            toComplete.Add(_waiters[i].Tcs);
+                            _waiters.RemoveAt(i);
+                        }
+                    }
                 }
             }
-            toComplete?.TrySetResult();
+
+            if (toComplete != null)
+            {
+                foreach (var w in toComplete)
+                {
+                    w.TrySetResult();
+                }
+            }
+
             return timer;
         }
 
@@ -975,6 +1117,52 @@ public class NascaOutputValidatorTests : IDisposable
                 Dispose();
                 return ValueTask.CompletedTask;
             }
+        }
+    }
+
+    private class TrackingWorkDirectoryManager : INascaWorkDirectoryManager
+    {
+        public bool GetManifestCalled { get; private set; }
+
+        public Task<NascaWorkManifest> CreateWorkDirectoryAsync(string correlationId, string executionId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<NascaWorkManifest> StageInputFileAsync(string correlationId, string sourceFilePath, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<NascaWorkManifest?> GetManifestAsync(string correlationId, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<NascaWorkManifest?> GetManifestByWorkIdAsync(string workDirectoryId, CancellationToken cancellationToken = default)
+        {
+            GetManifestCalled = true;
+            return Task.FromResult<NascaWorkManifest?>(null);
+        }
+
+        public string GetWorkDirectoryPath(string workDirectoryId) => string.Empty;
+        public string GetWorkRootDirectory() => string.Empty;
+
+        public Task<NascaWorkManifest> UpdateLifecycleAsync(string correlationId, NascaWorkLifecycle targetLifecycle, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task QuarantineWorkDirectoryAsync(string correlationId, string reasonCode, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<int> CleanupExpiredWorkDirectoriesAsync(TimeSpan standardRetention, TimeSpan recoveryRetention, int maxCleanupBatch = 50, CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+
+        public Task<IReadOnlyList<NascaWorkManifest>> DiscoverRecoverableWorkDirectoriesAsync(CancellationToken cancellationToken = default)
+            => throw new NotImplementedException();
+    }
+
+    private class TrackingTimeProvider : TimeProvider
+    {
+        public bool CreateTimerCalled { get; private set; }
+
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            CreateTimerCalled = true;
+            return base.CreateTimer(callback, state, dueTime, period);
         }
     }
 }

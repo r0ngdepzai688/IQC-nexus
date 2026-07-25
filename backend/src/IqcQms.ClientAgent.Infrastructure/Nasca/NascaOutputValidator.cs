@@ -33,7 +33,25 @@ public class NascaOutputValidator : INascaOutputValidator
             cancellationToken.ThrowIfCancellationRequested();
 
             // 1. Validate Options
-            request.Options.Validate();
+            try
+            {
+                if (request.Options == null)
+                {
+                    result.Outcome = NascaOutputValidationOutcome.UnknownFailure;
+                    result.SanitizedReasonCode = "INVALID_VALIDATION_OPTIONS";
+                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                    return result;
+                }
+
+                request.Options.Validate();
+            }
+            catch (InvalidOperationException)
+            {
+                result.Outcome = NascaOutputValidationOutcome.UnknownFailure;
+                result.SanitizedReasonCode = "INVALID_VALIDATION_OPTIONS";
+                result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                return result;
+            }
 
             // 2. Validate Ownership & WorkDirectory Identity
             NascaWorkManifest? manifest = null;
