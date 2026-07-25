@@ -8,6 +8,17 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
     private const int MaxLinkDepth = 10;
     private static readonly Regex DeviceNamespaceRegex = new(@"^\\\\(?:\.|\?)\\", RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private readonly IFileSystemResolver _fsResolver;
+
+    public AllowedInputPathValidator(IFileSystemResolver fsResolver)
+    {
+        _fsResolver = fsResolver;
+    }
+
+    public AllowedInputPathValidator() : this(new DefaultFileSystemResolver())
+    {
+    }
+
     public AllowedInputPathValidationResult ValidatePath(string candidatePath, IEnumerable<string> allowedRoots)
     {
         if (string.IsNullOrWhiteSpace(candidatePath))
@@ -76,32 +87,24 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
         }
 
         // 7. File Existence and Regular File Verification
-        if (!File.Exists(fullCandidatePath) && !File.Exists(resolvedCandidatePhysical))
+        if (!_fsResolver.FileExists(fullCandidatePath) && !_fsResolver.FileExists(resolvedCandidatePhysical))
         {
-            if (Directory.Exists(fullCandidatePath) || Directory.Exists(resolvedCandidatePhysical))
+            if (_fsResolver.DirectoryExists(fullCandidatePath) || _fsResolver.DirectoryExists(resolvedCandidatePhysical))
             {
                 return AllowedInputPathValidationResult.Denied(PathValidationReason.NotRegularFile);
             }
             return AllowedInputPathValidationResult.Denied(PathValidationReason.PathNotFound);
         }
 
-        try
+        if (_fsResolver.DirectoryExists(resolvedCandidatePhysical))
         {
-            var attr = File.GetAttributes(resolvedCandidatePhysical);
-            if (attr.HasFlag(FileAttributes.Directory))
-            {
-                return AllowedInputPathValidationResult.Denied(PathValidationReason.NotRegularFile);
-            }
-        }
-        catch
-        {
-            return AllowedInputPathValidationResult.Denied(PathValidationReason.PathNotFound);
+            return AllowedInputPathValidationResult.Denied(PathValidationReason.NotRegularFile);
         }
 
         return AllowedInputPathValidationResult.Success(resolvedCandidatePhysical, reparseEncountered);
     }
 
-    private static List<string> NormalizeAndResolveRoots(IEnumerable<string> rawRoots)
+    private List<string> NormalizeAndResolveRoots(IEnumerable<string> rawRoots)
     {
         var result = new List<string>();
         foreach (var raw in rawRoots)
@@ -125,7 +128,7 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
         return result;
     }
 
-    private static (string PhysicalPath, bool ReparseEncountered, PathValidationReason Error) ResolvePhysicalPath(string path)
+    private (string PhysicalPath, bool ReparseEncountered, PathValidationReason Error) ResolvePhysicalPath(string path)
     {
         var root = Path.GetPathRoot(path);
         if (string.IsNullOrEmpty(root))
@@ -145,30 +148,22 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
 
             try
             {
-                if (Directory.Exists(currentPath) || File.Exists(currentPath))
+                while (_fsResolver.IsReparsePoint(currentPath))
                 {
-                    var attr = File.GetAttributes(currentPath);
-                    if (attr.HasFlag(FileAttributes.ReparsePoint))
+                    reparseEncountered = true;
+                    depth++;
+                    if (depth > MaxLinkDepth)
                     {
-                        reparseEncountered = true;
-                        depth++;
-                        if (depth > MaxLinkDepth)
-                        {
-                            return (currentPath, true, PathValidationReason.ReparseDepthExceeded);
-                        }
-
-                        FileSystemInfo fsi = Directory.Exists(currentPath)
-                            ? new DirectoryInfo(currentPath)
-                            : new FileInfo(currentPath);
-
-                        var target = fsi.ResolveLinkTarget(returnFinalTarget: true);
-                        if (target == null || (!Directory.Exists(target.FullName) && !File.Exists(target.FullName)))
-                        {
-                            return (currentPath, true, PathValidationReason.BrokenLinkOrJunction);
-                        }
-
-                        currentPath = target.FullName;
+                        return (currentPath, true, PathValidationReason.ReparseDepthExceeded);
                     }
+
+                    var targetPath = _fsResolver.ResolveLinkTarget(currentPath);
+                    if (string.IsNullOrEmpty(targetPath) || (!_fsResolver.DirectoryExists(targetPath) && !_fsResolver.FileExists(targetPath)))
+                    {
+                        return (currentPath, true, PathValidationReason.BrokenLinkOrJunction);
+                    }
+
+                    currentPath = targetPath;
                 }
             }
             catch
@@ -201,8 +196,6 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
 
     private static bool HasAlternateDataStream(string path)
     {
-        // On Windows drive letter paths, e.g. C:\file.xlsx:stream
-        // Check for colon after drive root
         var root = Path.GetPathRoot(path) ?? "";
         var rest = path[root.Length..];
         return rest.Contains(':');

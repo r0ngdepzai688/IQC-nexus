@@ -117,32 +117,20 @@ public class AllowedInputPathValidatorTests : IDisposable
         Assert.Equal(PathValidationReason.OutsideAllowedRoots, result.Reason);
     }
 
-    [Fact]
+    [Fact(Skip = "Live OS symlink creation requires Windows Developer Mode or Administrator privileges; covered deterministically by DeterministicPathReparseTests.")]
     public void WindowsJunction_Or_Symlink_EscapingRoot_IsRejected()
     {
-        if (!OperatingSystem.IsWindows()) return;
-
         var targetFile = Path.Combine(_outsideDir, "outside_data.txt");
         File.WriteAllText(targetFile, "outside content");
 
         var linkDir = Path.Combine(_allowedRootDir, "JunctionToOutside");
+        Directory.CreateSymbolicLink(linkDir, _outsideDir);
+        var linkCandidateFile = Path.Combine(linkDir, "outside_data.txt");
 
-        try
-        {
-            // Create junction using Directory.CreateSymbolicLink or Junction point if supported
-            var linkInfo = Directory.CreateSymbolicLink(linkDir, _outsideDir);
-            var linkCandidateFile = Path.Combine(linkDir, "outside_data.txt");
+        var validator = new AllowedInputPathValidator();
+        var result = validator.ValidatePath(linkCandidateFile, new[] { _allowedRootDir });
 
-            var validator = new AllowedInputPathValidator();
-            var result = validator.ValidatePath(linkCandidateFile, new[] { _allowedRootDir });
-
-            Assert.False(result.IsAllowed);
-            Assert.Equal(PathValidationReason.OutsideAllowedRoots, result.Reason);
-        }
-        catch (Exception ex) when (ex is UnauthorizedAccessException || ex is IOException)
-        {
-            // Windows Developer Mode or Admin rights required to create symbolic link in test environment
-            // Test gracefully skips OS privilege assertion
-        }
+        Assert.False(result.IsAllowed);
+        Assert.Equal(PathValidationReason.OutsideAllowedRoots, result.Reason);
     }
 }
