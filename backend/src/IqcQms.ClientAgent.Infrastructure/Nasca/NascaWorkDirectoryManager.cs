@@ -8,66 +8,68 @@ namespace IqcQms.ClientAgent.Infrastructure.Nasca;
 public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
 {
     private readonly string _workRootDirectory;
+    private readonly INascaPathSecurityGuard _securityGuard;
     private readonly ILogger<NascaWorkDirectoryManager> _logger;
 
-    public NascaWorkDirectoryManager(string rootDataDirectory, ILogger<NascaWorkDirectoryManager> logger)
+    public NascaWorkDirectoryManager(string rootDataDirectory, INascaPathSecurityGuard securityGuard, ILogger<NascaWorkDirectoryManager> logger)
     {
         _logger = logger;
+        _securityGuard = securityGuard;
         _workRootDirectory = Path.Combine(rootDataDirectory, "NascaWork");
+
+        _securityGuard.EnsureSafePath(rootDataDirectory, _workRootDirectory);
         Directory.CreateDirectory(_workRootDirectory);
     }
 
     public string GetWorkRootDirectory() => _workRootDirectory;
 
-    public string GetWorkDirectoryPath(string correlationId)
+    public static string GenerateOpaqueDirectoryId()
     {
-        if (string.IsNullOrWhiteSpace(correlationId) || correlationId.Contains('/') || correlationId.Contains('\\') || correlationId.Contains(".."))
+        return $"work_{Guid.NewGuid():N}".ToLowerInvariant();
+    }
+
+    public string GetWorkDirectoryPath(string workDirectoryId)
+    {
+        if (string.IsNullOrWhiteSpace(workDirectoryId) || !_securityGuard.IsValidOpaqueDirectoryName(workDirectoryId))
         {
-            throw new InvalidOperationException("Path traversal or invalid path characters detected in CorrelationId.");
+            throw new InvalidOperationException("Path security validation failed: Invalid or non-opaque WorkDirectoryId.");
         }
 
-        var opaqueId = GetOpaqueDirectoryId(correlationId);
-        var dirPath = Path.Combine(_workRootDirectory, opaqueId);
-        EnsurePathIsContained(_workRootDirectory, dirPath);
+        var dirPath = Path.Combine(_workRootDirectory, workDirectoryId);
+        _securityGuard.EnsureSafePath(_workRootDirectory, dirPath);
         return dirPath;
-    }
-
-    private static string GetOpaqueDirectoryId(string correlationId)
-    {
-        // Sanitize correlationId to ensure no path traversal or invalid path characters exist
-        var safeId = string.Concat(correlationId.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-'));
-        if (string.IsNullOrWhiteSpace(safeId))
-        {
-            safeId = "default";
-        }
-        return $"work_{safeId}";
-    }
-
-    private static void EnsurePathIsContained(string rootDir, string targetPath)
-    {
-        var fullRoot = Path.GetFullPath(rootDir).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var fullTarget = Path.GetFullPath(targetPath);
-
-        if (!fullTarget.StartsWith(fullRoot, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Path traversal attempt detected: target directory escapes root work directory boundary.");
-        }
     }
 
     public async Task<NascaWorkManifest> CreateWorkDirectoryAsync(string correlationId, string executionId, CancellationToken cancellationToken = default)
     {
-        var dirPath = GetWorkDirectoryPath(correlationId);
+        return await CreateWorkDirectoryWithIdAsync(correlationId, executionId, GenerateOpaqueDirectoryId(), cancellationToken);
+    }
+
+    public async Task<NascaWorkManifest> CreateWorkDirectoryWithIdAsync(string correlationId, string executionId, string workDirectoryId, CancellationToken cancellationToken = default)
+    {
+        var dirPath = GetWorkDirectoryPath(workDirectoryId);
         Directory.CreateDirectory(dirPath);
 
-        Directory.CreateDirectory(Path.Combine(dirPath, "input"));
-        Directory.CreateDirectory(Path.Combine(dirPath, "output"));
-        Directory.CreateDirectory(Path.Combine(dirPath, "state"));
-        Directory.CreateDirectory(Path.Combine(dirPath, "quarantine"));
+        var inputDir = Path.Combine(dirPath, "input");
+        var outputDir = Path.Combine(dirPath, "output");
+        var stateDir = Path.Combine(dirPath, "state");
+        var quarantineDir = Path.Combine(dirPath, "quarantine");
+
+        _securityGuard.EnsureSafePath(dirPath, inputDir);
+        _securityGuard.EnsureSafePath(dirPath, outputDir);
+        _securityGuard.EnsureSafePath(dirPath, stateDir);
+        _securityGuard.EnsureSafePath(dirPath, quarantineDir);
+
+        Directory.CreateDirectory(inputDir);
+        Directory.CreateDirectory(outputDir);
+        Directory.CreateDirectory(stateDir);
+        Directory.CreateDirectory(quarantineDir);
 
         var manifest = new NascaWorkManifest
         {
             SchemaVersion = 1,
             CorrelationId = correlationId,
+            WorkDirectoryId = workDirectoryId,
             ExecutionId = executionId,
             AttemptNumber = 1,
             CreatedUtc = DateTime.UtcNow,
@@ -83,29 +85,49 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
 
     public async Task<NascaWorkManifest> StageInputFileAsync(string correlationId, string sourceFilePath, CancellationToken cancellationToken = default)
     {
+        return await StageInputFileWithWorkIdAsync(correlationId, sourceFilePath, null, cancellationToken);
+    }
+
+    public async Task<NascaWorkManifest> StageInputFileWithWorkIdAsync(string correlationId, string sourceFilePath, string? workDirectoryId = null, CancellationToken cancellationToken = default)
+    {
         if (!File.Exists(sourceFilePath))
         {
-            throw new FileNotFoundException("Source file for staging does not exist.", sourceFilePath);
+            throw new FileNotFoundException("Source file for staging does not exist.", "[REDACTED_PATH]");
         }
 
-        var dirPath = GetWorkDirectoryPath(correlationId);
-        var manifest = await GetManifestAsync(correlationId, cancellationToken)
-            ?? throw new InvalidOperationException($"Work directory manifest missing for CorrelationId {correlationId}.");
+        // Part 3 TOCTOU Protections: Revalidate source before open
+        if (_securityGuard.IsReparsePoint(sourceFilePath))
+        {
+            throw new InvalidOperationException("Path security validation failed: Source file is a reparse point or symlink.");
+        }
+
+        workDirectoryId ??= GenerateOpaqueDirectoryId();
+        var dirPath = GetWorkDirectoryPath(workDirectoryId);
+        _securityGuard.EnsureSafePath(_workRootDirectory, dirPath);
+
+        if (!Directory.Exists(dirPath))
+        {
+            await CreateWorkDirectoryWithIdAsync(correlationId, Guid.NewGuid().ToString("N"), workDirectoryId, cancellationToken);
+        }
 
         var inputSubDir = Path.Combine(dirPath, "input");
-        EnsurePathIsContained(dirPath, inputSubDir);
+        _securityGuard.EnsureSafePath(dirPath, inputSubDir);
 
         var tempStagingPath = Path.Combine(inputSubDir, $"staging_{Guid.NewGuid():N}.tmp");
         var finalStagedPath = Path.Combine(inputSubDir, "input.dat");
 
-        // 1. Safe copy to temporary staging file
-        using (var sourceStream = File.OpenRead(sourceFilePath))
-        using (var stagingStream = File.Create(tempStagingPath))
+        // Open source with safe FileShare.Read
+        using (var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+        using (var stagingStream = new FileStream(tempStagingPath, FileMode.Create, FileAccess.Write, FileShare.None))
         {
             await sourceStream.CopyToAsync(stagingStream, cancellationToken);
+            await stagingStream.FlushAsync(cancellationToken);
         }
 
-        // 2. Compute SHA-256 hash and file size of staged file
+        // Revalidate staging containment
+        _securityGuard.EnsureSafePath(inputSubDir, tempStagingPath);
+
+        // Compute hashes
         string stagedHash;
         long fileSizeBytes;
         using (var hashAlg = SHA256.Create())
@@ -116,10 +138,9 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
             fileSizeBytes = stagedStream.Length;
         }
 
-        // 3. Compute hash of original source to verify integrity
         string originalHash;
         using (var hashAlg = SHA256.Create())
-        using (var sourceStream = File.OpenRead(sourceFilePath))
+        using (var sourceStream = new FileStream(sourceFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
         {
             var hashBytes = await hashAlg.ComputeHashAsync(sourceStream, cancellationToken);
             originalHash = Convert.ToHexString(hashBytes);
@@ -128,18 +149,23 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
         if (!originalHash.Equals(stagedHash, StringComparison.OrdinalIgnoreCase))
         {
             File.Delete(tempStagingPath);
-            await QuarantineWorkDirectoryAsync(correlationId, "STAGING_HASH_MISMATCH", cancellationToken);
+            await QuarantineWorkDirectoryByPathAsync(dirPath, correlationId, "STAGING_HASH_MISMATCH", cancellationToken);
             throw new InvalidOperationException("Input staging hash mismatch: source file hash does not match staged copy.");
         }
 
-        // 4. Atomic rename to finalStagedPath
+        // Atomic rename
         if (File.Exists(finalStagedPath))
         {
             File.Delete(finalStagedPath);
         }
         File.Move(tempStagingPath, finalStagedPath);
 
-        // 5. Update manifest metadata
+        var manifest = await GetManifestByPathAsync(dirPath, cancellationToken) ?? new NascaWorkManifest
+        {
+            CorrelationId = correlationId,
+            WorkDirectoryId = workDirectoryId
+        };
+
         manifest.InputMetadata = new NascaInputMetadata
         {
             StagedFileName = "input.dat",
@@ -156,38 +182,55 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
 
     public async Task<NascaWorkManifest?> GetManifestAsync(string correlationId, CancellationToken cancellationToken = default)
     {
-        var dirPath = GetWorkDirectoryPath(correlationId);
-        var manifestPath = Path.Combine(dirPath, "manifest.json");
+        // Search discovery for manifest matching correlationId
+        var list = await DiscoverRecoverableWorkDirectoriesAsync(cancellationToken);
+        return list.FirstOrDefault(m => m.CorrelationId == correlationId);
+    }
 
+    public async Task<NascaWorkManifest?> GetManifestByWorkIdAsync(string workDirectoryId, CancellationToken cancellationToken = default)
+    {
+        var dirPath = GetWorkDirectoryPath(workDirectoryId);
+        return await GetManifestByPathAsync(dirPath, cancellationToken);
+    }
+
+    private async Task<NascaWorkManifest?> GetManifestByPathAsync(string dirPath, CancellationToken cancellationToken)
+    {
+        var manifestPath = Path.Combine(dirPath, "manifest.json");
         if (!File.Exists(manifestPath)) return null;
+
+        if (_securityGuard.IsReparsePoint(manifestPath))
+        {
+            await QuarantineWorkDirectoryByPathAsync(dirPath, "UNKNOWN", "REPARSE_POINT_MANIFEST", cancellationToken);
+            return null;
+        }
 
         try
         {
             var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
             var manifest = JsonSerializer.Deserialize<NascaWorkManifest>(json);
 
-            if (manifest == null || manifest.CorrelationId != correlationId)
+            if (manifest == null)
             {
-                await QuarantineWorkDirectoryAsync(correlationId, "CORRUPT_OR_MISMATCHED_MANIFEST", cancellationToken);
+                await QuarantineWorkDirectoryByPathAsync(dirPath, "UNKNOWN", "CORRUPT_MANIFEST_JSON", cancellationToken);
                 return null;
             }
 
             return manifest;
         }
-        catch (JsonException ex)
+        catch (JsonException)
         {
-            _logger.LogError(ex, "Corrupt JSON manifest for CorrelationId {CorrelationId}. Quarantining.", correlationId);
-            await QuarantineWorkDirectoryAsync(correlationId, "CORRUPT_MANIFEST_JSON", cancellationToken);
+            _logger.LogError("Corrupt JSON manifest in work directory [REDACTED_PATH]. Quarantining.");
+            await QuarantineWorkDirectoryByPathAsync(dirPath, "UNKNOWN", "CORRUPT_MANIFEST_JSON", cancellationToken);
             return null;
         }
     }
 
     public async Task<NascaWorkManifest> UpdateLifecycleAsync(string correlationId, NascaWorkLifecycle targetLifecycle, CancellationToken cancellationToken = default)
     {
-        var dirPath = GetWorkDirectoryPath(correlationId);
         var manifest = await GetManifestAsync(correlationId, cancellationToken)
             ?? throw new InvalidOperationException($"Cannot update lifecycle: Manifest missing for CorrelationId {correlationId}.");
 
+        var dirPath = GetWorkDirectoryPath(manifest.WorkDirectoryId);
         manifest.CurrentLifecycle = targetLifecycle;
         manifest.UpdatedUtc = DateTime.UtcNow;
 
@@ -207,52 +250,88 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
 
     public async Task QuarantineWorkDirectoryAsync(string correlationId, string reasonCode, CancellationToken cancellationToken = default)
     {
-        var dirPath = GetWorkDirectoryPath(correlationId);
+        var manifest = await GetManifestAsync(correlationId, cancellationToken);
+        if (manifest != null)
+        {
+            var dirPath = GetWorkDirectoryPath(manifest.WorkDirectoryId);
+            await QuarantineWorkDirectoryByPathAsync(dirPath, correlationId, reasonCode, cancellationToken);
+        }
+    }
+
+    private async Task QuarantineWorkDirectoryByPathAsync(string dirPath, string correlationId, string reasonCode, CancellationToken cancellationToken)
+    {
         if (!Directory.Exists(dirPath)) return;
 
-        var manifestPath = Path.Combine(dirPath, "manifest.json");
-        NascaWorkManifest manifest;
-
-        if (File.Exists(manifestPath))
+        try
         {
-            try
+            _securityGuard.EnsureSafePath(_workRootDirectory, dirPath);
+
+            var manifestPath = Path.Combine(dirPath, "manifest.json");
+            if (File.Exists(manifestPath) && !_securityGuard.IsReparsePoint(manifestPath))
             {
-                var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
-                manifest = JsonSerializer.Deserialize<NascaWorkManifest>(json) ?? new NascaWorkManifest();
+                try
+                {
+                    var json = await File.ReadAllTextAsync(manifestPath, cancellationToken);
+                    var manifest = JsonSerializer.Deserialize<NascaWorkManifest>(json);
+                    if (manifest != null)
+                    {
+                        manifest.CurrentLifecycle = NascaWorkLifecycle.Quarantined;
+                        manifest.RetentionCategory = "Quarantine";
+                        manifest.UpdatedUtc = DateTime.UtcNow;
+                        await WriteManifestAtomicAsync(dirPath, manifest, cancellationToken);
+                    }
+                }
+                catch
+                {
+                    // If manifest is corrupt, do NOT rewrite corrupt JSON as authoritative. Quarantine in place.
+                }
             }
-            catch
-            {
-                manifest = new NascaWorkManifest();
-            }
+
+            _logger.LogWarning("Quarantined work directory for CorrelationId {CorrelationId}: {ReasonCode}", correlationId, reasonCode);
         }
-        else
+        catch (Exception ex)
         {
-            manifest = new NascaWorkManifest();
+            _logger.LogError(ex, "Failed to quarantine work directory for CorrelationId {CorrelationId}.", correlationId);
         }
-
-        manifest.CorrelationId = correlationId;
-        manifest.CurrentLifecycle = NascaWorkLifecycle.Quarantined;
-        manifest.RetentionCategory = "Quarantine";
-        manifest.UpdatedUtc = DateTime.UtcNow;
-
-        await WriteManifestAtomicAsync(dirPath, manifest, cancellationToken);
-        _logger.LogWarning("Quarantined work directory for CorrelationId {CorrelationId}: {ReasonCode}", correlationId, reasonCode);
     }
 
     public async Task<int> CleanupExpiredWorkDirectoriesAsync(TimeSpan standardRetention, TimeSpan recoveryRetention, int maxCleanupBatch = 50, CancellationToken cancellationToken = default)
     {
         if (!Directory.Exists(_workRootDirectory)) return 0;
+        _securityGuard.EnsureSafePath(Path.GetDirectoryName(_workRootDirectory)!, _workRootDirectory);
 
         int cleaned = 0;
         var subDirs = Directory.GetDirectories(_workRootDirectory);
         var now = DateTime.UtcNow;
 
-        foreach (var dir in subDirs)
+        foreach (var dirPath in subDirs)
         {
             if (cleaned >= maxCleanupBatch) break;
 
-            var manifestPath = Path.Combine(dir, "manifest.json");
-            if (!File.Exists(manifestPath)) continue;
+            var dirName = Path.GetFileName(dirPath);
+
+            // Part 4 & 5 Cleanup Containment Rules:
+            // 1. Must match opaque directory pattern work_[a-f0-9]{32}
+            if (!_securityGuard.IsValidOpaqueDirectoryName(dirName))
+            {
+                continue;
+            }
+
+            // 2. Reject reparse points
+            if (_securityGuard.IsReparsePoint(dirPath) || _securityGuard.ContainsReparsePointInAncestors(_workRootDirectory, dirPath))
+            {
+                _logger.LogWarning("Skipping cleanup candidate [REDACTED_PATH]: Reparse point or junction detected.");
+                continue;
+            }
+
+            // 3. Never delete _workRootDirectory or parent paths
+            if (dirPath.Equals(_workRootDirectory, StringComparison.OrdinalIgnoreCase) || _workRootDirectory.StartsWith(dirPath, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var manifestPath = Path.Combine(dirPath, "manifest.json");
+            if (!File.Exists(manifestPath) || _securityGuard.IsReparsePoint(manifestPath)) continue;
 
             try
             {
@@ -284,7 +363,8 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
 
                 if (shouldDelete)
                 {
-                    Directory.Delete(dir, recursive: true);
+                    // Non-recursive verification of entries before deletion
+                    DeleteDirectorySafely(dirPath);
                     cleaned++;
                     _logger.LogInformation("Cleaned up expired work directory for CorrelationId {CorrelationId}", manifest.CorrelationId);
                 }
@@ -298,16 +378,47 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
         return cleaned;
     }
 
+    private void DeleteDirectorySafely(string dirPath)
+    {
+        _securityGuard.EnsureSafePath(_workRootDirectory, dirPath);
+
+        // Delete files first without following reparse points
+        foreach (var file in Directory.GetFiles(dirPath, "*", SearchOption.AllDirectories))
+        {
+            if (!_securityGuard.IsReparsePoint(file))
+            {
+                File.Delete(file);
+            }
+        }
+
+        Directory.Delete(dirPath, recursive: true);
+    }
+
     public async Task<IReadOnlyList<NascaWorkManifest>> DiscoverRecoverableWorkDirectoriesAsync(CancellationToken cancellationToken = default)
     {
         var recoverable = new List<NascaWorkManifest>();
         if (!Directory.Exists(_workRootDirectory)) return recoverable;
 
         var subDirs = Directory.GetDirectories(_workRootDirectory);
-        foreach (var dir in subDirs)
+        foreach (var dirPath in subDirs)
         {
-            var manifestPath = Path.Combine(dir, "manifest.json");
-            if (!File.Exists(manifestPath)) continue;
+            var dirName = Path.GetFileName(dirPath);
+
+            // Part 5 Startup Discovery Containment Rules:
+            // 1. Reject nonconforming opaque directory names
+            if (!_securityGuard.IsValidOpaqueDirectoryName(dirName))
+            {
+                continue;
+            }
+
+            // 2. Reject reparse points
+            if (_securityGuard.IsReparsePoint(dirPath) || _securityGuard.ContainsReparsePointInAncestors(_workRootDirectory, dirPath))
+            {
+                continue;
+            }
+
+            var manifestPath = Path.Combine(dirPath, "manifest.json");
+            if (!File.Exists(manifestPath) || _securityGuard.IsReparsePoint(manifestPath)) continue;
 
             try
             {
@@ -325,8 +436,9 @@ public class NascaWorkDirectoryManager : INascaWorkDirectoryManager
         return recoverable;
     }
 
-    private static async Task WriteManifestAtomicAsync(string workDirPath, NascaWorkManifest manifest, CancellationToken cancellationToken)
+    private async Task WriteManifestAtomicAsync(string workDirPath, NascaWorkManifest manifest, CancellationToken cancellationToken)
     {
+        _securityGuard.EnsureSafePath(_workRootDirectory, workDirPath);
         var manifestPath = Path.Combine(workDirPath, "manifest.json");
         var tempManifestPath = Path.Combine(workDirPath, "manifest.json.tmp");
 
