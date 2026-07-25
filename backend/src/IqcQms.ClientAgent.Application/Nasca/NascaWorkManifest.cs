@@ -22,6 +22,7 @@ public class NascaWorkManifest
 {
     public int SchemaVersion { get; set; } = 1;
     public string CorrelationId { get; set; } = string.Empty;
+    public string WorkDirectoryId { get; set; } = string.Empty;
     public string ExecutionId { get; set; } = string.Empty;
     public int AttemptNumber { get; set; } = 1;
     public DateTime CreatedUtc { get; set; } = DateTime.UtcNow;
