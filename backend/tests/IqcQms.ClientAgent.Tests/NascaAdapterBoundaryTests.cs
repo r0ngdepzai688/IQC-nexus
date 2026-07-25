@@ -87,6 +87,8 @@ public class NascaAdapterBoundaryTests
         var options = new NascaOptions
         {
             Enabled = true,
+            VerifiedInterfaceType = "CLI",
+            ExpectedProductName = "NASCA",
             ExecutablePath = @"C:\NonExistentPath\NascaConverter.exe",
             OutputDirectory = @"C:\Outputs\"
         };
@@ -101,6 +103,8 @@ public class NascaAdapterBoundaryTests
         var options = new NascaOptions
         {
             Enabled = true,
+            VerifiedInterfaceType = "CLI",
+            ExpectedProductName = "NASCA",
             ExecutablePath = @"relative\NascaConverter.exe",
             OutputDirectory = @"C:\Outputs\"
         };
@@ -122,6 +126,8 @@ public class NascaAdapterBoundaryTests
             var options = new NascaOptions
             {
                 Enabled = true,
+                VerifiedInterfaceType = "CLI",
+                ExpectedProductName = "NASCA",
                 ExecutablePath = fakeExe,
                 InputDirectory = tempInput,
                 OutputDirectory = @"C:\Outputs\"
@@ -391,5 +397,345 @@ public class NascaAdapterBoundaryTests
             .ToList();
 
         Assert.Empty(nascaProcessRunnerTypes);
+    }
+
+    // Phase 3A.2 Readiness & Evidence Trust Tests
+    [Fact]
+    public void MissingProductIdentity_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void MissingInterfaceEvidence_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ProductName = "NASCA Quality Converter",
+                    SourceClassification = SourceClassification.OperatorConfirmed, // Not VendorDocumentation
+                    ApprovedForUse = true
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void OperatorClaim_IsNotClassifiedAsVendorDocumentation()
+    {
+        var item = new NascaEvidenceItem
+        {
+            SourceClassification = SourceClassification.OperatorConfirmed,
+            VerificationStatus = EvidenceVerificationStatus.OperatorConfirmed
+        };
+
+        Assert.NotEqual(SourceClassification.VendorDocumentation, item.SourceClassification);
+        Assert.NotEqual(EvidenceVerificationStatus.VendorDocumented, item.VerificationStatus);
+    }
+
+    [Fact]
+    public void ConflictingEvidence_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    VerificationStatus = EvidenceVerificationStatus.Conflicting,
+                    ApprovedForUse = true
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_CONFLICTING_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void UnapprovedEvidence_IsIgnored()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ProductName = "NASCA CLI",
+                    SourceClassification = SourceClassification.VendorDocumentation,
+                    ApprovedForUse = false // Unapproved
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void EvidenceManifest_DoesNotStoreSecretContent()
+    {
+        var itemProps = typeof(NascaEvidenceItem).GetProperties().Select(p => p.Name).ToList();
+
+        Assert.DoesNotContain("LicenseKey", itemProps);
+        Assert.DoesNotContain("SecretKey", itemProps);
+        Assert.DoesNotContain("BinaryBytes", itemProps);
+    }
+
+    [Fact]
+    public void BinaryMetadataMismatch_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var meta = new NascaInstallationMetadata { FileExists = false }; // File missing
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void PublisherMismatch_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductName = "Fake NASCA",
+            Publisher = "Untrusted Publisher"
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_INCOMPLETE_EVIDENCE, result.Decision);
+    }
+
+    [Fact]
+    public void UnsupportedVersion_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductName = "NASCA Converter",
+            ProductVersion = "0.0.1-alpha"
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.False(result.IsGo);
+    }
+
+    [Fact]
+    public void UnknownArchitecture_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest();
+        var meta = new NascaInstallationMetadata { FileExists = true, Architecture = null };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.False(result.IsGo);
+    }
+
+    [Fact]
+    public void UnknownLicensing_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ProductName = "NASCA",
+                    EvidenceType = EvidenceType.VendorDocumentation,
+                    SourceClassification = SourceClassification.VendorDocumentation,
+                    ApprovedForUse = true,
+                    SanitizedNotes = "NO_LICENSING_INFO"
+                }
+            }
+        };
+
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductName = "NASCA",
+            Publisher = "Vendor"
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_LICENSING_RESTRICTION, result.Decision);
+    }
+
+    [Fact]
+    public void UiOnlyInterface_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ApprovedForUse = true,
+                    SanitizedNotes = "UI_ONLY"
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_UI_AUTOMATION_ONLY, result.Decision);
+    }
+
+    [Fact]
+    public void DirectExcelComRequirement_BlocksRuntimeReadiness()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ApprovedForUse = true,
+                    SanitizedNotes = "DIRECT_EXCEL_COM"
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        Assert.False(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.STOP_DIRECT_EXCEL_COM_REQUIRED, result.Decision);
+    }
+
+    [Fact]
+    public void InternalExcelDependency_RequiresOperationalReview()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ApprovedForUse = true,
+                    SanitizedNotes = "INTERNAL_EXCEL_INSTALLATION_REQUIRED"
+                }
+            }
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest);
+
+        // Internal Excel requirement without direct COM automation still stops until evidence is complete
+        Assert.False(result.IsGo);
+    }
+
+    [Fact]
+    public void CompleteVerifiedCliEvidence_AllowsDesignGo()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ProductName = "NASCA Official Converter",
+                    ProductVersion = "1.0.0",
+                    EvidenceType = EvidenceType.VendorDocumentation,
+                    SourceClassification = SourceClassification.VendorDocumentation,
+                    ApprovedForUse = true,
+                    SanitizedNotes = "LICENSED_FOR_AUTOMATION;CLI_DOCUMENTED"
+                }
+            }
+        };
+
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductName = "NASCA Official Converter",
+            ProductVersion = "1.0.0",
+            Publisher = "Official Supplier Inc.",
+            Architecture = "x64"
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.True(result.IsGo);
+        Assert.Equal(NascaRuntimeDecision.GO_CLI, result.Decision);
+    }
+
+    [Fact]
+    public void CompleteVerifiedWatchedFolderEvidence_AllowsDesignGo()
+    {
+        var manifest = new NascaEvidenceManifest
+        {
+            Items = new List<NascaEvidenceItem>
+            {
+                new NascaEvidenceItem
+                {
+                    ProductName = "NASCA Official Converter",
+                    ProductVersion = "1.0.0",
+                    EvidenceType = EvidenceType.VendorDocumentation,
+                    SourceClassification = SourceClassification.VendorDocumentation,
+                    ApprovedForUse = true,
+                    SanitizedNotes = "LICENSED_FOR_AUTOMATION;WATCHED_FOLDER_DOCUMENTED"
+                }
+            }
+        };
+
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductName = "NASCA Official Converter",
+            ProductVersion = "1.0.0",
+            Publisher = "Official Supplier Inc.",
+            Architecture = "x64"
+        };
+
+        var evaluator = new NascaReadinessEvaluator();
+        var result = evaluator.Evaluate(manifest, meta);
+
+        Assert.True(result.IsGo);
+    }
+
+    [Fact]
+    public async Task RuntimeStillDoesNotLaunchProcess()
+    {
+        var runner = new NascaJobRunnerNotConfigured(Microsoft.Extensions.Logging.Abstractions.NullLogger<NascaJobRunnerNotConfigured>.Instance);
+        var req = new NascaJobRequest();
+        var result = await runner.RunJobAsync(req);
+
+        Assert.Equal(NascaJobOutcome.NotConfigured, result.Outcome);
+        Assert.Null(result.ExitCode);
     }
 }
