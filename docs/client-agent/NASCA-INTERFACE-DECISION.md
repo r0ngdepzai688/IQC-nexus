@@ -1,23 +1,18 @@
-# IQC Nexus Client Agent — NASCA Interface Classification & Evidence Record (Phase 3A.2 Revision)
+# IQC Nexus Client Agent — NASCA Interface Classification & Decision (Phase 3A.3)
 
-**Status:** DECISION: **STOP_INCOMPLETE_EVIDENCE**
+**Status:** Strongly Typed Enum Classification — Decision: `StopEvidenceMissing`
 **Date:** July 25, 2026
 
 ---
 
-## Interface Classification & Readiness
+## Strongly Typed Enum Interface Matrix (`NascaVerifiedInterfaceType`)
 
-| Interface Class | Vendor Documentation Status | Readiness Status | Action |
+| Enum Value | Description | Production Status | Action |
 | :--- | :--- | :--- | :--- |
-| **Class A — Command-Line CLI** | **Unverified / Missing** | **STOP** | Preferred candidate if CLI switches are documented by vendor. |
-| **Class B — Watched Folder** | **Unverified / Missing** | **STOP** | Secondary candidate if file drop is documented. |
-| **Class C — API / SDK / COM / IPC** | **Unverified / Missing** | **STOP** | Unverified. |
-| **Class D — UI Automation** | **REJECTED BY RULE** | **STOP** | **STRICTLY BANNED**. |
-
----
-
-## Decision Logic
-
-1. No interface has vendor documentation ingested into the repository or operator manifest (`STOP_INCOMPLETE_EVIDENCE`).
-2. `INascaJobRunner` remains bound to `NascaJobRunnerNotConfigured` returning `NascaJobOutcome.NotConfigured`.
-3. Zero processes shall be launched (`Process.Start` is absent).
+| **`None`** | Default unverified state | **Active Baseline** | Application startup fails fast if `Enabled = true`. |
+| **`Cli`** | Documented command-line flags | **Architectural Category** | Candidate if vendor CLI flags are verified. |
+| **`WatchedFolder`** | Documented file drop directory | **Architectural Category** | Candidate if watched folder is verified. |
+| **`Api`** | Native API / DLL | **Architectural Category** | Unverified. |
+| **`Ipc`** | Inter-process communication | **Architectural Category** | Unverified. |
+| **`ComServer`** | Registered COM server | **Architectural Category** | Unverified. |
+| **`UiOnly`** | UI Automation / SendKeys | **STRICTLY PROHIBITED** | Always triggers validation failure and `StopUiOnly`. |
