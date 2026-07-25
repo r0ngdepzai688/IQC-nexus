@@ -1,33 +1,31 @@
-# Client Agent Pre-NASCA Hardening Assessment
+# Client Agent Pre-NASCA Hardening Assessment (Phase 2D.1 & 2D.2)
 
 **Date:** July 25, 2026
-**Status:** Phase 2D.1 Read-Only Inspection Complete
+**Status:** Phase 2D.2 Implementation & Verification Complete
 **Branch:** `feature/client-agent-pre-nasca-hardening`
-**Scope:** Assessment of Payload Idempotency Correctness, Concurrency, and Retention Completion
+**Scope:** Relational Concurrency Proof, Constraint Classification, Atomic Downstream Rollback, Typed Security Errors, and Retention Operations
 
 ---
 
-## Phase 2D.1 Inspection Findings Matrix
+## Phase 2D.1 & 2D.2 Inspection Findings Matrix
 
-| # | Inspection Item | Initial Status | Findings & Required Architectural Fix |
+| # | Inspection Item | Phase 2D.1 Status | Phase 2D.2 Resolved Status |
 | :- | :--- | :--- | :--- |
-| 1 | **`ServerImportJobId` in Digest** | **INCORRECT** | `ServerImportJobId` was included in `CanonicalPayloadHash`. It is a server-side job tracking ID and must be removed from the request payload digest. |
-| 2 | **`ServerImportJobId` Lifecycle** | **MIXED** | `ServerImportJobId` is passed in the request DTO for server job mapping, but must not affect client request payload identity. |
-| 3 | **Relational Unique-Constraint Conflict Handling** | **MISSING** | Pre-query (`FirstOrDefaultAsync`) did not catch `DbUpdateException` when concurrent duplicate requests raced past the pre-query. |
-| 4 | **Concurrent Pre-Query Race Exposure** | **SECURITY RISK** | Two parallel threads could both pass the pre-query check simultaneously. The second thread threw uncaught `DbUpdateException` (HTTP 500). |
-| 5 | **Downstream Job Registration Boundary** | **PARTIAL** | Submission acceptance and downstream job registration must commit within the same database transaction. |
-| 6 | **`SourceFingerprint` String Escaping** | **UNSAFE** | String concatenation (`WB:name;SH:name;...`) was unescaped and susceptible to delimiter ambiguity. Must be replaced with SHA-256 over canonical workbook bytes. |
-| 7 | **Sheet, Row, Cell Order Canonicalization** | **INCOMPLETE** | Ordering must be explicitly sorted by `SheetName`, `RowIndex`, and `ColumnIndex`/`ColumnName`. |
-| 8 | **Data Type Canonicalization** | **INCOMPLETE** | Numeric, date/time (ISO 8601 UTC), boolean, null vs. empty string, and Unicode normalization must be explicitly handled by `INormalizedWorkbookCanonicalizer`. |
-| 9 | **Local Queue Durability** | **VERIFIED IN FILE** | `SqliteLocalAgentQueue` stores queue items in SQLite file, but requires explicit close/reopen durability unit tests. |
-| 10 | **Retention Cleanup & Replay Tombstones** | **MISSING** | Lacked compact `AgentPayloadReplayTombstone` entity and explicit retention TTLs (`FullResultRetention`, `ReplayTombstoneRetention`). |
+| 1 | **`ServerImportJobId` in Digest** | Excluded from `CanonicalPayloadHash` | Binds strictly client identity parameters; ignores server tracking GUIDs |
+| 2 | **Relational DB Provider** | SQLite in-memory & file DB | SQLite (`Microsoft.EntityFrameworkCore.Sqlite`) used across unit/integration environments |
+| 3 | **Relational Concurrency Proof** | Unverified | Proved via multi-threaded `Task.WhenAll` across separate `DbContext` instances over relational DB |
+| 4 | **Unique-Constraint Classification** | Indiscriminate `DbUpdateException` catch | Provider-aware `IRelationalConstraintViolationClassifier` inspects extended DB error codes |
+| 5 | **Downstream Transaction Rollback** | Separate calls | Same-transaction boundary for `AgentPayloadSubmission` and `PersistentImportJob` with fault injection rollback proof |
+| 6 | **Typed Security Errors** | Generic `InvalidOperationException` | Exposes typed domain exceptions (`PayloadSubmissionMismatchException`, `PayloadNonceReplayException`, `PayloadReplayTombstoneException`) mapped to HTTP 409/400/404 |
+| 7 | **Retention Operations** | Schema & tombstone table created | `AgentPayloadRetentionService` with `AgentPayloadRetentionOptions` (90d full / 365d tombstone) and atomic cleanup transactions |
+| 8 | **Cleanup Expiration Indexes** | Missing indexes | Additive EF migration `20260725100000_AddPayloadRetentionIndexes` added indexes on `CreatedAtUtc` & `TombstoneExpiresAtUtc` |
 
 ---
 
-## Required Architectural Fixes for Phase 2D.1
+## Completed Architectural Implementation (Phase 2D.2)
 
-1. **Dedicated Canonicalizer**: Implement `INormalizedWorkbookCanonicalizer` producing deterministic UTF-8 bytes for `SourceFingerprint` and `CanonicalPayloadHash`.
-2. **Corrected Request Digest**: Bind `(CanonicalizationVersion, SchemaVersion, DeviceId, PayloadSubmissionId, Nonce, SourceFingerprintVersion, SourceFingerprint, CanonicalWorkbookBytes)`. Exclude `ServerImportJobId`, `UploadId`, and timestamps.
-3. **DbUpdateException Race Resolution**: Catch `DbUpdateException` on duplicate concurrent inserts, query authoritative record, and return duplicate response if identical.
-4. **Typed API Security Errors**: Return typed errors (`PayloadSubmissionMismatch`, `PayloadNonceReplay`, `PayloadSubmissionNotOwned`, etc.).
-5. **Replay Tombstones & Retention**: Persist compact `AgentPayloadReplayTombstone` upon full payload record cleanup.
+1. **Relational Concurrency Proof**: Verified overlapping concurrent requests produce exactly 1 `AgentPayloadSubmission` and 1 downstream `PersistentImportJob`.
+2. **Provider-Aware Classifier**: `IRelationalConstraintViolationClassifier` prevents non-unique DB errors (FK, null constraint, connection drops) from false duplicate classification.
+3. **Atomic Downstream Rollback**: Proved via fault injection that any failure prior to transaction commit rolls back both submission and downstream job records.
+4. **Typed API Security Errors**: Mapped typed security exceptions through API pipeline to return generic, sanitized responses without leaking nonces, digests, or paths.
+5. **Retention Cleanup Transactions**: Atomic batch cleanup creates tombstones before deleting full submission records, ensuring fail-safe idempotency.
