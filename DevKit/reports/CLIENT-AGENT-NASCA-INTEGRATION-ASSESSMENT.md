@@ -1,18 +1,16 @@
-# Client Agent NASCA Integration Assessment (Phase 3A.3 Simulation & Typed Decisions)
+# Client Agent NASCA Integration Assessment (Phase 3A.4 Durable State & Restart Recovery)
 
 **Date:** July 25, 2026
-**Status:** Phase 3A.3 Decision Cleanup & Simulation Boundary Complete
+**Status:** Phase 3A.4 Durable Execution State & Restart Recovery Complete
 **Branch:** `feature/client-agent-nasca-integration`
 
 ---
 
-## Executive Summary & Strongly Typed Decisions
+## Executive Summary & Durable Execution Model
 
 > [!CAUTION]
 > **RUNTIME INTEGRATION DECISION: StopEvidenceMissing**
 >
 > **Production Status**: **STOPPED (FAIL-CLOSED)**
 >
-> All decision logic is normalized via strongly typed enums (`NascaVerifiedInterfaceType`, `NascaRuntimeDecision`). `NascaReadinessEvaluator` returns `StopEvidenceMissing`.
->
-> **Simulation Boundary**: Test-only simulation runner `FakeNascaJobRunner` is located strictly in `IqcQms.ClientAgent.Tests.dll`. Zero process execution exists (`Process.Start` is completely absent in production), and zero Office interop assemblies are referenced.
+> Phase 3A.4 introduces `INascaExecutionStateStore` (`SqliteNascaExecutionStateStore` in `nasca_state.db`) and `NascaExecutionRecoveryPolicy` to persist job execution states atomically and safely recover from agent restarts. Zero process execution exists (`Process.Start` is completely absent), and zero Office interop assemblies are referenced.
