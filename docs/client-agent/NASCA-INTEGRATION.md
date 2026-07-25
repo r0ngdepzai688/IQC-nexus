@@ -1,13 +1,13 @@
-# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A.3)
+# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A.5)
 
 ## Overview
 
-Phase 3A.3 normalizes the NASCA decision model into strongly typed enums (`NascaVerifiedInterfaceType`, `NascaRuntimeDecision`) and introduces a test-only simulation boundary (`FakeNascaJobRunner` in `IqcQms.ClientAgent.Tests.dll`).
+Phase 3A.5 implements the complete secure work-directory lifecycle (`INascaWorkDirectoryManager`) for NASCA-bound execution tasks.
 
-## Hard Boundaries & Guarantees
+## Guarantees
 
-1. **Strongly Typed Interface Configuration**: `NascaOptions.VerifiedInterfaceType` uses `NascaVerifiedInterfaceType` enum (default `None`). Setting `Enabled = true` when interface type is `None` or `UiOnly` fails validation fast.
-2. **Single Evaluator Source of Truth**: `NascaReadinessEvaluator` returns typed `NascaRuntimeReadinessResult` (`StopEvidenceMissing`).
-3. **Simulation Boundary**: `FakeNascaJobRunner` is located strictly in the test assembly (`IqcQms.ClientAgent.Tests.dll`). It is NEVER registered in production DI or published binaries.
-4. **Zero Process Execution**: No `Process.Start` calls exist in production runtime.
+1. **Work Directory Isolation**: Every job receives an isolated work directory (`%LocalAppData%\IqcQmsAgent\NascaWork\work_<correlationId>`).
+2. **Atomic Staging**: Input workbook staging is atomic with SHA-256 hash validation. Original input file is untouched.
+3. **Quarantine & Retention**: Suspension and quarantine of corrupt work directories prevent evidence loss. Active directories are protected from cleanup.
+4. **Zero Process Launch**: `Process.Start` remains 100% absent in runtime code.
 5. **Zero Office Interop**: `Microsoft.Office.Interop.Excel` remains strictly unreferenced.
