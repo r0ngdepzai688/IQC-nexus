@@ -1,38 +1,28 @@
-# Client Agent NASCA Integration Assessment (Phase 3A)
+# Client Agent NASCA Integration Assessment (Phase 3A.1 Verification)
 
 **Date:** July 25, 2026
-**Status:** Phase 3A Discovery, Process Security Design, and Adapter Scaffolding Complete
+**Status:** Phase 3A.1 Vendor Interface Verification & Discovery Correction Complete
 **Branch:** `feature/client-agent-nasca-integration`
 
 ---
 
-## 1. Repository & Boundary Inspection Matrix
+## 1. Phase 3A Fact Classification Matrix
 
-| Area | Findings & Architectural Decisions |
-| :--- | :--- |
-| **Provider Abstractions** | `IClientDataProvider` and `ClientNormalizationRequest` define normalization contracts. Server providers (`Csv`, `Excel`) operate server-side, while `NascaExcel` is a contract identifier for Client Agent execution. |
-| **Process Boundaries** | `ProcessStartInfo` with `UseShellExecute = false`, argument arrays, and configured absolute executable paths only. No arbitrary command execution. |
-| **Excel COM Status** | **STRICTLY EXCLUDED**. NASCA utilities parse workbooks directly without requiring Office or Excel COM (`Microsoft.Office.Interop.Excel`). |
-| **Disabled Adapter Scaffolding** | `NascaJobRunnerNotConfigured` implements `INascaJobRunner` and returns `NascaJobOutcome.NotConfigured` without starting processes. |
-| **Configuration Contract** | `NascaOptions` defaults to `Enabled = false`. Enforces strict fail-closed validation for absolute paths and working directory isolation when enabled in `Production`. |
-
----
-
-## 2. NASCA Environment & Interface Discovery
-
-- **Product / Executable**: `NascaConverter.exe` or standalone NASCA quality engineering converter CLI.
-- **Architecture**: Runs as 32-bit or 64-bit Windows process under the logged-in interactive user session.
-- **Interface Classification**: Class A / B (Command-Line CLI or Watched Output Directory).
-- **Correlation**: 1:1 mapping between `LocalJobItem.PayloadSubmissionId` and `NascaJobRequest.CorrelationId`.
-- **Excel Requirement**: None. Standalone conversion engine without Excel dependency.
+| Statement / Claim | Phase 3A Initial Status | Phase 3A.1 Corrected Classification | Verification Evidence Needed |
+| :--- | :--- | :--- | :--- |
+| `INascaJobRunner` & `NascaJobRunnerNotConfigured` | Implemented | **Verified / Implemented** | Code & Unit Tests |
+| `INascaInstallationInspector` Read-Only Metadata | Implemented | **Verified / Implemented** | Code & Unit Tests |
+| `NascaOptions` Configuration Contract | Implemented | **Verified / Implemented** | Code & Unit Tests |
+| Executable Name `NascaConverter.exe` | Stated as Fact | **Proposed / Unverified** | Operator Checklist Item #4 |
+| CLI Flags `--input`, `--output-dir`, `--format json` | Stated as Fact | **Proposed / Unverified** | Vendor Manual / Item #8 |
+| Watched Output Directory Handoff | Stated as Fact | **Proposed / Unverified** | Vendor Manual / Item #10 |
+| Standalone Engine vs Excel Dependency | Stated as Fact | **Unknown** | Vendor Manual / Item #15 |
+| Bitness & Installation Path (`%LocalAppData%`) | Stated as Fact | **Unknown** | Operator Checklist Items #5, #6 |
 
 ---
 
-## 3. Process & Queue Security Design
+## 2. Abstraction Boundaries & Verification Proof
 
-1. `ProcessStartInfo` with `UseShellExecute = false`.
-2. Argument arrays rather than concatenated command-line strings.
-3. Bounded execution timeouts (`TimeoutSeconds`, default 60s, max 600s).
-4. Bounded stdout/stderr capture to avoid memory exhaustion.
-5. Work directory staging to prevent executable hijacking.
-6. Execution time path re-validation against `AllowedInputRoots`.
+- **No Process Execution**: Zero `Process.Start` calls exist in Client Agent runtime or NASCA adapter scaffolding.
+- **Read-Only Inspector**: `INascaInstallationInspector` reads file version metadata from explicit configured paths without searching PATH or scanning registry.
+- **Excel COM Exclusion**: `EXCEL-COM-DECISION.md` explicitly bans `Microsoft.Office.Interop.Excel`.

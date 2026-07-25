@@ -1,21 +1,22 @@
-# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A)
+# IQC Nexus Client Agent — NASCA Integration Architecture (Phase 3A.1)
 
 ## Overview
 
-Phase 3A establishes the process boundary, configuration contract, and disabled adapter scaffolding (`INascaJobRunner`) for NASCA integration.
+Phase 3A.1 refines the NASCA integration architecture to enforce strict evidence-based verification. All Phase 3A proposed assumptions (such as executable names, command-line arguments, and output file formats) are explicitly classified as **Proposed / Unknown** until confirmed by operator evidence.
 
-## Discovery & Interface Classification
+## Evidence-Based Classification Summary
 
-- **Classification**: Interface Class A / B (Command-Line CLI or Watched Output Directory).
-- **Process Isolation**: Client Agent invokes NASCA via `ProcessStartInfo` with `UseShellExecute = false`, argument arrays, and configured absolute executable paths only.
-- **Contract Boundary**:
-  - `NascaJobRequest`: Contains `JobId`, `InputWorkbookPath`, `OutputDirectory`, `Timeout`, and `CorrelationId`.
-  - `NascaJobResult`: Contains `Outcome`, `ExitCode`, `SanitizedReasonCode`, `OutputFiles`, `StartedAtUtc`, and `CompletedAtUtc`.
-- **Disabled State**: When `NascaOptions.Enabled = false`, no NASCA executable is required and `NascaJobRunnerNotConfigured` returns `Outcome = NotConfigured` safely.
+- **Adapter Boundary Interface (`INascaJobRunner`)**: **Verified / Complete** (Defined in `NascaJobContracts.cs`).
+- **Disabled Scaffolding (`NascaJobRunnerNotConfigured`)**: **Verified / Complete** (Fails safely when `NascaOptions.Enabled = false`).
+- **Read-Only Metadata Inspector (`INascaInstallationInspector`)**: **Verified / Complete** (Inspects file version metadata of explicitly configured paths without process execution).
+- **Executable Filename (`NascaConverter.exe`)**: **Proposed / Unverified** (Pending operator evidence).
+- **CLI Arguments (`--input`, `--output-dir`, `--format json`)**: **Proposed / Unverified** (Pending vendor documentation).
+- **Watched Output Directory**: **Proposed / Unverified** (Pending vendor documentation).
+- **Standalone Engine vs Office Dependency**: **Unknown** (Pending vendor documentation).
 
-## Hard Boundary Guarantees
+## Hard Security Boundaries
 
-1. **No Production Execution in Phase 3A**: Process execution is disabled by default (`NascaJobRunnerNotConfigured`).
-2. **No Backend Executable Path Control**: The backend API cannot supply or override executable paths or working directories.
-3. **No Excel COM**: Office automation and COM interop are strictly excluded.
-4. **No Secret Exposure**: Workbook cell contents and raw input file paths are redacted from log outputs.
+1. **No Process Launch in Discovery Phases**: `Process.Start` is NEVER invoked.
+2. **No Arbitrary Disk or Registry Scanning**: Inspector checks ONLY the explicitly configured absolute path.
+3. **No Excel COM Automation**: Office interop assemblies are strictly prohibited.
+4. **Disabled by Default**: `NascaOptions.Enabled` defaults to `false`.

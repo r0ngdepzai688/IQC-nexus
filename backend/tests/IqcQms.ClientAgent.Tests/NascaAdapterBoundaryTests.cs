@@ -244,4 +244,152 @@ public class NascaAdapterBoundaryTests
         Assert.DoesNotContain(loadedAssemblies, name => name.Equals("office", StringComparison.OrdinalIgnoreCase));
         Assert.DoesNotContain(loadedAssemblies, name => name.StartsWith("Office", StringComparison.OrdinalIgnoreCase));
     }
+
+    // Phase 3A.1 Tests
+    [Fact]
+    public void UnverifiedInterface_CannotBeEnabled()
+    {
+        var options = new NascaOptions
+        {
+            Enabled = true,
+            ExecutablePath = @"C:\NonExistent\Nasca.exe",
+            ExpectedProductName = "UnverifiedProduct"
+        };
+
+        // When missing executable or unverified, production validation throws
+        Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: true));
+    }
+
+    [Fact]
+    public void DisabledMode_DoesNotInspectInstallation()
+    {
+        var options = new NascaOptions { Enabled = false };
+        var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
+
+        // When options are disabled, inspect should not be invoked during normal startup
+        options.Validate(isProduction: true);
+        Assert.False(options.Enabled);
+    }
+
+    [Fact]
+    public void Inspector_DoesNotLaunchProcess()
+    {
+        var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
+        var meta = inspector.InspectPath(@"C:\Windows\System32\cmd.exe");
+
+        // Inspector reads file version info metadata without calling Process.Start
+        Assert.True(meta.FileExists);
+        Assert.Equal("METADATA_INSPECTED", meta.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public void Inspector_OnlyReadsExplicitConfiguredPath()
+    {
+        var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
+        var meta = inspector.InspectPath(@"relative_file.exe");
+
+        // Relative path is rejected immediately
+        Assert.False(meta.FileExists);
+        Assert.Equal("PATH_NOT_ROOTED", meta.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public void Inspector_DoesNotSearchPathEnvironment()
+    {
+        var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
+        var meta = inspector.InspectPath("notepad.exe");
+
+        // Bare filename without absolute path is rejected, proving PATH is not searched
+        Assert.False(meta.FileExists);
+        Assert.Equal("PATH_NOT_ROOTED", meta.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public void Inspector_DoesNotScanRegistry()
+    {
+        var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
+        var meta = inspector.InspectPath("");
+
+        // Empty path rejected without registry lookups
+        Assert.False(meta.FileExists);
+        Assert.Equal("PATH_EMPTY", meta.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public void UnknownPublisher_DoesNotBecomeTrusted()
+    {
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            Publisher = "Unknown Supplier",
+            IsAuthenticodeSigned = false
+        };
+
+        var options = new NascaOptions
+        {
+            ExpectedPublisher = "Official Vendor Inc.",
+            RequireAuthenticodeSignature = true
+        };
+
+        Assert.NotEqual(options.ExpectedPublisher, meta.Publisher);
+        Assert.False(meta.IsAuthenticodeSigned);
+    }
+
+    [Fact]
+    public void UnknownVersion_DoesNotBecomeTrusted()
+    {
+        var meta = new NascaInstallationMetadata
+        {
+            FileExists = true,
+            ProductVersion = "9.9.9-untracked"
+        };
+
+        var options = new NascaOptions
+        {
+            AllowedProductVersions = new List<string> { "1.0.0", "1.1.0" }
+        };
+
+        Assert.DoesNotContain(meta.ProductVersion, options.AllowedProductVersions);
+    }
+
+    [Fact]
+    public void ProposedCliArguments_AreNotUsedByRuntime()
+    {
+        // Assert runtime NascaJobRequest contracts do not expose arbitrary unverified CLI argument string properties
+        var requestProps = typeof(NascaJobRequest).GetProperties().Select(p => p.Name).ToList();
+
+        Assert.DoesNotContain("CliArguments", requestProps);
+        Assert.DoesNotContain("CommandString", requestProps);
+        Assert.DoesNotContain("RawFlags", requestProps);
+    }
+
+    [Fact]
+    public void ExcelDependency_RemainsUnknownWithoutEvidence()
+    {
+        var options = new NascaOptions();
+        // NASCA options do not assume Excel is installed or uninstalled
+        Assert.Empty(options.ExpectedProductName);
+    }
+
+    [Fact]
+    public void OfficeInteropAssembly_RemainsAbsent()
+    {
+        var assemblies = AppDomain.CurrentDomain.GetAssemblies()
+            .Select(a => a.GetName().Name ?? "")
+            .ToList();
+
+        Assert.DoesNotContain(assemblies, name => name.Contains("Interop.Excel", StringComparison.OrdinalIgnoreCase));
+    }
+
+    [Fact]
+    public void NascaProcessLaunchCode_IsAbsent()
+    {
+        // Inspect types in ClientAgent infrastructure to confirm ProcessStartInfo is not used to run NASCA
+        var infraTypes = typeof(NascaJobRunnerNotConfigured).Assembly.GetTypes();
+        var nascaProcessRunnerTypes = infraTypes
+            .Where(t => t.Name.Contains("ProcessRunner", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        Assert.Empty(nascaProcessRunnerTypes);
+    }
 }

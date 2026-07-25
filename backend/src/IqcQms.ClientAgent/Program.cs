@@ -59,9 +59,10 @@ builder.Services.AddSingleton<ISingleInstanceLock>(sp =>
 // 5. Startup Registration
 builder.Services.AddSingleton<IUserStartupRegistration, WindowsHkcuRunStartupRegistration>();
 
-// 6. Providers, NASCA Disabled Runner & HTTP Client
+// 6. Providers, NASCA Inspector & Disabled Runner, HTTP Client
 builder.Services.AddSingleton<IClientDataProvider, SyntheticClientDataProvider>();
 builder.Services.AddSingleton<IClientDataProviderRegistry, ClientDataProviderRegistry>();
+builder.Services.AddSingleton<INascaInstallationInspector, NascaInstallationInspector>();
 builder.Services.AddSingleton<INascaJobRunner, NascaJobRunnerNotConfigured>();
 builder.Services.AddHttpClient<IAgentApiClient, AgentApiClient>();
 

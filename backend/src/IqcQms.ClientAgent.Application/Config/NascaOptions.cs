@@ -9,8 +9,12 @@ public class NascaOptions
     public string OutputDirectory { get; set; } = string.Empty;
     public int TimeoutSeconds { get; set; } = 60;
     public int MaximumConcurrentJobs { get; set; } = 1;
+
+    // Phase 3A.1 Identity & Verification Fields
+    public string ExpectedProductName { get; set; } = string.Empty;
     public string ExpectedPublisher { get; set; } = string.Empty;
-    public string ExpectedProductVersion { get; set; } = string.Empty;
+    public List<string> AllowedProductVersions { get; set; } = new();
+    public bool RequireAuthenticodeSignature { get; set; } = false;
 
     public void Validate(bool isProduction = false)
     {

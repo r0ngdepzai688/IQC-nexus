@@ -1,27 +1,29 @@
-# IQC Nexus Client Agent — NASCA Operations Runbook
+# IQC Nexus Client Agent — NASCA Operations Runbook (Phase 3A.1)
 
-## Configuration Guidelines
-
-`NascaOptions` in appsettings:
+## Configuration Contract
 
 ```json
 {
   "NascaOptions": {
     "Enabled": false,
-    "ExecutablePath": "C:\\Program Files\\NASCA\\NascaConverter.exe",
+    "ExecutablePath": "C:\\Program Files\\NASCA\\Nasca.exe",
     "WorkingDirectory": "C:\\Program Files\\NASCA\\",
     "InputDirectory": "C:\\IqcQmsInputs\\",
     "OutputDirectory": "C:\\IqcQmsOutputs\\",
     "TimeoutSeconds": 60,
-    "MaximumConcurrentJobs": 1
+    "MaximumConcurrentJobs": 1,
+    "ExpectedProductName": "",
+    "ExpectedPublisher": "",
+    "AllowedProductVersions": [],
+    "RequireAuthenticodeSignature": false
   }
 }
 ```
 
-## Production Security Rules
+## Operator Verification Steps
 
-1. `Enabled` defaults to `false`.
-2. In `Production`, `ExecutablePath` and `OutputDirectory` MUST be valid absolute paths on the host.
-3. `ExecutablePath` CANNOT be located inside a writable input directory.
-4. `TimeoutSeconds` must be positive and bounded (1 to 600 seconds).
-5. `MaximumConcurrentJobs` must be positive and bounded (1 to 10).
+Before setting `Enabled: true` in production:
+1. Complete all items in [NASCA-EVIDENCE-CHECKLIST.md](file:///D:/Code_viber/Portal/docs/client-agent/NASCA-EVIDENCE-CHECKLIST.md).
+2. Configure `ExecutablePath` and `OutputDirectory` as absolute paths.
+3. Confirm `ExecutablePath` does not reside inside a writable input directory.
+4. Verify `INascaInstallationInspector` returns `SanitizedReasonCode = "METADATA_INSPECTED"` for target binary.
