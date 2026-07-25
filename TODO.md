@@ -1,0 +1,10 @@
+- [x] Analyze deterministic hang evidence and identify exact blocking construct
+- [x] Read target test and validator implementation
+- [x] Implement minimal test-only fix for timer-capable fake time provider behavior
+- [ ] Run single test: StableFile_IsAccepted
+- [ ] Run full NascaOutputValidatorTests class
+- [ ] Run NascaOutputValidatorContractsTests
+- [ ] Run full IqcQms.ClientAgent.Tests with blame-hang
+- [ ] Run full solution tests
+- [ ] Run build and hygiene checks
+- [ ] Report final evidence and status

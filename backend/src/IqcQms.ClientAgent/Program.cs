@@ -59,7 +59,7 @@ builder.Services.AddSingleton<ISingleInstanceLock>(sp =>
 // 5. Startup Registration
 builder.Services.AddSingleton<IUserStartupRegistration, WindowsHkcuRunStartupRegistration>();
 
-// 6. Providers, NASCA Inspector, Security Guard, Work Directory Manager, Execution State Store & Disabled Runner, HTTP Client
+// 6. Providers, NASCA Inspector, Security Guard, Work Directory Manager, Output Validator, Execution State Store & Disabled Runner, HTTP Client
 builder.Services.AddSingleton<IClientDataProvider, SyntheticClientDataProvider>();
 builder.Services.AddSingleton<IClientDataProviderRegistry, ClientDataProviderRegistry>();
 builder.Services.AddSingleton<INascaInstallationInspector, NascaInstallationInspector>();
@@ -68,6 +68,7 @@ builder.Services.AddSingleton<INascaWorkDirectoryManager>(sp =>
     new NascaWorkDirectoryManager(pathResolver.RootDataDirectory, sp.GetRequiredService<INascaPathSecurityGuard>(), sp.GetRequiredService<ILogger<NascaWorkDirectoryManager>>()));
 builder.Services.AddSingleton<INascaExecutionStateStore>(sp =>
     new SqliteNascaExecutionStateStore(pathResolver.RootDataDirectory, sp.GetRequiredService<ILogger<SqliteNascaExecutionStateStore>>()));
+builder.Services.AddSingleton<INascaOutputValidator, NascaOutputValidator>();
 builder.Services.AddSingleton<INascaJobRunner, NascaJobRunnerNotConfigured>();
 builder.Services.AddHttpClient<IAgentApiClient, AgentApiClient>();
 
