@@ -579,6 +579,331 @@ public class NascaOutputValidatorTests : IDisposable
     }
 
     [Fact]
+    public async Task DirectoryDepth_Exceeded_Rejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_depth_exc", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        var subLevel1 = Path.Combine(outputDir, "level1");
+        var subLevel2 = Path.Combine(subLevel1, "level2");
+        Directory.CreateDirectory(subLevel2);
+        await File.WriteAllTextAsync(Path.Combine(subLevel2, "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_depth_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 5,
+                MaximumDirectoryDepth = 1 // Limit is 1, but depth is 2
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.MaximumDepthExceeded, result.Outcome);
+        Assert.Equal("DIRECTORY_DEPTH_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task DirectoryCount_Exceeded_Rejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_dir_cnt_exc", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        Directory.CreateDirectory(Path.Combine(outputDir, "dir1"));
+        Directory.CreateDirectory(Path.Combine(outputDir, "dir2"));
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "dir1", "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_dir_cnt_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 1, // Limit is 1, but there are 2 subdirectories
+                MaximumDirectoryDepth = 1
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.UnexpectedDirectory, result.Outcome);
+        Assert.Equal("UNEXPECTED_SUBDIRECTORY_COUNT_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FileCount_Exceeded_Rejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_file_cnt_exc", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content1");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f2.dat"), "content2");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_file_cnt_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumFileCount = 1 // Limit is 1, but there are 2 files
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.TooManyFiles, result.Outcome);
+        Assert.Equal("FILE_COUNT_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task SingleFileSize_Exceeded_Rejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_single_size_exc", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        await File.WriteAllBytesAsync(Path.Combine(outputDir, "large.bin"), new byte[100]);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_single_size_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumSingleFileSizeBytes = 50 // Limit is 50B, but file is 100B
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.SingleFileSizeExceeded, result.Outcome);
+        Assert.Equal("SINGLE_FILE_SIZE_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task TotalOutputSize_Exceeded_Rejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_total_size_exc", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        await File.WriteAllBytesAsync(Path.Combine(outputDir, "f1.bin"), new byte[40]);
+        await File.WriteAllBytesAsync(Path.Combine(outputDir, "f2.bin"), new byte[40]);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_total_size_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumSingleFileSizeBytes = 50,
+                MaximumTotalOutputSizeBytes = 70 // Limit is 70B, but total is 80B
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.TotalSizeExceeded, result.Outcome);
+        Assert.Equal("TOTAL_OUTPUT_SIZE_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task Validation_AlreadyCancelledToken_ReturnsCancelledOutcomeNotUnexpectedError()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_cancel_tok", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_cancel_tok",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        using var cts = new CancellationTokenSource();
+        cts.Cancel(); // Pre-cancelled token
+
+        var result = await _validator.ValidateOutputAsync(req, cts.Token);
+        Assert.Equal(NascaOutputValidationOutcome.Cancelled, result.Outcome);
+        Assert.Equal("VALIDATION_CANCELLED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task DirectoryDepth_SiblingDoesNotInflateDepth()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_sib_depth", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        Directory.CreateDirectory(Path.Combine(outputDir, "dir1"));
+        Directory.CreateDirectory(Path.Combine(outputDir, "dir2"));
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "dir1", "f1.dat"), "content1");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "dir2", "f2.dat"), "content2");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_sib_depth",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 5,
+                MaximumDirectoryDepth = 1,
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task DirectoryCount_NestedAndSiblingCountedConsistently()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_nest_sib_cnt", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        var dir1 = Path.Combine(outputDir, "dir1");
+        var dir1Sub = Path.Combine(dir1, "sub1");
+        var dir2 = Path.Combine(outputDir, "dir2");
+
+        Directory.CreateDirectory(dir1Sub);
+        Directory.CreateDirectory(dir2);
+        await File.WriteAllTextAsync(Path.Combine(dir2, "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_nest_sib_cnt",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 2, // Exactly 3 subdirs exist (dir1, dir1/sub1, dir2) -> limit 2 exceeded
+                MaximumDirectoryDepth = 2
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.UnexpectedDirectory, result.Outcome);
+        Assert.Equal("UNEXPECTED_SUBDIRECTORY_COUNT_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task FileCount_MultipleDirectories_CountedCorrectly()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_multi_dir_file_cnt", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        var dir1 = Path.Combine(outputDir, "dir1");
+        var dir2 = Path.Combine(outputDir, "dir2");
+        Directory.CreateDirectory(dir1);
+        Directory.CreateDirectory(dir2);
+
+        await File.WriteAllTextAsync(Path.Combine(dir1, "f1.dat"), "content1");
+        await File.WriteAllTextAsync(Path.Combine(dir2, "f2.dat"), "content2");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_multi_dir_file_cnt",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 2,
+                MaximumDirectoryDepth = 1,
+                MaximumFileCount = 1 // 2 total files across subdirs -> limit 1 exceeded
+            }
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.TooManyFiles, result.Outcome);
+        Assert.Equal("FILE_COUNT_EXCEEDED", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task TotalOutputSize_MultipleFilesAggregation_Accepted()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_total_size_agg", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        await File.WriteAllBytesAsync(Path.Combine(outputDir, "f1.bin"), new byte[40]);
+        await File.WriteAllBytesAsync(Path.Combine(outputDir, "f2.bin"), new byte[40]);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_total_size_agg",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumSingleFileSizeBytes = 50,
+                MaximumTotalOutputSizeBytes = 80, // Total is exactly 80B
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal(80, result.ValidatedTotalSizeBytes);
+    }
+
+    [Fact]
+    public async Task FileDescriptors_AreDeterministicallyOrderedByPath()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_det_order", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "z_file.dat"), "z content");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "a_file.dat"), "a content");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "m_file.dat"), "m content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_det_order",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal(3, result.Descriptors.Count);
+        Assert.Equal("output/a_file.dat", result.Descriptors[0].RelativePath);
+        Assert.Equal("output/m_file.dat", result.Descriptors[1].RelativePath);
+        Assert.Equal("output/z_file.dat", result.Descriptors[2].RelativePath);
+    }
+
+    [Fact]
     public async Task OutputRoot_AlternateSeparator_IsNormalizedAndAccepted()
     {
         var manifest = await _manager.CreateWorkDirectoryAsync("corr_slash", "exec_1");
@@ -1530,6 +1855,263 @@ public class NascaOutputValidatorTests : IDisposable
                 return ValueTask.CompletedTask;
             }
         }
+    }
+
+    [Fact]
+    public async Task ReparseInspectionFailure_FailsClosed_NoExceptionEscapes_NoTimerCreated()
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var faultGuard = new FaultInjectingPathSecurityGuard
+        {
+            ExceptionToThrowOnIsReparsePoint = new InvalidOperationException("reparse point security check error")
+        };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, faultGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, faultGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync("corr_reparse_fail", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        faultGuard.FaultInjectionEnabled = true;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_reparse_fail",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.ReparsePointDetected, result.Outcome);
+        Assert.Equal("REPARSE_POINT_DETECTED_DURING_SECURITY_CHECK", result.SanitizedReasonCode);
+        Assert.False(trackingTime.CreateTimerCalled);
+        Assert.Empty(result.Descriptors);
+    }
+
+    [Fact]
+    public async Task GenericIOException_FailsClosed_MappedToUnknownFailure_SanitizedReasonCode()
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var faultGuard = new FaultInjectingPathSecurityGuard
+        {
+            ExceptionToThrowOnEnsureSafePath = new IOException("Disk error during security verification")
+        };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, faultGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, faultGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync("corr_io_exc", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        faultGuard.FaultInjectionEnabled = true;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_io_exc",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.UnknownFailure, result.Outcome);
+        Assert.Equal("UNEXPECTED_VALIDATION_ERROR", result.SanitizedReasonCode);
+        Assert.DoesNotContain("Disk error", result.SanitizedReasonCode);
+        Assert.False(trackingTime.CreateTimerCalled);
+        Assert.Empty(result.Descriptors);
+    }
+
+    [Fact]
+    public async Task UnsupportedPathException_FailsClosed_MappedToUnknownFailure_NoTimerCreated()
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var faultGuard = new FaultInjectingPathSecurityGuard
+        {
+            ExceptionToThrowOnEnsureSafePath = new NotSupportedException("Unsupported path format")
+        };
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, faultGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, faultGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync("corr_unsupported_path", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        faultGuard.FaultInjectionEnabled = true;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_unsupported_path",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.UnknownFailure, result.Outcome);
+        Assert.Equal("UNEXPECTED_VALIDATION_ERROR", result.SanitizedReasonCode);
+        Assert.False(trackingTime.CreateTimerCalled);
+        Assert.Empty(result.Descriptors);
+    }
+
+    [Fact]
+    public async Task ReparsePoint_NestedSubdirectory_ReturnsReparsePointDetected()
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var faultGuard = new FaultInjectingPathSecurityGuard();
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, faultGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, faultGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync("corr_nested_reparse", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        var level1 = Path.Combine(outputDir, "level1");
+        var level2 = Path.Combine(level1, "level2");
+        Directory.CreateDirectory(level2);
+
+        // Inject reparse point on nested directory level2
+        faultGuard.ReparsePaths.Add(level2);
+        faultGuard.FaultInjectionEnabled = true;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_nested_reparse",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 5,
+                MaximumDirectoryDepth = 3
+            }
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.ReparsePointDetected, result.Outcome);
+        Assert.Equal("REPARSE_POINT_DETECTED_IN_SUBDIRECTORY", result.SanitizedReasonCode);
+        Assert.False(trackingTime.CreateTimerCalled);
+        Assert.Empty(result.Descriptors);
+    }
+
+    [Fact]
+    public async Task DirectoryDiscovery_DifferentOrders_ProduceIdenticalClassificationAndDescriptors()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_dir_det_order", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+
+        var zDir = Path.Combine(outputDir, "z_dir");
+        var aDir = Path.Combine(outputDir, "a_dir");
+        var mDir = Path.Combine(outputDir, "m_dir");
+
+        Directory.CreateDirectory(zDir);
+        Directory.CreateDirectory(aDir);
+        Directory.CreateDirectory(mDir);
+
+        await File.WriteAllTextAsync(Path.Combine(zDir, "f1.dat"), "z content");
+        await File.WriteAllTextAsync(Path.Combine(aDir, "f1.dat"), "a content");
+        await File.WriteAllTextAsync(Path.Combine(mDir, "f1.dat"), "m content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_dir_det_order",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 5,
+                MaximumDirectoryDepth = 2,
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal("OUTPUT_VALIDATION_SUCCESS", result.SanitizedReasonCode);
+        Assert.Equal(3, result.Descriptors.Count);
+        Assert.Equal("output/a_dir/f1.dat", result.Descriptors[0].RelativePath);
+        Assert.Equal("output/m_dir/f1.dat", result.Descriptors[1].RelativePath);
+        Assert.Equal("output/z_dir/f1.dat", result.Descriptors[2].RelativePath);
+    }
+
+    [Theory]
+    [InlineData("io_exception")]
+    [InlineData("reparse_inspection_failure")]
+    [InlineData("unsupported_path")]
+    public async Task ExceptionPathIsolation_ProvesNoTimerNoPollingNoDescriptors(string failureCategory)
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var faultGuard = new FaultInjectingPathSecurityGuard();
+
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, faultGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, faultGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync($"corr_iso_{failureCategory}", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        if (failureCategory == "io_exception")
+        {
+            faultGuard.ExceptionToThrowOnEnsureSafePath = new IOException("Injected I/O error");
+        }
+        else if (failureCategory == "reparse_inspection_failure")
+        {
+            faultGuard.ExceptionToThrowOnIsReparsePoint = new InvalidOperationException("Injected reparse check error");
+        }
+        else if (failureCategory == "unsupported_path")
+        {
+            faultGuard.ExceptionToThrowOnEnsureSafePath = new NotSupportedException("Injected unsupported path error");
+        }
+        faultGuard.FaultInjectionEnabled = true;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = $"corr_iso_{failureCategory}",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.NotEqual(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.False(trackingTime.CreateTimerCalled);
+        Assert.Empty(result.Descriptors);
+    }
+
+    private class FaultInjectingPathSecurityGuard : INascaPathSecurityGuard
+    {
+        private readonly INascaPathSecurityGuard _inner = new NascaPathSecurityGuard();
+        public HashSet<string> ReparsePaths { get; } = new(StringComparer.OrdinalIgnoreCase);
+        public Exception? ExceptionToThrowOnIsReparsePoint { get; set; }
+        public Exception? ExceptionToThrowOnEnsureSafePath { get; set; }
+        public bool FaultInjectionEnabled { get; set; }
+
+        public bool IsReparsePoint(string path)
+        {
+            if (FaultInjectionEnabled && path.Contains("output", StringComparison.OrdinalIgnoreCase) && ExceptionToThrowOnIsReparsePoint != null)
+                throw ExceptionToThrowOnIsReparsePoint;
+            if (ReparsePaths.Contains(path))
+                return true;
+            return _inner.IsReparsePoint(path);
+        }
+
+        public bool ContainsReparsePointInAncestors(string rootDirectory, string targetPath)
+            => _inner.ContainsReparsePointInAncestors(rootDirectory, targetPath);
+
+        public void EnsureSafePath(string rootDirectory, string targetPath)
+        {
+            if (FaultInjectionEnabled && targetPath.Contains("output", StringComparison.OrdinalIgnoreCase) && ExceptionToThrowOnEnsureSafePath != null)
+                throw ExceptionToThrowOnEnsureSafePath;
+            _inner.EnsureSafePath(rootDirectory, targetPath);
+        }
+
+        public bool IsValidOpaqueDirectoryName(string name)
+            => _inner.IsValidOpaqueDirectoryName(name);
     }
 
     private class TrackingWorkDirectoryManager : INascaWorkDirectoryManager
