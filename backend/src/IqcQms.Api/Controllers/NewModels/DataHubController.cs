@@ -9,6 +9,9 @@ using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using IqcQms.Infrastructure.Services.DataHub;
 using IqcQms.Domain.Entities.DataHub;
+using IqcQms.Application.Auth;
+using IqcQms.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace IqcQms.Api.Controllers.NewModels
 {
@@ -20,15 +23,25 @@ namespace IqcQms.Api.Controllers.NewModels
         private readonly IDataHubIngestionService _dataHubService;
         private readonly ILogger<DataHubController> _logger;
         private readonly IMasterPlanContractParser _parser;
+        private readonly IAuthorizationService _authorization;
+        private readonly AppDbContext _context;
 
-        public DataHubController(IDataHubIngestionService dataHubService, IMasterPlanContractParser parser, ILogger<DataHubController> logger)
+        public DataHubController(
+            IDataHubIngestionService dataHubService,
+            IMasterPlanContractParser parser,
+            ILogger<DataHubController> logger,
+            IAuthorizationService authorization,
+            AppDbContext context)
         {
             _dataHubService = dataHubService;
             _logger = logger;
             _parser = parser;
+            _authorization = authorization;
+            _context = context;
         }
 
         [HttpPost("upload")]
+        [Authorize(Policy = PlatformPermissions.ImportCreate)]
         [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -39,7 +52,7 @@ namespace IqcQms.Api.Controllers.NewModels
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
 
-            string uploadedBy = User.Identity?.Name ?? "SystemAdmin";
+            string uploadedBy = User.Identity!.Name!;
 
             try
             {
@@ -67,6 +80,7 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("inspect-headers")]
+        [Authorize(Policy = PlatformPermissions.ImportCreate)]
         [ProducesResponseType(typeof(HeaderInspectionDto), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -86,6 +100,7 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("manual-files")]
+        [Authorize(Policy = PlatformPermissions.ImportAdmin)]
         public async Task<IActionResult> GetManualUploadFiles()
         {
             var files = await _dataHubService.GetManualUploadFilesAsync();
@@ -93,11 +108,12 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("process-manual")]
+        [Authorize(Policy = PlatformPermissions.ImportAdmin)]
         public async Task<IActionResult> ProcessManualUpload([FromQuery] string fileName, [FromQuery] string module = "NewModels")
         {
             if (string.IsNullOrWhiteSpace(fileName)) return BadRequest("Filename required");
 
-            string uploadedBy = User.Identity?.Name ?? "SystemAdmin";
+            string uploadedBy = User.Identity!.Name!;
             try
             {
                 var batch = await _dataHubService.ProcessManualUploadAsync(fileName, uploadedBy, module);
@@ -123,6 +139,7 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("preview/{batchId}")]
+        [Authorize(Policy = PlatformPermissions.ImportView)]
         [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -130,36 +147,48 @@ namespace IqcQms.Api.Controllers.NewModels
         {
             var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
             if (batch == null) return NotFound("Batch not found.");
+            if (!await CanAccessAsync(batch)) return Forbid();
             
             return Ok(batch);
         }
 
         [HttpGet("history")]
+        [Authorize(Policy = PlatformPermissions.ImportView)]
         [ProducesResponseType(typeof(List<ImportBatch>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetHistory([FromQuery] string module = "NewModels")
         {
             var history = await _dataHubService.GetHistoryAsync(module);
-            return Ok(history);
+            if (await IsImportAdminAsync()) return Ok(history);
+            var actor = User.Identity!.Name!;
+            return Ok(history.Where(batch => string.Equals(batch.UploadedBy, actor, StringComparison.OrdinalIgnoreCase)));
         }
 
         [HttpGet("batch/{batchId}/staging")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(List<StagingMasterPlan>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> GetStagingRecords(string batchId)
         {
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound();
+            if (!await CanAccessAsync(batch)) return Forbid();
             var records = await _dataHubService.GetStagingRecordsAsync(batchId);
             return Ok(records);
         }
 
         [HttpPost("commit/{batchId}")]
+        [Authorize(Policy = PlatformPermissions.ImportCommit)]
         [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> CommitBatch(string batchId)
         {
-            string committedBy = User.Identity?.Name ?? "SystemAdmin";
+            var existing = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (existing is null) return NotFound();
+            if (!await CanAccessAsync(existing)) return Forbid();
+            string committedBy = User.Identity!.Name!;
             try
             {
                 var batch = await _dataHubService.CommitBatchAsync(batchId, committedBy);
@@ -177,6 +206,7 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpPost("resolve-review/{reviewItemId}")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(ResolutionResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -184,7 +214,15 @@ namespace IqcQms.Api.Controllers.NewModels
         {
             if (reviewItemId <= 0 || dto == null || !new[] { "Override", "Ignore", "CreateMissing", "Update", "Skip" }.Contains(dto.Action, StringComparer.OrdinalIgnoreCase))
                 return BadRequest("A valid review action is required.");
-            string resolvedBy = User.Identity?.Name ?? "SystemAdmin";
+            var batchId = await _context.BusinessReviewQueues
+                .Where(item => item.Id == reviewItemId)
+                .Select(item => item.BatchId)
+                .SingleOrDefaultAsync(HttpContext.RequestAborted);
+            if (string.IsNullOrEmpty(batchId)) return NotFound();
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound();
+            if (!await CanAccessAsync(batch)) return Forbid();
+            string resolvedBy = User.Identity!.Name!;
             var success = await _dataHubService.ResolveReviewItemAsync(reviewItemId, dto.Action, resolvedBy, dto.Note);
             
             if (!success) return BadRequest("Unable to resolve item.");
@@ -192,41 +230,54 @@ namespace IqcQms.Api.Controllers.NewModels
         }
 
         [HttpGet("review/{batchId}")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(ImportReviewSummaryDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         public async Task<IActionResult> GetReview(string batchId)
         {
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound("Batch not found.");
+            if (!await CanAccessAsync(batch)) return Forbid();
             var summary = await _dataHubService.GetReviewSummaryAsync(batchId);
             return summary is null ? NotFound("Batch not found.") : Ok(summary);
         }
 
         [HttpPost("resolve-existing/{batchId}")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResolveExistingSku(string batchId, [FromBody] ExistingSkuResolutionDto dto)
         {
             if (dto is null || dto.Resolution is not ("Skip" or "Cancel")) return BadRequest("Resolution must be Skip or Cancel.");
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound();
+            if (!await CanAccessAsync(batch)) return Forbid();
             try
             {
-                return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser"));
+                return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity!.Name!));
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
         [HttpPost("resolve-existing-business-key/{batchId}")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(ImportBatch), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> ResolveExistingBusinessKey(string batchId, [FromBody] ExistingBusinessKeyResolutionDto dto)
         {
             if (dto is null || dto.Resolution is not ("Update" or "Skip" or "Cancel")) return BadRequest("Resolution must be Update, Skip, or Cancel.");
-            try { return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser", dto.RowNumber)); }
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound();
+            if (!await CanAccessAsync(batch)) return Forbid();
+            try { return Ok(await _dataHubService.ResolveExistingBusinessKeyAsync(batchId, dto.Resolution, User.Identity!.Name!, dto.RowNumber)); }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
 
         [HttpPost("resolve-warning/{batchId}/{rowNumber:int}")]
+        [Authorize(Policy = PlatformPermissions.ImportReview)]
         [ProducesResponseType(typeof(ResolutionResponseDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -234,13 +285,23 @@ namespace IqcQms.Api.Controllers.NewModels
         public async Task<IActionResult> ResolveWarning(string batchId, int rowNumber, [FromBody] WarningResolutionDto dto)
         {
             if (dto is null || dto.Resolution is not ("Accept" or "Skip")) return BadRequest("Resolution must be Accept or Skip.");
+            var batch = await _dataHubService.GetBatchPreviewAsync(batchId);
+            if (batch is null) return NotFound();
+            if (!await CanAccessAsync(batch)) return Forbid();
             try
             {
-                var resolved = await _dataHubService.ResolveWarningRowAsync(batchId, rowNumber, dto.Resolution, User.Identity?.Name ?? "AuthenticatedUser");
+                var resolved = await _dataHubService.ResolveWarningRowAsync(batchId, rowNumber, dto.Resolution, User.Identity!.Name!);
                 return resolved ? Ok(new ResolutionResponseDto(true)) : NotFound("Review row not found or no longer pending.");
             }
             catch (InvalidOperationException ex) { return BadRequest(ex.Message); }
         }
+
+        private async Task<bool> CanAccessAsync(ImportBatch batch) =>
+            string.Equals(batch.UploadedBy, User.Identity?.Name, StringComparison.OrdinalIgnoreCase)
+            || await IsImportAdminAsync();
+
+        private async Task<bool> IsImportAdminAsync() =>
+            (await _authorization.AuthorizeAsync(User, null, PlatformPermissions.ImportAdmin)).Succeeded;
     }
 
     public sealed class ExistingSkuResolutionDto

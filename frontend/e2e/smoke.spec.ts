@@ -9,32 +9,43 @@ async function loginAsSyntheticUser(page: Page) {
   }
 
   await page.goto("/login");
-  await page.getByLabel(/Mã nhân viên/i).fill(syntheticUserId);
-  await page.getByLabel(/Mật khẩu/i).fill(password);
-  await page.getByRole("button", { name: /^Đăng nhập$/i }).click();
+  await page.getByLabel(/Username or Email/i).fill(syntheticUserId);
+  await page.getByPlaceholder("Enter password").fill(password);
+  await page.getByRole("button", { name: /^Sign in$/i }).click();
   await expect(page).toHaveURL(/\/overview$/);
 }
 
 test("login page exposes the supported authentication controls", async ({ page }) => {
   await page.goto("/login");
 
-  await expect(page).toHaveTitle("IQC Quality Management Cloud");
-  await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
-  await expect(page.getByLabel(/Mã nhân viên/i)).toBeVisible();
-  await expect(page.getByLabel(/Mật khẩu/i)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Access your workspace" })).toBeVisible();
+  await expect(page.getByLabel(/Username or Email/i)).toBeVisible();
+  await expect(page.getByPlaceholder("Enter password")).toBeVisible();
 });
 
 test("unauthenticated visitors are redirected from a protected route", async ({ page }) => {
   await page.goto("/overview");
 
   await expect(page).toHaveURL(/\/login$/);
-  await expect(page.getByRole("heading", { name: "Đăng nhập" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Access your workspace" })).toBeVisible();
 });
 
-test("a seeded synthetic user can log in and reach the protected overview", async ({ page }) => {
+test("a seeded synthetic user can log in, navigate shell, visit protected route, and log out", async ({ page }) => {
   await loginAsSyntheticUser(page);
 
-  await expect(page.getByRole("heading", { name: "Enterprise Command Center" })).toBeVisible();
+  // Application Shell verification
+  await expect(page.getByRole("heading", { name: "Quality intake overview" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
+
+  // Navigate to protected route
+  await page.getByRole("link", { name: "Import Center", exact: true }).click();
+  await expect(page).toHaveURL(/\/imports$/);
+  await expect(page.getByRole("heading", { name: "Import Center", level: 1 })).toBeVisible();
+
+  // Logout via profile menu
+  await page.getByRole("button", { name: "User account menu" }).click();
+  await page.getByRole("menuitem", { name: "Sign Out" }).click();
+  await expect(page).toHaveURL(/\/login$/);
 });
 
 test("an authenticated synthetic user can load the empty Data Hub history", async ({ page }) => {

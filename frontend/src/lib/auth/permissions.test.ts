@@ -1,26 +1,28 @@
 import { describe, expect, it } from "vitest";
 
 import type { AuthState } from "../contexts/AuthContext";
+import { normalizeAuthUser } from "./client";
 import {
   canApproveTask,
   hasAccessToProject,
   hasAccessToScope,
 } from "./permissions";
 
-const user = (overrides: Partial<AuthState> = {}): AuthState => ({
-  employeeId: "SYN-TEST-001",
-  name: "Synthetic Tester",
-  position: "Staff",
-  scope: "Scope A",
-  systemRole: "User",
-  accountStatus: "Active",
-  avatar: "",
-  organization: "IQC Group",
-  part: "Part A",
-  email: "tester@example.invalid",
-  roleProfile: "",
-  ...overrides,
-});
+const user = (overrides: Partial<AuthState> = {}): AuthState =>
+  normalizeAuthUser({
+    employeeId: "SYN-TEST-001",
+    fullName: "Synthetic Tester",
+    position: "Staff",
+    scope: "Scope A",
+    systemRole: "User",
+    accountStatus: "Active",
+    avatar: "",
+    organization: "IQC Group",
+    part: "Part A",
+    email: "tester@example.invalid",
+    roleProfile: "",
+    ...overrides,
+  });
 
 describe("project access", () => {
   it("allows administrators regardless of assignment", () => {

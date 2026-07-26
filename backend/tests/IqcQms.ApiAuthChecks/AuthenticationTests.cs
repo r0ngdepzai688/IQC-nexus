@@ -119,6 +119,76 @@ public sealed class AuthenticationTests
         Assert.DoesNotContain(token.Claims, claim => claim.Type == ClaimTypes.Role && claim.Value == "Administrator");
     }
 
+    [Fact]
+    public async Task DisabledAndInvalidAccountsReturnSameSanitizedErrorAndAuditFailure()
+    {
+        await using var context = CreateContext();
+        await context.Database.EnsureCreatedAsync();
+        context.Users.Add(new User
+        {
+            Username = "SYN-DISABLED",
+            FullName = "Synthetic Disabled User",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword("not-returned-or-logged"),
+            SystemRole = "User",
+            IsActive = false,
+            AccountStatus = "Locked"
+        });
+        await context.SaveChangesAsync();
+        var controller = new AuthController(context, Configuration(NewSecret()))
+        {
+            ControllerContext = new ControllerContext { HttpContext = new DefaultHttpContext() }
+        };
+
+        var disabled = Assert.IsType<UnauthorizedObjectResult>(await controller.Login(
+            new LoginRequest { Username = "SYN-DISABLED", Password = "not-returned-or-logged" }));
+        var unknown = Assert.IsType<UnauthorizedObjectResult>(await controller.Login(
+            new LoginRequest { Username = "SYN-UNKNOWN", Password = "not-returned-or-logged" }));
+
+        Assert.Equal(JsonSerializer.Serialize(disabled.Value), JsonSerializer.Serialize(unknown.Value));
+        Assert.Equal(2, await context.AuditLogs.CountAsync(value => value.ActionType == "LoginFailed"));
+        Assert.All(await context.AuditLogs.ToListAsync(), audit =>
+        {
+            Assert.DoesNotContain("not-returned-or-logged", audit.OldValue);
+            Assert.DoesNotContain("not-returned-or-logged", audit.NewValue);
+        });
+    }
+
+    [Fact]
+    public async Task ChangePasswordIsBoundToAuthenticatedSubject()
+    {
+        const string oldPassword = "synthetic-old-password";
+        await using var context = CreateContext();
+        await context.Database.EnsureCreatedAsync();
+        var user = new User
+        {
+            Username = "SYN-BOUND",
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(oldPassword),
+            IsActive = true,
+            AccountStatus = "Active"
+        };
+        context.Users.Add(user);
+        await context.SaveChangesAsync();
+        var httpContext = new DefaultHttpContext
+        {
+            User = new ClaimsPrincipal(new ClaimsIdentity(
+                [new Claim(ClaimTypes.NameIdentifier, user.Id.ToString())], "test"))
+        };
+        var controller = new AuthController(context, Configuration(NewSecret()))
+        {
+            ControllerContext = new ControllerContext { HttpContext = httpContext }
+        };
+
+        var response = await controller.ChangePassword(new ChangePasswordRequest
+        {
+            OldPassword = oldPassword,
+            NewPassword = "synthetic-new-password"
+        }, default);
+
+        Assert.IsType<NoContentResult>(response);
+        Assert.True(BCrypt.Net.BCrypt.Verify("synthetic-new-password", user.PasswordHash));
+        Assert.Contains(await context.AuditLogs.ToListAsync(), value => value.ActionType == "PasswordChanged");
+    }
+
     private static IConfiguration Configuration(string secret) => new ConfigurationBuilder()
         .AddInMemoryCollection(new Dictionary<string, string?>
         {

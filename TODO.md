@@ -1,0 +1,6 @@
+- [x] Phase 3A.6.1 — NASCA output validation contracts accepted
+- [x] Phase 3A.6.2 — Fail-closed option validation accepted
+- [x] Phase 3A.6.3 — Output-root identity and containment accepted
+- [x] Phase 3A.6.4 — Directory traversal and file safety accepted
+- [x] Phase 3A.6.5 — NASCA output stability-window validation accepted
+- [ ] Phase 3A.6.6 — Validation descriptor persistence (Next)

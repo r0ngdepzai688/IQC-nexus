@@ -49,6 +49,31 @@ public sealed class AuthenticationDataHubTests(IntegrationTestFactory factory) :
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 
+
+    [Fact]
+    public async Task CurrentUserReturnsPersistedPermissions()
+    {
+        var token = await LoginAsync("SYN-0001", factory.SeedPassword);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/auth/me");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await factory.Client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var permissions = body.RootElement.GetProperty("permissions").EnumerateArray().Select(value => value.GetString()).ToArray();
+        Assert.Contains("dashboard.view", permissions);
+        Assert.Contains("import.view", permissions);
+        Assert.DoesNotContain("user.manage", permissions);
+    }
+
+    [Fact]
+    public async Task AuthenticatedUserWithoutManagementPermissionIsForbidden()
+    {
+        var token = await LoginAsync("SYN-0001", factory.SeedPassword);
+        using var request = new HttpRequestMessage(HttpMethod.Get, "/api/users");
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        using var response = await factory.Client.SendAsync(request);
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
     private async Task<string> LoginAsync(string username, string password)
     {
         using var response = await factory.Client.PostAsJsonAsync("/api/auth/login", new { username, password });

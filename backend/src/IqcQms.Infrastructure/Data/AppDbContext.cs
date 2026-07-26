@@ -8,6 +8,7 @@ using IqcQms.Domain.Entities.Chat;
 using IqcQms.Domain.Entities.Tasks;
 using IqcQms.Domain.Entities.NewModels;
 using IqcQms.Domain.Entities.DataHub;
+using IqcQms.Domain.Entities.Agent;
 
 namespace IqcQms.Infrastructure.Data
 {
@@ -60,6 +61,23 @@ namespace IqcQms.Infrastructure.Data
         public DbSet<ImportLog> ImportLogs { get; set; }
         public DbSet<DataHubAuditLog> DataHubAuditLogs { get; set; }
         public DbSet<HeaderMappingProfile> HeaderMappingProfiles { get; set; }
+
+        // Persistent Import Orchestration Module
+        public DbSet<PersistentImportJob> PersistentImportJobs { get; set; }
+        public DbSet<PersistentImportMappedPayload> PersistentImportMappedPayloads { get; set; }
+        public DbSet<CommittedImportRecord> CommittedImportRecords { get; set; }
+        public DbSet<PersistentImportAuditEvent> PersistentImportAuditEvents { get; set; }
+        public DbSet<PersistentImportCommitReceipt> PersistentImportCommitReceipts { get; set; }
+        public DbSet<PersistentImportWorkItem> PersistentImportWorkItems { get; set; }
+        public DbSet<PersistentImportOutboxMessage> PersistentImportOutboxMessages { get; set; }
+
+        // Agent Client Module
+        public DbSet<AgentDevice> AgentDevices { get; set; }
+        public DbSet<AgentCredential> AgentCredentials { get; set; }
+        public DbSet<AgentPairingRequest> AgentPairingRequests { get; set; }
+        public DbSet<AgentRefreshOperationResult> AgentRefreshOperationResults { get; set; }
+        public DbSet<AgentPayloadSubmission> AgentPayloadSubmissions { get; set; }
+        public DbSet<AgentPayloadReplayTombstone> AgentPayloadReplayTombstones { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -151,6 +169,104 @@ namespace IqcQms.Infrastructure.Data
                 .WithMany(t => t.RequiredBy)
                 .HasForeignKey(td => td.PrerequisiteTaskId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Persistent Import Indexes & Constraints
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.OwnerUserId);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.State);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.CreatedAt);
+            modelBuilder.Entity<PersistentImportJob>()
+                .HasIndex(j => j.CommitIdempotencyKey);
+
+            modelBuilder.Entity<PersistentImportMappedPayload>()
+                .HasIndex(p => p.JobId);
+
+            modelBuilder.Entity<CommittedImportRecord>()
+                .HasIndex(r => r.ImportJobId);
+
+            modelBuilder.Entity<PersistentImportAuditEvent>()
+                .HasIndex(a => new { a.JobId, a.OccurredAt });
+
+            modelBuilder.Entity<PersistentImportCommitReceipt>()
+                .HasIndex(c => c.JobId);
+
+            modelBuilder.Entity<PersistentImportWorkItem>()
+                .HasIndex(w => new { w.State, w.AvailableAtUtc });
+            modelBuilder.Entity<PersistentImportWorkItem>()
+                .HasIndex(w => w.JobId);
+
+            modelBuilder.Entity<PersistentImportOutboxMessage>()
+                .HasIndex(o => new { o.IsDispatched, o.OccurredAtUtc });
+
+            // Agent Client Module Indexes & Constraints
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.DeviceId)
+                .IsUnique();
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.OwnerUserId);
+            modelBuilder.Entity<AgentDevice>()
+                .HasIndex(d => d.State);
+            modelBuilder.Entity<AgentDevice>()
+                .Property(d => d.ConcurrencyVersion)
+                .IsConcurrencyToken();
+
+            modelBuilder.Entity<AgentCredential>()
+                .HasOne(c => c.Device)
+                .WithMany(d => d.Credentials)
+                .HasForeignKey(c => c.AgentDeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.DeviceId);
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.CredentialIdentifier)
+                .IsUnique();
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => c.TokenFamilyId);
+            modelBuilder.Entity<AgentCredential>()
+                .HasIndex(c => new { c.AgentDeviceId, c.RefreshOperationId });
+
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.HashedCode);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.OwnerUserId);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .HasIndex(p => p.State);
+            modelBuilder.Entity<AgentPairingRequest>()
+                .Property(p => p.ConcurrencyVersion)
+                .IsConcurrencyToken();
+
+            modelBuilder.Entity<AgentRefreshOperationResult>()
+                .HasIndex(r => new { r.AgentDeviceId, r.RefreshOperationId })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => new { s.AgentDeviceId, s.PayloadSubmissionId })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => new { s.AgentDeviceId, s.Nonce })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .HasIndex(s => s.CreatedAtUtc);
+
+            modelBuilder.Entity<AgentPayloadSubmission>()
+                .Property(s => s.ConcurrencyVersion)
+                .IsConcurrencyToken();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => new { t.AgentDeviceId, t.PayloadSubmissionId })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => new { t.AgentDeviceId, t.Nonce })
+                .IsUnique();
+
+            modelBuilder.Entity<AgentPayloadReplayTombstone>()
+                .HasIndex(t => t.TombstoneExpiresAtUtc);
         }
     }
 }

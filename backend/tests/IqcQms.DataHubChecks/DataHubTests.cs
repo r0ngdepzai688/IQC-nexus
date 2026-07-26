@@ -220,6 +220,23 @@ public sealed class DataHubTests
     }
 
     [Fact]
+    public async Task RepeatedCommitReturnsExistingBatchWithoutDuplicatingRows()
+    {
+        await using var fixture = await ServiceFixture.Create();
+        fixture.Context.ImportBatches.Add(new ImportBatch { BatchId = "IDEMPOTENT", Status = "Staged" });
+        fixture.Context.StagingMasterPlans.Add(Ready("IDEMPOTENT", 2, "SYN-IDEMPOTENT"));
+        await fixture.Context.SaveChangesAsync();
+
+        var first = await fixture.Service.CommitBatchAsync("IDEMPOTENT", "synthetic-test");
+        fixture.Context.ChangeTracker.Clear();
+        var replay = await fixture.Service.CommitBatchAsync("IDEMPOTENT", "synthetic-test");
+
+        Assert.Equal("Committed", first.Status);
+        Assert.Equal("Committed", replay.Status);
+        Assert.Equal(first.CreatedRecords, replay.CreatedRecords);
+        Assert.Equal(1, await fixture.Context.MasterPlans.CountAsync(value => value.BasicKey == "SYN-IDEMPOTENT"));
+    }
+    [Fact]
     public async Task MasterPlanQueryFiltersGradeAndCatAndSortsNullPvrLast()
     {
         await using var fixture = await ServiceFixture.Create();

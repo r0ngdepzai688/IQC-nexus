@@ -29,6 +29,8 @@ Thumbs.db
 
 # Data Hub Data files
 /DataHub/
+# Local DataHub runtime/import artifacts
+/backend/src/IqcQms.Api/DataHub/
 *.xlsx
 *.xls
 *.xlsm

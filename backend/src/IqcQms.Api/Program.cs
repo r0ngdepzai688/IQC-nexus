@@ -6,6 +6,15 @@ using IqcQms.Infrastructure.Services.DataHub;
 using System.Security.Cryptography;
 using Microsoft.OpenApi.Models;
 using IqcQms.Api.OpenApi;
+using IqcQms.Api.Security;
+using IqcQms.Application.Auth;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
+using System.IdentityModel.Tokens.Jwt;
+using System.Threading.RateLimiting;
+using IqcQms.Application.DataPlatform;
+using IqcQms.Infrastructure.DataPlatform;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -69,11 +78,29 @@ builder.Services.AddSwaggerGen(options =>
     options.OperationFilter<AuthorizeOperationFilter>();
 });
 builder.Services.AddSignalR(); // Add SignalR
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("login", limiter =>
+    {
+        limiter.PermitLimit = builder.Environment.IsEnvironment("Testing") ? 10_000 : 5;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+        limiter.AutoReplenishment = true;
+    });
+    options.AddFixedWindowLimiter("agent-pair", limiter =>
+    {
+        limiter.PermitLimit = builder.Environment.IsEnvironment("Testing") ? 10_000 : 5;
+        limiter.Window = TimeSpan.FromMinutes(1);
+        limiter.QueueLimit = 0;
+        limiter.AutoReplenishment = true;
+    });
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+});
 
-// Register Application Services
-builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
-builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
-builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
+// Health Checks
+builder.Services.AddHealthChecks()
+    .AddCheck<ImportReadinessHealthCheck>("import_ready", tags: new[] { "readiness" })
+    .AddCheck<ImportOperationalHealthCheck>("import_operational", tags: new[] { "degraded" });
 
 // JWT Authentication setup
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
@@ -84,6 +111,59 @@ if (string.IsNullOrWhiteSpace(secretKey))
         throw new InvalidOperationException("JwtSettings:Secret must be supplied through environment variables or user-secrets outside Development/Testing.");
     secretKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
     builder.Configuration["JwtSettings:Secret"] = secretKey;
+}
+
+// Preview Attestation setup
+var attestationKey = builder.Configuration["PreviewAttestation:SecretKey"] ?? secretKey;
+if (string.IsNullOrWhiteSpace(attestationKey) || System.Text.Encoding.UTF8.GetBytes(attestationKey).Length < 32)
+{
+    if (!builder.Environment.IsDevelopment() && !builder.Environment.IsEnvironment("Testing"))
+        throw new InvalidOperationException("PreviewAttestation:SecretKey must be configured with at least 32 bytes (256 bits) in Production.");
+    attestationKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+}
+
+builder.Services.Configure<PreviewAttestationOptions>(options =>
+{
+    options.SecretKey = attestationKey;
+    options.TokenLifetimeHours = 2;
+});
+
+// Register Application Services
+builder.Services.AddScoped<IqcQms.Application.Interfaces.NewModels.IMasterPlanService, IqcQms.Infrastructure.Services.NewModels.MasterPlanService>();
+builder.Services.AddSingleton<IDataSourceProvider, CsvDataSourceProvider>();
+builder.Services.AddSingleton<IDataSourceProvider, ExcelDataSourceProvider>();
+builder.Services.AddSingleton<DataSourceProviderRegistry>();
+builder.Services.AddSingleton<IDataSourceProviderRegistry>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookNormalizer>(services => services.GetRequiredService<DataSourceProviderRegistry>());
+builder.Services.AddSingleton<IWorkbookMappingService, WorkbookMappingService>();
+builder.Services.AddSingleton<IImportValidationEngine, ImportValidationEngine>();
+builder.Services.AddSingleton<IPreviewAttestationService, PreviewAttestationService>();
+builder.Services.AddSingleton<IImportPreviewEngine, ImportPreviewEngine>();
+builder.Services.AddSingleton<IPreviewInvalidationEngine, PreviewInvalidationEngine>();
+
+builder.Services.AddScoped<IImportJobStore, EfImportJobStore>();
+builder.Services.AddScoped<IImportWorkQueue, EfImportWorkQueue>();
+builder.Services.AddScoped<IImportAuditService, EfImportAuditService>();
+builder.Services.AddScoped<IImportCommitEngine, ImportCommitService>();
+
+builder.Services.AddScoped<IImportPipelineOrchestrator, ImportPipelineOrchestrator>();
+builder.Services.AddScoped<IMasterPlanContractParser, MasterPlanContractParser>();
+builder.Services.AddScoped<IDataHubIngestionService, DataHubIngestionService>();
+builder.Services.Configure<IqcQms.Infrastructure.Security.AgentSecurityOptions>(builder.Configuration.GetSection("AgentSecurityOptions"));
+builder.Services.Configure<IqcQms.Infrastructure.Config.AgentPayloadRetentionOptions>(builder.Configuration.GetSection("AgentPayloadRetentionOptions"));
+builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IEnvelopeEncryptionService, IqcQms.Infrastructure.Security.EnvelopeEncryptionService>();
+builder.Services.AddSingleton<IqcQms.Infrastructure.Security.INormalizedWorkbookCanonicalizer, IqcQms.Infrastructure.Security.NormalizedWorkbookCanonicalizer>();
+builder.Services.AddSingleton<IqcQms.Infrastructure.Security.IRelationalConstraintViolationClassifier, IqcQms.Infrastructure.Security.RelationalConstraintViolationClassifier>();
+builder.Services.AddSingleton<IqcQms.Application.Services.IAgentTimeProvider, IqcQms.Infrastructure.Services.SystemAgentTimeProvider>();
+builder.Services.AddScoped<IqcQms.Application.Services.IAgentService, IqcQms.Infrastructure.Services.AgentService>();
+builder.Services.AddScoped<IqcQms.Application.Services.IAgentPayloadRetentionService, IqcQms.Infrastructure.Services.AgentPayloadRetentionService>();
+
+// Register Background Hosted Services outside testing
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<ImportCommitBackgroundWorker>();
+    builder.Services.AddHostedService<ImportOutboxBackgroundWorker>();
+    builder.Services.AddHostedService<IqcQms.Infrastructure.Services.AgentPayloadRetentionBackgroundWorker>();
 }
 
 builder.Services.AddAuthentication(options =>
@@ -103,8 +183,36 @@ builder.Services.AddAuthentication(options =>
         ValidAudience = jwtSettings["Audience"],
         IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(secretKey))
     };
+    options.Events = new Microsoft.AspNetCore.Authentication.JwtBearer.JwtBearerEvents
+    {
+        OnTokenValidated = async context =>
+        {
+            var subject = context.Principal?.FindFirst(JwtRegisteredClaimNames.Sub)?.Value
+                ?? context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (!int.TryParse(subject, out var userId))
+            {
+                context.Fail("Invalid token subject.");
+                return;
+            }
+
+            var db = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+            var active = await db.Users.AsNoTracking().AnyAsync(
+                user => user.Id == userId && user.IsActive && user.AccountStatus == "Active",
+                context.HttpContext.RequestAborted);
+            if (!active)
+                context.Fail("User account is disabled.");
+        }
+    };
 });
-builder.Services.AddAuthorization();
+builder.Services.AddScoped<IAuthorizationHandler, PermissionAuthorizationHandler>();
+builder.Services.AddAuthorization(options =>
+{
+    options.FallbackPolicy = new AuthorizationPolicyBuilder()
+        .RequireAuthenticatedUser()
+        .Build();
+    foreach (var permission in PlatformPermissions.All)
+        options.AddPolicy(permission, policy => policy.AddRequirements(new PermissionRequirement(permission)));
+});
 
 // Configure Database Connection (SQLite for local dev)
 var dbConfig = builder.Configuration.GetSection("DatabaseConfig");
@@ -124,6 +232,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
 
 app.UseHttpsRedirection();
 app.UseCors("AllowFrontend"); // Apply CORS
+app.UseRateLimiter();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -131,8 +240,14 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<ChatHub>("/chathub"); // Map SignalR Hub
 
+// Health check endpoints
+app.MapHealthChecks("/health/live", new HealthCheckOptions { Predicate = _ => false }).AllowAnonymous();
+app.MapHealthChecks("/health/ready", new HealthCheckOptions { Predicate = check => check.Tags.Contains("readiness") }).AllowAnonymous();
+app.MapHealthChecks("/health/degraded", new HealthCheckOptions { Predicate = check => check.Tags.Contains("degraded") }).AllowAnonymous();
+
 // Basic health check endpoint
 app.MapGet("/api/health", () => Results.Ok(new { Status = "Healthy", Message = "IQC QMS API is running on SQLite!" }))
+    .AllowAnonymous()
     .WithName("GetHealth")
     .WithOpenApi();
 

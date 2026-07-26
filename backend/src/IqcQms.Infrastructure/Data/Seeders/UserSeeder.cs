@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using IqcQms.Application.Auth;
 using IqcQms.Domain.Entities.Auth;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -57,10 +58,30 @@ namespace IqcQms.Infrastructure.Data.Seeders
             {
                 var existingUsers = (await context.Users.ToListAsync())
                     .ToDictionary(user => user.Username, StringComparer.Ordinal);
-                var defaultRoleId = await context.Roles
-                    .Where(role => role.RoleName == "User")
-                    .Select(role => (int?)role.Id)
-                    .FirstOrDefaultAsync();
+                var defaultRole = await context.Roles.SingleOrDefaultAsync(role => role.RoleName == "User");
+                if (defaultRole is null)
+                {
+                    defaultRole = new Role
+                    {
+                        RoleName = "User",
+                        Permissions = JsonSerializer.Serialize(new[]
+                        {
+                            PlatformPermissions.DashboardView,
+                            PlatformPermissions.ImportView,
+                            PlatformPermissions.ImportCreate,
+                            PlatformPermissions.ImportReview,
+                            PlatformPermissions.ImportCommit,
+                            PlatformPermissions.DownloadView,
+                            PlatformPermissions.AgentPair,
+                            PlatformPermissions.AgentView,
+                            PlatformPermissions.AgentRevoke,
+                            PlatformPermissions.AgentAdmin
+                        })
+                    };
+                    context.Roles.Add(defaultRole);
+                    await context.SaveChangesAsync();
+                }
+                var defaultRoleId = defaultRole.Id;
                 var now = DateTime.UtcNow;
                 var addedCount = 0;
                 var updatedCount = 0;
