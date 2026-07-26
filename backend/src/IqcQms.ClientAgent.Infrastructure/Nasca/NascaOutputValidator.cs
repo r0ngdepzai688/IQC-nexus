@@ -67,7 +67,10 @@ public class NascaOutputValidator : INascaOutputValidator
                 return result;
             }
 
-            if (manifest == null || manifest.CorrelationId != request.CorrelationId)
+            if (manifest == null ||
+                !string.Equals(manifest.CorrelationId, request.CorrelationId, StringComparison.Ordinal) ||
+                !string.Equals(manifest.WorkDirectoryId, request.WorkDirectoryId, StringComparison.Ordinal) ||
+                !string.Equals(manifest.ExecutionId, request.ExecutionId, StringComparison.Ordinal))
             {
                 result.Outcome = NascaOutputValidationOutcome.CorrelationMismatch;
                 result.SanitizedReasonCode = "CORRELATION_IDENTITY_MISMATCH";
@@ -78,7 +81,7 @@ public class NascaOutputValidator : INascaOutputValidator
             var assignedWorkDir = _workDirectoryManager.GetWorkDirectoryPath(request.WorkDirectoryId);
             var expectedOutputRoot = Path.Combine(assignedWorkDir, "output");
 
-            if (!string.Equals(Path.GetFullPath(request.OutputRoot), Path.GetFullPath(expectedOutputRoot), StringComparison.OrdinalIgnoreCase))
+            if (!IsOutputRootContained(request.OutputRoot, expectedOutputRoot))
             {
                 result.Outcome = NascaOutputValidationOutcome.OutsideApprovedRoot;
                 result.SanitizedReasonCode = "OUTPUT_ROOT_NOT_APPROVED";
@@ -337,5 +340,30 @@ public class NascaOutputValidator : INascaOutputValidator
             if (kvp.Value.Size != v2.Size || kvp.Value.LastWrite != v2.LastWrite) return false;
         }
         return true;
+    }
+
+    private static bool IsOutputRootContained(string candidatePath, string approvedRoot)
+    {
+        if (string.IsNullOrWhiteSpace(candidatePath) || string.IsNullOrWhiteSpace(approvedRoot))
+            return false;
+
+        try
+        {
+            var fullCandidate = Path.GetFullPath(candidatePath);
+            var fullRoot = Path.GetFullPath(approvedRoot);
+
+            if (string.Equals(fullCandidate, fullRoot, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var rootWithSeparator = fullRoot.EndsWith(Path.DirectorySeparatorChar)
+                ? fullRoot
+                : fullRoot + Path.DirectorySeparatorChar;
+
+            return fullCandidate.StartsWith(rootWithSeparator, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
     }
 }

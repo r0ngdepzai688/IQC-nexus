@@ -335,6 +335,418 @@ public class NascaOutputValidatorTests : IDisposable
     }
 
     [Fact]
+    public async Task ExecutionIdMismatch_FailsClosed()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_exec_test", "exec_real");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_exec_test",
+            ExecutionId = "exec_fake", // Mismatched execution ID
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.CorrelationMismatch, result.Outcome);
+        Assert.Equal("CORRELATION_IDENTITY_MISMATCH", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task ExecutionId_ManifestPopulatedRequestMissing_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_exec_m_pop", "exec_real");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_exec_m_pop",
+            ExecutionId = string.Empty, // Missing in request
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.CorrelationMismatch, result.Outcome);
+        Assert.Equal("CORRELATION_IDENTITY_MISMATCH", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task ExecutionId_RequestPopulatedManifestMissing_IsRejected()
+    {
+        var trackingWorkManager = new TrackingWorkDirectoryManager
+        {
+            ManifestToReturn = new NascaWorkManifest
+            {
+                CorrelationId = "corr_exec_r_pop",
+                WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+                ExecutionId = string.Empty // Missing in manifest
+            },
+            WorkDirectoryPathToReturn = @"C:\work\work_fake_12345678901234567890123456789012"
+        };
+        var validator = new NascaOutputValidator(
+            trackingWorkManager,
+            _securityGuard,
+            NullLogger<NascaOutputValidator>.Instance,
+            _timeProvider);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_exec_r_pop",
+            ExecutionId = "exec_1", // Populated in request
+            WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+            OutputRoot = @"C:\work\work_fake_12345678901234567890123456789012\output",
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.CorrelationMismatch, result.Outcome);
+        Assert.Equal("CORRELATION_IDENTITY_MISMATCH", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task ExecutionId_BothMissing_IsAccepted()
+    {
+        var trackingWorkManager = new TrackingWorkDirectoryManager
+        {
+            ManifestToReturn = new NascaWorkManifest
+            {
+                CorrelationId = "corr_exec_both_missing",
+                WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+                ExecutionId = string.Empty // Absent in manifest
+            },
+            WorkDirectoryPathToReturn = _tempRootDirectory,
+            WorkRootDirectoryToReturn = _tempRootDirectory
+        };
+        var outputDir = Path.Combine(_tempRootDirectory, "output");
+        Directory.CreateDirectory(outputDir);
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "test.dat"), "content");
+
+        var validator = new NascaOutputValidator(
+            trackingWorkManager,
+            _securityGuard,
+            NullLogger<NascaOutputValidator>.Instance,
+            _timeProvider);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_exec_both_missing",
+            ExecutionId = string.Empty, // Absent in request
+            WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task ExecutionId_CaseMismatch_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_exec_case", "EXEC_CASE_UPPER");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_exec_case",
+            ExecutionId = "exec_case_upper", // Casing mismatch
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.CorrelationMismatch, result.Outcome);
+        Assert.Equal("CORRELATION_IDENTITY_MISMATCH", result.SanitizedReasonCode);
+    }
+
+    [Fact]
+    public async Task OutputRoot_DirectChildPath_IsAccepted()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_child", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var expectedOutputRoot = Path.Combine(workDirPath, "output");
+        var subDir = Path.Combine(expectedOutputRoot, "sub");
+        Directory.CreateDirectory(subDir);
+        await File.WriteAllTextAsync(Path.Combine(subDir, "data.bin"), "sub data");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_child",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = subDir,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 1,
+                MaximumDirectoryDepth = 1,
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_SiblingPath_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_sibling", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var siblingDir = Path.Combine(workDirPath, "output_sibling");
+        Directory.CreateDirectory(siblingDir);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_sibling",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = siblingDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_ParentWorkDir_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_parent", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_parent",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = workDirPath, // Parent work directory attempt
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_PrefixCollision_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_prefix", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var prefixCollisionDir = Path.Combine(workDirPath, "output2");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_prefix",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = prefixCollisionDir,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_ParentEscapeTraversal_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_escape", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var expectedOutputRoot = Path.Combine(workDirPath, "output");
+        var escapePath = Path.Combine(expectedOutputRoot, "..", "input");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_escape",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = escapePath,
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_AlternateSeparator_IsNormalizedAndAccepted()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_slash", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var altSlashPath = Path.GetFullPath(outputDir.Replace('\\', '/'));
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_slash",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = altSlashPath,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_RedundantDotSegment_IsNormalizedAndAccepted()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_dot", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var expectedOutputRoot = Path.Combine(workDirPath, "output");
+        var subDir = Path.Combine(expectedOutputRoot, "sub");
+        Directory.CreateDirectory(subDir);
+        await File.WriteAllTextAsync(Path.Combine(subDir, "f1.dat"), "content");
+
+        var dotPath = Path.Combine(expectedOutputRoot, ".", "sub");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_dot",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = dotPath,
+            Options = new NascaOutputValidationOptions
+            {
+                MaximumDirectoryCount = 1,
+                MaximumDirectoryDepth = 1,
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_TrailingSeparator_IsNormalizedAndAccepted()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_trail", "exec_1");
+        var workDirPath = _manager.GetWorkDirectoryPath(manifest.WorkDirectoryId);
+        var outputDir = Path.Combine(workDirPath, "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var trailingPath = outputDir + Path.DirectorySeparatorChar;
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_trail",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = trailingPath,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.Zero,
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(10)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OutputRoot_DifferentDrive_IsRejected()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_drive", "exec_1");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_drive",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = @"Z:\some_other_drive\output",
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await _validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+    }
+
+    [Fact]
+    public async Task OwnershipFailure_PerformsNoEnumerationOrTimerActivity()
+    {
+        var trackingWorkManager = new TrackingWorkDirectoryManager();
+        var trackingTimeProvider = new TrackingTimeProvider();
+        var validator = new NascaOutputValidator(
+            trackingWorkManager,
+            _securityGuard,
+            NullLogger<NascaOutputValidator>.Instance,
+            trackingTimeProvider);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "mismatch_corr",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+            OutputRoot = @"C:\safe\output",
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+
+        Assert.Equal(NascaOutputValidationOutcome.CorrelationMismatch, result.Outcome);
+
+        // Prove no timer creation or stability loop execution occurred
+        Assert.False(trackingTimeProvider.CreateTimerCalled);
+    }
+
+    [Fact]
+    public async Task ContainmentFailure_PerformsNoEnumerationOrTimerActivity()
+    {
+        var trackingWorkManager = new TrackingWorkDirectoryManager
+        {
+            ManifestToReturn = new NascaWorkManifest
+            {
+                CorrelationId = "corr_contain_fail",
+                WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+                ExecutionId = "exec_1"
+            },
+            WorkDirectoryPathToReturn = @"C:\work\work_fake_12345678901234567890123456789012"
+        };
+        var trackingTimeProvider = new TrackingTimeProvider();
+        var validator = new NascaOutputValidator(
+            trackingWorkManager,
+            _securityGuard,
+            NullLogger<NascaOutputValidator>.Instance,
+            trackingTimeProvider);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_contain_fail",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = "work_fake_12345678901234567890123456789012",
+            OutputRoot = @"C:\unapproved\outside_root",
+            Options = new NascaOutputValidationOptions()
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+
+        Assert.Equal(NascaOutputValidationOutcome.OutsideApprovedRoot, result.Outcome);
+
+        // Prove no timer creation or stability loop execution occurred
+        Assert.False(trackingTimeProvider.CreateTimerCalled);
+    }
+
+    [Fact]
     public async Task TraversalOutput_IsRejected()
     {
         var manifest = await _manager.CreateWorkDirectoryAsync("corr_trav", "exec_trav");
@@ -1123,6 +1535,9 @@ public class NascaOutputValidatorTests : IDisposable
     private class TrackingWorkDirectoryManager : INascaWorkDirectoryManager
     {
         public bool GetManifestCalled { get; private set; }
+        public NascaWorkManifest? ManifestToReturn { get; set; }
+        public string WorkDirectoryPathToReturn { get; set; } = string.Empty;
+        public string WorkRootDirectoryToReturn { get; set; } = string.Empty;
 
         public Task<NascaWorkManifest> CreateWorkDirectoryAsync(string correlationId, string executionId, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
@@ -1136,11 +1551,11 @@ public class NascaOutputValidatorTests : IDisposable
         public Task<NascaWorkManifest?> GetManifestByWorkIdAsync(string workDirectoryId, CancellationToken cancellationToken = default)
         {
             GetManifestCalled = true;
-            return Task.FromResult<NascaWorkManifest?>(null);
+            return Task.FromResult(ManifestToReturn);
         }
 
-        public string GetWorkDirectoryPath(string workDirectoryId) => string.Empty;
-        public string GetWorkRootDirectory() => string.Empty;
+        public string GetWorkDirectoryPath(string workDirectoryId) => WorkDirectoryPathToReturn;
+        public string GetWorkRootDirectory() => WorkRootDirectoryToReturn;
 
         public Task<NascaWorkManifest> UpdateLifecycleAsync(string correlationId, NascaWorkLifecycle targetLifecycle, CancellationToken cancellationToken = default)
             => throw new NotImplementedException();
