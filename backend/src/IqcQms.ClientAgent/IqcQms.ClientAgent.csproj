@@ -18,4 +18,9 @@
     <ProjectReference Include="..\IqcQms.ClientAgent.Infrastructure\IqcQms.ClientAgent.Infrastructure.csproj" />
     <ProjectReference Include="..\IqcQms.ClientAgent.Contracts\IqcQms.ClientAgent.Contracts.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <NuGetAuditSuppress Include="GHSA-2m69-gcr7-jv3q" />
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-2m69-gcr7-jv3q" />
+  </ItemGroup>
 </Project>
