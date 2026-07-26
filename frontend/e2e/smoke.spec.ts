@@ -38,9 +38,9 @@ test("a seeded synthetic user can log in, navigate shell, visit protected route,
   await expect(page.getByRole("navigation", { name: "Primary navigation" })).toBeVisible();
 
   // Navigate to protected route
-  await page.getByRole("link", { name: "Import Center" }).click();
+  await page.getByRole("link", { name: "Import Center", exact: true }).click();
   await expect(page).toHaveURL(/\/imports$/);
-  await expect(page.getByRole("heading", { name: "Import Center" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Import Center", level: 1 })).toBeVisible();
 
   // Logout via profile menu
   await page.getByRole("button", { name: "User account menu" }).click();
