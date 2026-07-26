@@ -41,7 +41,7 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
         }
 
         // 3. Absolute Path Check
-        if (!Path.IsPathFullyQualified(trimmedPath))
+        if (!IsFullyQualifiedPath(trimmedPath))
         {
             return AllowedInputPathValidationResult.Denied(PathValidationReason.RelativePathNotAllowed);
         }
@@ -49,7 +49,7 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
         string fullCandidatePath;
         try
         {
-            fullCandidatePath = Path.GetFullPath(trimmedPath);
+            fullCandidatePath = CanonicalizePath(trimmedPath);
         }
         catch
         {
@@ -112,7 +112,7 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
             if (string.IsNullOrWhiteSpace(raw)) continue;
             try
             {
-                var full = Path.GetFullPath(raw.Trim());
+                var full = CanonicalizePath(raw.Trim());
                 var (physicalRoot, _, err) = ResolvePhysicalPath(full);
                 if (err == PathValidationReason.Allowed)
                 {
@@ -130,13 +130,13 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
 
     private (string PhysicalPath, bool ReparseEncountered, PathValidationReason Error) ResolvePhysicalPath(string path)
     {
-        var root = Path.GetPathRoot(path);
+        var root = GetPathRoot(path);
         if (string.IsNullOrEmpty(root))
         {
             return (path, false, PathValidationReason.RelativePathNotAllowed);
         }
 
-        var segments = path[root.Length..].Split(new[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }, StringSplitOptions.RemoveEmptyEntries);
+        var segments = path[root.Length..].Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
 
         var currentPath = root;
         var reparseEncountered = false;
@@ -144,7 +144,12 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
 
         foreach (var segment in segments)
         {
-            currentPath = Path.Combine(currentPath, segment);
+            var separator = currentPath.Contains('/') ? "/" : "\\";
+            if (!currentPath.EndsWith('/') && !currentPath.EndsWith('\\'))
+            {
+                currentPath += separator;
+            }
+            currentPath += segment;
 
             try
             {
@@ -172,32 +177,106 @@ public class AllowedInputPathValidator : IAllowedInputPathValidator
             }
         }
 
-        return (Path.GetFullPath(currentPath), reparseEncountered, PathValidationReason.Allowed);
+        return (CanonicalizePath(currentPath), reparseEncountered, PathValidationReason.Allowed);
     }
 
     public static bool IsPathInsideRoot(string candidatePath, string rootPath)
     {
-        var normalizedCandidate = NormalizeTrailingSeparator(candidatePath);
-        var normalizedRoot = NormalizeTrailingSeparator(rootPath);
+        var normalizedCandidate = NormalizeTrailingSeparator(candidatePath).Replace('/', '\\');
+        var normalizedRoot = NormalizeTrailingSeparator(rootPath).Replace('/', '\\');
 
         if (normalizedCandidate.Equals(normalizedRoot, StringComparison.OrdinalIgnoreCase))
         {
             return true;
         }
 
-        var prefixWithSeparator = normalizedRoot + Path.DirectorySeparatorChar;
+        var prefixWithSeparator = normalizedRoot + "\\";
         return normalizedCandidate.StartsWith(prefixWithSeparator, StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeTrailingSeparator(string path)
     {
-        return path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        return path.TrimEnd('\\', '/');
     }
+
+    public static bool HasAlternateDataStreamForTest(string path) => HasAlternateDataStream(path);
 
     private static bool HasAlternateDataStream(string path)
     {
-        var root = Path.GetPathRoot(path) ?? "";
+        var root = GetPathRoot(path);
+        if (!string.IsNullOrEmpty(root) && root.Length <= path.Length)
+        {
+            var rest = path[root.Length..];
+            if (rest.Contains(':')) return true;
+        }
+
+        var p = path;
+        if (p.Length >= 2 && char.IsAsciiLetter(p[0]) && p[1] == ':')
+        {
+            p = p[2..];
+        }
+        return p.Contains(':');
+    }
+
+    private static bool IsFullyQualifiedPath(string path)
+    {
+        if (Path.IsPathFullyQualified(path)) return true;
+
+        return path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' &&
+               (path[2] == '\\' || path[2] == '/');
+    }
+
+    private static string GetPathRoot(string path)
+    {
+        if (string.IsNullOrEmpty(path)) return string.Empty;
+
+        var root = Path.GetPathRoot(path);
+        if (!string.IsNullOrEmpty(root)) return root;
+
+        if (path.Length >= 3 && char.IsAsciiLetter(path[0]) && path[1] == ':' && (path[2] == '\\' || path[2] == '/'))
+        {
+            return path[..3];
+        }
+
+        return string.Empty;
+    }
+
+    private static string CanonicalizePath(string path)
+    {
+        if (Path.IsPathFullyQualified(path) && OperatingSystem.IsWindows())
+        {
+            return Path.GetFullPath(path);
+        }
+
+        if (Path.IsPathFullyQualified(path) && !char.IsAsciiLetter(path[0]))
+        {
+            return Path.GetFullPath(path);
+        }
+
+        var root = GetPathRoot(path);
+        if (string.IsNullOrEmpty(root))
+        {
+            return Path.GetFullPath(path);
+        }
+
         var rest = path[root.Length..];
-        return rest.Contains(':');
+        var segments = rest.Split(new[] { '\\', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        var stack = new List<string>();
+
+        foreach (var seg in segments)
+        {
+            if (seg == ".") continue;
+            if (seg == "..")
+            {
+                if (stack.Count > 0) stack.RemoveAt(stack.Count - 1);
+            }
+            else
+            {
+                stack.Add(seg);
+            }
+        }
+
+        var separator = root.Contains('/') ? "/" : "\\";
+        return root.TrimEnd('\\', '/') + separator + string.Join(separator, stack);
     }
 }

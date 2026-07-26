@@ -84,13 +84,14 @@ public class NascaAdapterBoundaryTests
     [Fact]
     public void NascaEnabled_MissingExecutableFailsStartup()
     {
+        var nonExistentExe = Path.Combine(Path.GetTempPath(), "NonExistentPath_12345", "NascaConverter.exe");
         var options = new NascaOptions
         {
             Enabled = true,
             VerifiedInterfaceType = NascaVerifiedInterfaceType.Cli,
             ExpectedProductName = "NASCA",
-            ExecutablePath = @"C:\NonExistentPath\NascaConverter.exe",
-            OutputDirectory = @"C:\Outputs\"
+            ExecutablePath = nonExistentExe,
+            OutputDirectory = Path.GetTempPath()
         };
 
         var ex = Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: true));
@@ -106,7 +107,7 @@ public class NascaAdapterBoundaryTests
             VerifiedInterfaceType = NascaVerifiedInterfaceType.Cli,
             ExpectedProductName = "NASCA",
             ExecutablePath = @"relative\NascaConverter.exe",
-            OutputDirectory = @"C:\Outputs\"
+            OutputDirectory = Path.GetTempPath()
         };
 
         var ex = Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: true));
@@ -130,7 +131,7 @@ public class NascaAdapterBoundaryTests
                 ExpectedProductName = "NASCA",
                 ExecutablePath = fakeExe,
                 InputDirectory = tempInput,
-                OutputDirectory = @"C:\Outputs\"
+                OutputDirectory = Path.GetTempPath()
             };
 
             var ex = Assert.Throws<InvalidOperationException>(() => options.Validate(isProduction: true));
@@ -281,7 +282,16 @@ public class NascaAdapterBoundaryTests
     public void Inspector_DoesNotLaunchProcess()
     {
         var inspector = new NascaInstallationInspector(NullLogger<NascaInstallationInspector>.Instance);
-        var meta = inspector.InspectPath(@"C:\Windows\System32\cmd.exe");
+        var systemPath = OperatingSystem.IsWindows()
+            ? @"C:\Windows\System32\cmd.exe"
+            : "/bin/sh";
+
+        if (!File.Exists(systemPath))
+        {
+            systemPath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? typeof(object).Assembly.Location;
+        }
+
+        var meta = inspector.InspectPath(systemPath);
 
         // Inspector reads file version info metadata without calling Process.Start
         Assert.True(meta.FileExists);

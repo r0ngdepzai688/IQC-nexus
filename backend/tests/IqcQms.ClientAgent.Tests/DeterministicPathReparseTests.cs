@@ -16,7 +16,16 @@ public class TestFileSystemResolver : IFileSystemResolver
     public bool IsReparsePoint(string path) => ReparsePoints.TryGetValue(Normalize(path), out var isReparse) && isReparse;
     public string? ResolveLinkTarget(string path) => LinkTargets.TryGetValue(Normalize(path), out var target) ? target : null;
 
-    private static string Normalize(string path) => Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    private static string Normalize(string path)
+    {
+        if (string.IsNullOrWhiteSpace(path)) return string.Empty;
+        var p = path.Trim();
+        if (p.Length >= 3 && char.IsAsciiLetter(p[0]) && p[1] == ':' && (p[2] == '\\' || p[2] == '/'))
+        {
+            return p.Replace('/', '\\').TrimEnd('\\');
+        }
+        return Path.GetFullPath(p).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    }
 }
 
 public class DeterministicPathReparseTests

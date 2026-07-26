@@ -133,4 +133,29 @@ public class AllowedInputPathValidatorTests : IDisposable
         Assert.False(result.IsAllowed);
         Assert.Equal(PathValidationReason.OutsideAllowedRoots, result.Reason);
     }
+
+    [Theory]
+    [InlineData(@"C:\AllowedRoot\input.csv", false)]
+    [InlineData(@"D:\Data\file.xlsx", false)]
+    [InlineData(@"C:\AllowedRoot\input.csv:stream", true)]
+    [InlineData(@"/var/data/input.csv", false)]
+    [InlineData(@"/var/data/input.csv:hidden_stream", true)]
+    public void AlternateDataStream_Classification_IsPlatformNeutral(string candidatePath, bool expectedIsAds)
+    {
+        var isAds = AllowedInputPathValidator.HasAlternateDataStreamForTest(candidatePath);
+        Assert.Equal(expectedIsAds, isAds);
+    }
+
+    [Fact]
+    public void LinuxAbsolutePath_DoesNotTriggerFalseAds()
+    {
+        var linuxFile = Path.Combine(_allowedRootDir, "linux_test.csv");
+        File.WriteAllText(linuxFile, "content");
+
+        var validator = new AllowedInputPathValidator();
+        var result = validator.ValidatePath(linuxFile, new[] { _allowedRootDir });
+
+        Assert.True(result.IsAllowed);
+        Assert.Equal(PathValidationReason.Allowed, result.Reason);
+    }
 }
