@@ -2083,6 +2083,230 @@ public class NascaOutputValidatorTests : IDisposable
         Assert.Empty(result.Descriptors);
     }
 
+    [Fact]
+    public async Task StabilityWindow_Zero_PassesImmediatelyWithoutDelay()
+    {
+        var trackingTime = new TrackingTimeProvider();
+        var manager = new NascaWorkDirectoryManager(_tempRootDirectory, _securityGuard, NullLogger<NascaWorkDirectoryManager>.Instance);
+        var validator = new NascaOutputValidator(manager, _securityGuard, NullLogger<NascaOutputValidator>.Instance, trackingTime);
+
+        var manifest = await manager.CreateWorkDirectoryAsync("corr_stab_zero", "exec_1");
+        var outputDir = Path.Combine(manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_zero",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.Zero
+            }
+        };
+
+        var result = await validator.ValidateOutputAsync(req);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal("OUTPUT_VALIDATION_SUCCESS", result.SanitizedReasonCode);
+        Assert.False(trackingTime.CreateTimerCalled);
+    }
+
+    [Fact]
+    public async Task StabilityWindow_UnchangedOutput_SucceedsAtBoundary()
+    {
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_stab_success", "exec_1");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_success",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.FromSeconds(1),
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(100),
+                ValidationTimeout = TimeSpan.FromSeconds(5)
+            }
+        };
+
+        var result = await RunValidationWithDeterministicTimeOrchestrationAsync(_validator, req, _timeProvider);
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal("OUTPUT_VALIDATION_SUCCESS", result.SanitizedReasonCode);
+        Assert.Equal(1, result.ValidatedFileCount);
+    }
+
+    [Fact]
+    public async Task StabilityWindow_FileAdded_RestartsContinuousWindow()
+    {
+        var testTime = new TestTimeProvider();
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_stab_added", "exec_1");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content1");
+
+        var validator = new NascaOutputValidator(_manager, _securityGuard, NullLogger<NascaOutputValidator>.Instance, testTime);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_added",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.FromSeconds(2),
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(500),
+                ValidationTimeout = TimeSpan.FromSeconds(10)
+            }
+        };
+
+        var validationTask = validator.ValidateOutputAsync(req);
+
+        // Advance 1s (halfway through window)
+        await testTime.WaitForTimerScheduledAsync(1);
+        testTime.Advance(TimeSpan.FromSeconds(1));
+
+        // Add file2 at 1s mark -> resets stability start
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f2.dat"), "content2");
+        await testTime.WaitForTimerScheduledAsync(2);
+        testTime.Advance(TimeSpan.FromMilliseconds(500));
+
+        // Advance 1s more (only 1s passed since file addition, needs 2s total continuous)
+        testTime.Advance(TimeSpan.FromSeconds(1));
+        Assert.False(validationTask.IsCompleted);
+
+        // Advance final 1s -> 2s continuous stability reached
+        testTime.Advance(TimeSpan.FromSeconds(1));
+        var result = await validationTask;
+
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+        Assert.Equal(2, result.ValidatedFileCount);
+    }
+
+    [Fact]
+    public async Task StabilityWindow_FileLengthChanged_RestartsContinuousWindow()
+    {
+        var testTime = new TestTimeProvider();
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_stab_len", "exec_1");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        var file1 = Path.Combine(outputDir, "f1.dat");
+        await File.WriteAllTextAsync(file1, "initial");
+
+        var validator = new NascaOutputValidator(_manager, _securityGuard, NullLogger<NascaOutputValidator>.Instance, testTime);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_len",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.FromSeconds(2),
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(500),
+                ValidationTimeout = TimeSpan.FromSeconds(10)
+            }
+        };
+
+        var validationTask = validator.ValidateOutputAsync(req);
+
+        // Advance 1s
+        await testTime.WaitForTimerScheduledAsync(1);
+        testTime.Advance(TimeSpan.FromSeconds(1));
+
+        // Modify file length -> resets stability start
+        await File.WriteAllTextAsync(file1, "modified_longer_content");
+        await testTime.WaitForTimerScheduledAsync(2);
+        testTime.Advance(TimeSpan.FromMilliseconds(500));
+
+        // Must run for full 2s after modification
+        testTime.Advance(TimeSpan.FromSeconds(2));
+        var result = await validationTask;
+
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task StabilityWindow_FinalWaitIsBoundedByRemainingWindow()
+    {
+        var testTime = new TestTimeProvider();
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_stab_bounded", "exec_1");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var validator = new NascaOutputValidator(_manager, _securityGuard, NullLogger<NascaOutputValidator>.Instance, testTime);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_bounded",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.FromMilliseconds(350),
+                StabilityPollingInterval = TimeSpan.FromMilliseconds(200),
+                ValidationTimeout = TimeSpan.FromSeconds(5)
+            }
+        };
+
+        var validationTask = validator.ValidateOutputAsync(req);
+
+        // Poll 1 at 200ms
+        await testTime.WaitForTimerScheduledAsync(1);
+        testTime.Advance(TimeSpan.FromMilliseconds(200));
+
+        // Remaining window is 150ms (< 200ms polling interval) -> bounded delay schedules 150ms wait!
+        await testTime.WaitForTimerScheduledAsync(2);
+        testTime.Advance(TimeSpan.FromMilliseconds(150));
+
+        var result = await validationTask;
+        Assert.Equal(NascaOutputValidationOutcome.Valid, result.Outcome);
+    }
+
+    [Fact]
+    public async Task Cancellation_WhileAwaitingTaskDelay_ReturnsCancelledOutcome()
+    {
+        var testTime = new TestTimeProvider();
+        var manifest = await _manager.CreateWorkDirectoryAsync("corr_stab_cancel_delay", "exec_1");
+        var outputDir = Path.Combine(_manager.GetWorkDirectoryPath(manifest.WorkDirectoryId), "output");
+        await File.WriteAllTextAsync(Path.Combine(outputDir, "f1.dat"), "content");
+
+        var validator = new NascaOutputValidator(_manager, _securityGuard, NullLogger<NascaOutputValidator>.Instance, testTime);
+
+        var req = new NascaOutputValidationRequest
+        {
+            CorrelationId = "corr_stab_cancel_delay",
+            ExecutionId = "exec_1",
+            WorkDirectoryId = manifest.WorkDirectoryId,
+            OutputRoot = outputDir,
+            Options = new NascaOutputValidationOptions
+            {
+                StabilityWindow = TimeSpan.FromSeconds(10),
+                StabilityPollingInterval = TimeSpan.FromSeconds(1),
+                ValidationTimeout = TimeSpan.FromSeconds(30)
+            }
+        };
+
+        using var cts = new CancellationTokenSource();
+        var validationTask = validator.ValidateOutputAsync(req, cts.Token);
+
+        var timerSignal = testTime.WaitForTimerScheduledAsync(1);
+        var completed = await Task.WhenAny(validationTask, timerSignal);
+
+        Assert.Same(timerSignal, completed);
+        Assert.False(validationTask.IsCompleted);
+
+        cts.Cancel(); // Cancel while waiting in delay
+
+        var result = await validationTask;
+        Assert.Equal(NascaOutputValidationOutcome.Cancelled, result.Outcome);
+        Assert.Equal("VALIDATION_CANCELLED", result.SanitizedReasonCode);
+    }
+
     private class FaultInjectingPathSecurityGuard : INascaPathSecurityGuard
     {
         private readonly INascaPathSecurityGuard _inner = new NascaPathSecurityGuard();

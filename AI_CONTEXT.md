@@ -67,8 +67,8 @@ The active workstream remains pre-vendor-assumption and fail-closed by design.
 
 ## 4) Current Phase
 
-**Current phase:** **Phase 3A.6**  
-**Focus:** Vendor-Neutral Output Validation
+**Current phase:** **Phase 3A.6.6**
+**Focus:** Validation Descriptor Persistence
 
 Do not skip ahead to later phases unless explicitly requested.
 
@@ -87,6 +87,11 @@ Completed and accepted:
 - Phase 3A.4
 - Phase 3A.5
 - Phase 3A.5 Security Closure
+- Phase 3A.6.1
+- Phase 3A.6.2
+- Phase 3A.6.3
+- Phase 3A.6.4
+- Phase 3A.6.5 (Output Stability-Window Validation)
 
 These are stable baselines, not redesign candidates.
 

@@ -270,14 +270,19 @@ Enforce directory/file-level safety checks within validated output roots.
 
 ## 3A.6.5 — Stability validation
 
+**Status:** ✅ Completed / Accepted
+
 ### Purpose
 Ensure output is stable before acceptance to avoid partial/in-flight capture.
 
 ### Scope
-- Snapshot polling.
+- Snapshot polling with security-first BFS enumeration (`SearchOption.TopDirectoryOnly`).
 - Stability-window confirmation.
+- Continuous stability window restart semantics on file modification.
 - Timeout/cancel handling.
-- Retryable vs non-retryable typed outcomes.
+- Bounded fake-time polling without real sleeps or background task leaks.
+- Fail-closed revalidation of limits and reparse points during polling.
+- Test-only cancellation deadlock resolution via `Task.WhenAny` orchestration.
 
 ### Existing classes to reuse
 - `NascaOutputValidationOptions`

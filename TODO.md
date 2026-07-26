@@ -1,10 +1,6 @@
-- [x] Analyze deterministic hang evidence and identify exact blocking construct
-- [x] Read target test and validator implementation
-- [x] Implement minimal test-only fix for timer-capable fake time provider behavior
-- [ ] Run single test: StableFile_IsAccepted
-- [ ] Run full NascaOutputValidatorTests class
-- [ ] Run NascaOutputValidatorContractsTests
-- [ ] Run full IqcQms.ClientAgent.Tests with blame-hang
-- [ ] Run full solution tests
-- [ ] Run build and hygiene checks
-- [ ] Report final evidence and status
+- [x] Phase 3A.6.1 — NASCA output validation contracts accepted
+- [x] Phase 3A.6.2 — Fail-closed option validation accepted
+- [x] Phase 3A.6.3 — Output-root identity and containment accepted
+- [x] Phase 3A.6.4 — Directory traversal and file safety accepted
+- [x] Phase 3A.6.5 — NASCA output stability-window validation accepted
+- [ ] Phase 3A.6.6 — Validation descriptor persistence (Next)

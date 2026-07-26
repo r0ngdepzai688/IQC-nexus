@@ -78,9 +78,13 @@ Phase 3A.4 hardened staging and artifact integrity behavior using atomic operati
 Phase 3A.5 completed substantial pre-vendor hardening for output/workflow handling, including recovery and containment behavior around startup and cleanup paths.  
 **Guarantees introduced/solidified:** restart recovery posture, cleanup containment rules, and hardened secure handling around work lifecycle boundaries.
 
-## Phase 3A.5 Security Closure
-Security closure finalized the Phase 3A.5 hardening envelope by closing remaining security concerns in path handling and unsafe execution vectors.  
-**Guarantees introduced/solidified:** reparse-point protections, strict path containment, fail-closed behavior in critical checks, and explicit prohibition of unsafe process/interop mechanisms in production architecture.
+## Phase 3A.6.4
+Phase 3A.6.4 implemented directory traversal resistance, reparse-point defenses, level-by-level BFS enumeration, depth/count/file-size limits, and fail-closed security-first entry classification.
+**Guarantees introduced/solidified:** security-first entry classification, level-by-level BFS enumeration with `StringComparer.Ordinal` determinism, non-throwing fail-closed exception boundaries, and strict cancellation contract preservation.
+
+## Phase 3A.6.5
+Phase 3A.6.5 implemented NASCA output stability-window validation using `TimeProvider`-based timing. Every polling iteration executes security-validated BFS snapshotting (`SearchOption.TopDirectoryOnly`), enforcing continuous stability window restart semantics on file modifications while revalidating reparse points, containment, and size/depth/count limits. Resolves test-side deadlock root cause in cancellation test via safe `Task.WhenAny` orchestration.
+**Guarantees introduced/solidified:** continuous stability-window verification, security-first BFS snapshot polling, bounded fake-time polling without real sleeps, fail-closed limit/reparse revalidation during polling, and verified test-only cancellation deadlock resolution. (Verification totals: 97 validator tests, 27 work directory tests, 338 ClientAgent tests, 480 Release solution tests, 0 build warnings/errors).
 
 ---
 
@@ -165,10 +169,10 @@ These unknowns are **intentional** until vendor compatibility is formally proven
 # Current Roadmap
 
 ## Current
-- **Phase 3A.6** — Vendor-Neutral Output Validation
+- **Phase 3A.6.6** — Validation Descriptor Persistence
 
 ## Next
-- **Phase 3A.7**
+- **Phase 3A.7** — Post-Validation Stabilization
 
 ## After that
 - **Frontend F1**

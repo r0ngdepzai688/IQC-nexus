@@ -89,245 +89,96 @@ public class NascaOutputValidator : INascaOutputValidator
                 return result;
             }
 
-            // 3. Check Directory Existence & Reparse Points
-            if (!Directory.Exists(request.OutputRoot))
+            // 3-6. Security-First Snapshot, Limit Validation & Stability Loop
+            var validationStart = _timeProvider.GetUtcNow();
+            var timeoutEnd = validationStart.Add(request.Options.ValidationTimeout);
+
+            if (!TakeSecurityValidatedSnapshot(request, out var initialSnapshot, out var snapshotError))
             {
-                result.Outcome = NascaOutputValidationOutcome.Missing;
-                result.SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING";
-                result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                return result;
+                return snapshotError!;
             }
 
-            if (_securityGuard.IsReparsePoint(request.OutputRoot) ||
-                _securityGuard.ContainsReparsePointInAncestors(_workDirectoryManager.GetWorkRootDirectory(), request.OutputRoot))
+            var files = initialSnapshot.Keys.OrderBy(f => f, StringComparer.Ordinal).ToList();
+            var totalSizeBytes = initialSnapshot.Values.Sum(v => v.Size);
+
+            if (request.Options.StabilityWindow > TimeSpan.Zero)
             {
-                result.Outcome = NascaOutputValidationOutcome.ReparsePointDetected;
-                result.SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_OUTPUT_ROOT";
-                result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                return result;
-            }
+                var stabilityStart = _timeProvider.GetUtcNow();
+                var isStable = false;
+                var currentSnapshot = initialSnapshot;
 
-            // 4. Deterministic Level-by-Level Directory & File Enumeration (BFS)
-            var dirQueue = new Queue<(string Path, int Depth)>();
-            dirQueue.Enqueue((request.OutputRoot, 0));
-
-            var discoveredDirectories = new List<string>();
-            var discoveredFiles = new List<string>();
-            long totalSizeBytes = 0;
-
-            while (dirQueue.Count > 0)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-                var (currentDir, currentDepth) = dirQueue.Dequeue();
-
-                // Enumerate immediate subdirectories (TopDirectoryOnly) and sort deterministically
-                string[] immediateSubDirs;
-                try
+                while (true)
                 {
-                    immediateSubDirs = Directory.GetDirectories(currentDir, "*", SearchOption.TopDirectoryOnly);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    result.Outcome = NascaOutputValidationOutcome.AccessDenied;
-                    result.SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK";
-                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                    return result;
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    result.Outcome = NascaOutputValidationOutcome.Missing;
-                    result.SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING";
-                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                    return result;
-                }
+                    var now = _timeProvider.GetUtcNow();
 
-                Array.Sort(immediateSubDirs, StringComparer.Ordinal);
-
-                foreach (var subDir in immediateSubDirs)
-                {
-                    // 1. Security & Containment Check (evaluated before count/depth limits)
-                    _securityGuard.EnsureSafePath(request.OutputRoot, subDir);
-                    if (_securityGuard.IsReparsePoint(subDir))
+                    if (now >= timeoutEnd)
                     {
-                        result.Outcome = NascaOutputValidationOutcome.ReparsePointDetected;
-                        result.SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_SUBDIRECTORY";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    // 2. Subdirectory Count Check
-                    if (discoveredDirectories.Count + 1 > request.Options.MaximumDirectoryCount)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.UnexpectedDirectory;
-                        result.SanitizedReasonCode = "UNEXPECTED_SUBDIRECTORY_COUNT_EXCEEDED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    // 3. Directory Depth Check
-                    var nextDepth = currentDepth + 1;
-                    if (nextDepth > request.Options.MaximumDirectoryDepth)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.MaximumDepthExceeded;
-                        result.SanitizedReasonCode = "DIRECTORY_DEPTH_EXCEEDED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    discoveredDirectories.Add(subDir);
-                    dirQueue.Enqueue((subDir, nextDepth));
-                }
-
-                // Enumerate immediate files (TopDirectoryOnly) and sort deterministically
-                string[] immediateFiles;
-                try
-                {
-                    immediateFiles = Directory.GetFiles(currentDir, "*", SearchOption.TopDirectoryOnly);
-                }
-                catch (UnauthorizedAccessException)
-                {
-                    result.Outcome = NascaOutputValidationOutcome.AccessDenied;
-                    result.SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK";
-                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                    return result;
-                }
-                catch (DirectoryNotFoundException)
-                {
-                    result.Outcome = NascaOutputValidationOutcome.Missing;
-                    result.SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING";
-                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                    return result;
-                }
-
-                Array.Sort(immediateFiles, StringComparer.Ordinal);
-
-                foreach (var filePath in immediateFiles)
-                {
-                    // 1. Security & Reparse Point Check (evaluated before count/size limits)
-                    _securityGuard.EnsureSafePath(request.OutputRoot, filePath);
-                    if (_securityGuard.IsReparsePoint(filePath))
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.ReparsePointDetected;
-                        result.SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_OUTPUT_FILE";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    // 2. File Count Check
-                    if (discoveredFiles.Count + 1 > request.Options.MaximumFileCount)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.TooManyFiles;
-                        result.SanitizedReasonCode = "FILE_COUNT_EXCEEDED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    // 3. Metadata & Size Checks
-                    FileInfo fileInfo;
-                    try
-                    {
-                        fileInfo = new FileInfo(filePath);
-                    }
-                    catch (UnauthorizedAccessException)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.AccessDenied;
-                        result.SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    if (fileInfo.Length == 0)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.Empty;
-                        result.SanitizedReasonCode = "ZERO_BYTE_OUTPUT_FILE_DETECTED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    if (fileInfo.Length > request.Options.MaximumSingleFileSizeBytes)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.SingleFileSizeExceeded;
-                        result.SanitizedReasonCode = "SINGLE_FILE_SIZE_EXCEEDED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    try
-                    {
-                        totalSizeBytes = checked(totalSizeBytes + fileInfo.Length);
-                    }
-                    catch (OverflowException)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.TotalSizeExceeded;
-                        result.SanitizedReasonCode = "TOTAL_OUTPUT_SIZE_OVERFLOW";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    if (totalSizeBytes > request.Options.MaximumTotalOutputSizeBytes)
-                    {
-                        result.Outcome = NascaOutputValidationOutcome.TotalSizeExceeded;
-                        result.SanitizedReasonCode = "TOTAL_OUTPUT_SIZE_EXCEEDED";
-                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                        return result;
-                    }
-
-                    discoveredFiles.Add(filePath);
-                }
-            }
-
-            if (discoveredFiles.Count == 0)
-            {
-                result.Outcome = NascaOutputValidationOutcome.Empty;
-                result.SanitizedReasonCode = "OUTPUT_DIRECTORY_EMPTY";
-                result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                return result;
-            }
-
-            var files = discoveredFiles.OrderBy(f => f, StringComparer.Ordinal).ToList();
-
-            // 6. Stability Validation Loop
-            var stabilityStart = _timeProvider.GetUtcNow();
-            var timeoutEnd = stabilityStart.Add(request.Options.ValidationTimeout);
-            var isStable = false;
-
-            while (_timeProvider.GetUtcNow() < timeoutEnd)
-            {
-                if (cancellationToken.IsCancellationRequested)
-                {
-                    result.Outcome = NascaOutputValidationOutcome.Cancelled;
-                    result.SanitizedReasonCode = "VALIDATION_CANCELLED";
-                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                    return result;
-                }
-
-                // Initial Snapshot
-                var snapshot1 = GetFileSnapshots(request.OutputRoot);
-                await Task.Delay(request.Options.StabilityPollingInterval, _timeProvider, cancellationToken);
-                var snapshot2 = GetFileSnapshots(request.OutputRoot);
-
-                if (AreSnapshotsEqual(snapshot1, snapshot2))
-                {
-                    var elapsed = _timeProvider.GetUtcNow() - stabilityStart;
-                    if (elapsed >= request.Options.StabilityWindow)
-                    {
-                        isStable = true;
                         break;
                     }
-                }
-                else
-                {
-                    // Files modified/changed during polling interval
-                    stabilityStart = _timeProvider.GetUtcNow(); // Reset stability timer
-                }
-            }
 
-            if (!isStable)
-            {
-                result.Outcome = NascaOutputValidationOutcome.ValidationTimedOut;
-                result.SanitizedReasonCode = "OUTPUT_STABILITY_TIMEOUT";
-                result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
-                return result;
+                    var remainingStability = stabilityStart.Add(request.Options.StabilityWindow) - now;
+                    if (remainingStability <= TimeSpan.Zero)
+                    {
+                        isStable = true;
+                        files = currentSnapshot.Keys.OrderBy(f => f, StringComparer.Ordinal).ToList();
+                        totalSizeBytes = currentSnapshot.Values.Sum(v => v.Size);
+                        break;
+                    }
+
+                    var remainingTimeout = timeoutEnd - now;
+                    var delay = request.Options.StabilityPollingInterval;
+                    if (delay > remainingStability) delay = remainingStability;
+                    if (delay > remainingTimeout) delay = remainingTimeout;
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        result.Outcome = NascaOutputValidationOutcome.Cancelled;
+                        result.SanitizedReasonCode = "VALIDATION_CANCELLED";
+                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                        return result;
+                    }
+
+                    await Task.Delay(delay, _timeProvider, cancellationToken);
+
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        result.Outcome = NascaOutputValidationOutcome.Cancelled;
+                        result.SanitizedReasonCode = "VALIDATION_CANCELLED";
+                        result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                        return result;
+                    }
+
+                    if (!TakeSecurityValidatedSnapshot(request, out var nextSnapshot, out var nextError))
+                    {
+                        return nextError!;
+                    }
+
+                    if (AreSnapshotsEqual(currentSnapshot, nextSnapshot))
+                    {
+                        var elapsed = _timeProvider.GetUtcNow() - stabilityStart;
+                        if (elapsed >= request.Options.StabilityWindow)
+                        {
+                            isStable = true;
+                            files = nextSnapshot.Keys.OrderBy(f => f, StringComparer.Ordinal).ToList();
+                            totalSizeBytes = nextSnapshot.Values.Sum(v => v.Size);
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        // Output modified during polling interval -> reset continuous stability window timer
+                        currentSnapshot = nextSnapshot;
+                        stabilityStart = _timeProvider.GetUtcNow();
+                    }
+                }
+
+                if (!isStable)
+                {
+                    result.Outcome = NascaOutputValidationOutcome.ValidationTimedOut;
+                    result.SanitizedReasonCode = "OUTPUT_STABILITY_TIMEOUT";
+                    result.ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime;
+                    return result;
+                }
             }
 
             // 7. Compute Streaming Hashes & Persist Safe Descriptors
@@ -397,17 +248,251 @@ public class NascaOutputValidator : INascaOutputValidator
         }
     }
 
-    private static Dictionary<string, (long Size, DateTime LastWrite)> GetFileSnapshots(string dirPath)
+    private bool TakeSecurityValidatedSnapshot(
+        NascaOutputValidationRequest request,
+        out Dictionary<string, (long Size, DateTime LastWrite)> snapshot,
+        out NascaOutputValidationResult? errorResult)
     {
-        var dict = new Dictionary<string, (long, DateTime)>();
-        if (!Directory.Exists(dirPath)) return dict;
+        snapshot = new Dictionary<string, (long Size, DateTime LastWrite)>(StringComparer.Ordinal);
+        errorResult = null;
 
-        foreach (var file in Directory.GetFiles(dirPath, "*", SearchOption.AllDirectories))
+        if (!Directory.Exists(request.OutputRoot))
         {
-            var info = new FileInfo(file);
-            dict[file] = (info.Length, info.LastWriteTimeUtc);
+            errorResult = new NascaOutputValidationResult
+            {
+                Outcome = NascaOutputValidationOutcome.Missing,
+                SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING",
+                ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+            };
+            return false;
         }
-        return dict;
+
+        if (_securityGuard.IsReparsePoint(request.OutputRoot) ||
+            _securityGuard.ContainsReparsePointInAncestors(_workDirectoryManager.GetWorkRootDirectory(), request.OutputRoot))
+        {
+            errorResult = new NascaOutputValidationResult
+            {
+                Outcome = NascaOutputValidationOutcome.ReparsePointDetected,
+                SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_OUTPUT_ROOT",
+                ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+            };
+            return false;
+        }
+
+        var dirQueue = new Queue<(string Path, int Depth)>();
+        dirQueue.Enqueue((request.OutputRoot, 0));
+
+        var discoveredDirectoriesCount = 0;
+        var discoveredFilesCount = 0;
+        long totalSizeBytes = 0;
+
+        while (dirQueue.Count > 0)
+        {
+            var (currentDir, currentDepth) = dirQueue.Dequeue();
+
+            string[] immediateSubDirs;
+            try
+            {
+                immediateSubDirs = Directory.GetDirectories(currentDir, "*", SearchOption.TopDirectoryOnly);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                errorResult = new NascaOutputValidationResult
+                {
+                    Outcome = NascaOutputValidationOutcome.AccessDenied,
+                    SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK",
+                    ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                };
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                errorResult = new NascaOutputValidationResult
+                {
+                    Outcome = NascaOutputValidationOutcome.Missing,
+                    SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING",
+                    ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                };
+                return false;
+            }
+
+            Array.Sort(immediateSubDirs, StringComparer.Ordinal);
+
+            foreach (var subDir in immediateSubDirs)
+            {
+                _securityGuard.EnsureSafePath(request.OutputRoot, subDir);
+                if (_securityGuard.IsReparsePoint(subDir))
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.ReparsePointDetected,
+                        SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_SUBDIRECTORY",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                if (discoveredDirectoriesCount + 1 > request.Options.MaximumDirectoryCount)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.UnexpectedDirectory,
+                        SanitizedReasonCode = "UNEXPECTED_SUBDIRECTORY_COUNT_EXCEEDED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                var nextDepth = currentDepth + 1;
+                if (nextDepth > request.Options.MaximumDirectoryDepth)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.MaximumDepthExceeded,
+                        SanitizedReasonCode = "DIRECTORY_DEPTH_EXCEEDED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                discoveredDirectoriesCount++;
+                dirQueue.Enqueue((subDir, nextDepth));
+            }
+
+            string[] immediateFiles;
+            try
+            {
+                immediateFiles = Directory.GetFiles(currentDir, "*", SearchOption.TopDirectoryOnly);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                errorResult = new NascaOutputValidationResult
+                {
+                    Outcome = NascaOutputValidationOutcome.AccessDenied,
+                    SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK",
+                    ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                };
+                return false;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                errorResult = new NascaOutputValidationResult
+                {
+                    Outcome = NascaOutputValidationOutcome.Missing,
+                    SanitizedReasonCode = "OUTPUT_DIRECTORY_MISSING",
+                    ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                };
+                return false;
+            }
+
+            Array.Sort(immediateFiles, StringComparer.Ordinal);
+
+            foreach (var filePath in immediateFiles)
+            {
+                _securityGuard.EnsureSafePath(request.OutputRoot, filePath);
+                if (_securityGuard.IsReparsePoint(filePath))
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.ReparsePointDetected,
+                        SanitizedReasonCode = "REPARSE_POINT_DETECTED_IN_OUTPUT_FILE",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                if (discoveredFilesCount + 1 > request.Options.MaximumFileCount)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.TooManyFiles,
+                        SanitizedReasonCode = "FILE_COUNT_EXCEEDED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                FileInfo fileInfo;
+                try
+                {
+                    fileInfo = new FileInfo(filePath);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.AccessDenied,
+                        SanitizedReasonCode = "ACCESS_DENIED_DURING_SECURITY_CHECK",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                if (fileInfo.Length == 0)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.Empty,
+                        SanitizedReasonCode = "ZERO_BYTE_OUTPUT_FILE_DETECTED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                if (fileInfo.Length > request.Options.MaximumSingleFileSizeBytes)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.SingleFileSizeExceeded,
+                        SanitizedReasonCode = "SINGLE_FILE_SIZE_EXCEEDED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                try
+                {
+                    totalSizeBytes = checked(totalSizeBytes + fileInfo.Length);
+                }
+                catch (OverflowException)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.TotalSizeExceeded,
+                        SanitizedReasonCode = "TOTAL_OUTPUT_SIZE_OVERFLOW",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                if (totalSizeBytes > request.Options.MaximumTotalOutputSizeBytes)
+                {
+                    errorResult = new NascaOutputValidationResult
+                    {
+                        Outcome = NascaOutputValidationOutcome.TotalSizeExceeded,
+                        SanitizedReasonCode = "TOTAL_OUTPUT_SIZE_EXCEEDED",
+                        ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+                    };
+                    return false;
+                }
+
+                discoveredFilesCount++;
+                snapshot[filePath] = (fileInfo.Length, fileInfo.LastWriteTimeUtc);
+            }
+        }
+
+        if (discoveredFilesCount == 0)
+        {
+            errorResult = new NascaOutputValidationResult
+            {
+                Outcome = NascaOutputValidationOutcome.Empty,
+                SanitizedReasonCode = "OUTPUT_DIRECTORY_EMPTY",
+                ValidationCompletedUtc = _timeProvider.GetUtcNow().UtcDateTime
+            };
+            return false;
+        }
+
+        return true;
     }
 
     private static bool AreSnapshotsEqual(Dictionary<string, (long Size, DateTime LastWrite)> s1, Dictionary<string, (long Size, DateTime LastWrite)> s2)

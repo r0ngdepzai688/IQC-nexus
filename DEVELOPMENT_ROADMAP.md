@@ -211,26 +211,48 @@ Closed remaining security concerns for Phase 3A.5 by formalizing strict path-sec
 
 ---
 
-## Phase 3A.6 — Vendor-Neutral Output Validation
+## Phase 3A.6.5 — Output Stability-Window Validation
 
-**Status:** 🟨 In Progress  
-**Summary:**  
-Current implementation target. Extends output validation under vendor-neutral assumptions while preserving all accepted architecture. Focus is strict validation policy, deterministic outcomes, and fail-closed behavior without enabling vendor-specific runtime behavior.
+**Status:** ✅ Completed
+**Summary:**
+Implemented vendor-neutral NASCA output stability-window validation using `TimeProvider`-based timing and continuous stability-window restart semantics. Revalidates reparse points, containment, and size/depth/count limits during every polling iteration using security-first BFS enumeration (`SearchOption.TopDirectoryOnly`).
 
-**Dependencies:**  
-- Phase 3A.5 Security Closure completion
+**Dependencies:**
+- Phase 3A.6.4 completion
 
-**Acceptance Criteria:**  
-- Output validation remains vendor-neutral and strongly typed
-- Validation enforces containment/reparse/security constraints
-- Deterministic sanitized outcomes/reason codes are produced
-- Production remains fail-closed with no vendor process launch assumptions
+**Acceptance Criteria:**
+- Security-validated BFS snapshot polling enforced on every poll
+- Continuous stability window resets upon file modification / size / timestamp change
+- Bounded fake-time polling without real sleeps or background leaks
+- Fail-closed revalidation of limits and reparse points during polling
+- Test-only cancellation deadlock resolved via `Task.WhenAny` orchestration
 
-**Deliverables:**  
-- Hardened output validation behavior and tests
-- Updated documentation/evidence for 3A.6 acceptance
+**Deliverables:**
+- Hardened stability polling implementation in `NascaOutputValidator.cs`
+- Matrix of deterministic unit tests in `NascaOutputValidatorTests.cs` (97 passed)
 
-**Approximate complexity:** High
+**Approximate complexity:** Medium-High
+
+---
+
+## Phase 3A.6.6 — Validation Descriptor Persistence
+
+**Status:** 🟨 Next
+**Summary:**
+Persist and retain validated descriptor metadata required for deterministic downstream execution state and auditability.
+
+**Dependencies:**
+- Phase 3A.6.5 completion
+
+**Acceptance Criteria:**
+- Descriptor list construction consistency and deterministic ordering
+- Hash descriptor integrity alignment with durable state
+- Fail-closed metadata handling
+
+**Deliverables:**
+- Descriptor persistence handling and tests
+
+**Approximate complexity:** Medium
 
 ---
 
